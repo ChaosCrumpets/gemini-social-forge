@@ -1,0 +1,41 @@
+# Role
+Act as a Senior Full-Stack Engineer and Google Cloud Architect specialized in Generative AI.
+
+# Project: C.A.L. (Content Assembly Line) - MVP Core
+We are building the functional "Engine" for a social media content generator using **Firebase** and the **Gemini API**.
+**Goal:** Create a functional MVP that handles the logic, data storage, and AI orchestration. The UI can be raw/functional; we will polish it later.
+
+# Tech Stack (Strict)
+* **Backend:** Firebase (Firestore, Cloud Functions).
+* **AI:** Google Gemini API (`gemini-1.5-pro-latest`) via Firebase Genkit or direct SDK.
+* **Frontend (MVP):** Simple React + Tailwind (hosted on Firebase Hosting).
+
+# Input Context: The "Master Prompt" Logic
+The application logic must adhere to the attached "C.A.L. PDF" content.
+[PASTE FULL C.A.L. PDF CONTENT HERE]
+
+# Core Requirements
+
+## 1. Data Schema (Firestore)
+Design a `projects` collection to store the C.A.L. state.
+* **Fields:** `userId`, `status` (inputting | hook_selection | generating | complete), `inputs` (JSON object of user constraints), `hooks` (array of generated hooks), `selectedHook`, `finalOutput` (the full 5-panel JSON).
+* **Key Requirement:** The schema must support the "Pause" state where the AI waits for the user to select a hook.
+
+## 2. Gemini Orchestration (Cloud Functions)
+Create two distinct Cloud Functions (or Genkit Flows):
+* `generateHooks`: Takes user inputs -> Inject "Master Prompt" (Hook Mode) -> Returns 4-7 hooks.
+* `generateFullContent`: Takes user inputs + selected hook -> Inject "Master Prompt" (Full Mode) -> Returns the full JSON package (Script, Storyboard, B-Roll, etc.).
+
+## 3. The "Chat-to-Dashboard" Logic
+Implement the logic flow:
+1.  **Input:** User chats parameters (Topic, Platform).
+2.  **State Change:** Trigger `generateHooks`. Update Firestore status to `hook_selection`.
+3.  **Interaction:** User selects a hook ID.
+4.  **Final Generation:** Trigger `generateFullContent`. Update Firestore status to `complete`.
+
+## Deliverables
+1.  **Schema Definition:** The exact Firestore security rules and model structure.
+2.  **API Logic:** The Python/Node.js code for the two Cloud Functions that wrap the Gemini API calls with the C.A.L. system instructions.
+3.  **MVP Frontend Code:** A basic React component (`AssemblyLine.tsx`) that connects to these functions to prove the "Chat -> Select Hook -> View Result" flow works.
+
+Start by defining the Firestore Schema and the System Instruction for the Gemini API.
