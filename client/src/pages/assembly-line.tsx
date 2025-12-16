@@ -6,7 +6,7 @@ import { ThinkingState } from '@/components/ThinkingState';
 import { SplitDashboard } from '@/components/SplitDashboard';
 import { StatusBar } from '@/components/StatusBar';
 import { ProjectStatus } from '@shared/schema';
-import type { Hook, ChatMessage, AgentStatus } from '@shared/schema';
+import type { Hook, ChatMessage, AgentStatus, UserInputs } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 
 export default function AssemblyLine() {
@@ -14,6 +14,7 @@ export default function AssemblyLine() {
     project, 
     initProject, 
     addMessage, 
+    updateInputs,
     setHooks, 
     selectHook, 
     setOutput,
@@ -31,60 +32,7 @@ export default function AssemblyLine() {
     }
   }, [project, initProject]);
 
-  const handleSendMessage = useCallback(async (content: string) => {
-    if (!project) return;
-
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content,
-      timestamp: Date.now()
-    };
-    
-    addMessage(userMessage);
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await apiRequest('POST', '/api/chat', {
-        projectId: project.id,
-        message: content,
-        inputs: project.inputs,
-        messages: [...project.messages, userMessage]
-      });
-
-      const data = await response.json();
-
-      if (data.message) {
-        const assistantMessage: ChatMessage = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: data.message,
-          timestamp: Date.now()
-        };
-        addMessage(assistantMessage);
-      }
-
-      if (data.readyForHooks) {
-        await generateHooks();
-      }
-    } catch (error) {
-      console.error('Chat error:', error);
-      setError('Failed to send message. Please try again.');
-      
-      const errorMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
-        timestamp: Date.now()
-      };
-      addMessage(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [project, addMessage, setLoading, setError]);
-
-  const generateHooks = useCallback(async () => {
+  const generateHooks = useCallback(async (inputsOverride?: Partial<UserInputs>) => {
     if (!project) return;
 
     setLoading(true);
@@ -95,10 +43,12 @@ export default function AssemblyLine() {
     ];
     setAgents(hookAgents);
 
+    const inputsToUse = inputsOverride || project.inputs;
+
     try {
       const response = await apiRequest('POST', '/api/generate-hooks', {
         projectId: project.id,
-        inputs: project.inputs
+        inputs: inputsToUse
       });
 
       const data = await response.json();
@@ -124,6 +74,67 @@ export default function AssemblyLine() {
       setLoading(false);
     }
   }, [project, setLoading, setStatus, setAgents, updateAgent, setHooks, addMessage, setError]);
+
+  const handleSendMessage = useCallback(async (content: string) => {
+    if (!project) return;
+
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content,
+      timestamp: Date.now()
+    };
+    
+    addMessage(userMessage);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await apiRequest('POST', '/api/chat', {
+        projectId: project.id,
+        message: content,
+        inputs: project.inputs,
+        messages: [...project.messages, userMessage]
+      });
+
+      const data = await response.json();
+
+      const updatedInputs: Partial<UserInputs> = data.extractedInputs 
+        ? { ...project.inputs, ...data.extractedInputs }
+        : project.inputs;
+      
+      if (data.extractedInputs) {
+        updateInputs(data.extractedInputs);
+      }
+
+      if (data.message) {
+        const assistantMessage: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: data.message,
+          timestamp: Date.now()
+        };
+        addMessage(assistantMessage);
+      }
+
+      if (data.readyForHooks) {
+        await generateHooks(updatedInputs);
+      }
+    } catch (error) {
+      console.error('Chat error:', error);
+      setError('Failed to send message. Please try again.');
+      
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: 'Sorry, I encountered an error. Please try again.',
+        timestamp: Date.now()
+      };
+      addMessage(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [project, addMessage, updateInputs, setLoading, setError, generateHooks]);
 
   const handleSelectHook = useCallback(async (hook: Hook) => {
     if (!project) return;
