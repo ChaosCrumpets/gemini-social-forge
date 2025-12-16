@@ -61,12 +61,12 @@ export function VisualHookStage({
   isLoadingHooks = false
 }: VisualHookStageProps) {
   
-  if (showContextForm) {
+  if (showContextForm && onVisualContextChange && onContextSubmit) {
     return (
       <VisualContextForm 
         context={visualContext || {}}
-        onChange={onVisualContextChange!}
-        onSubmit={onContextSubmit!}
+        onChange={onVisualContextChange}
+        onSubmit={onContextSubmit}
         isLoading={isLoadingHooks}
       />
     );
