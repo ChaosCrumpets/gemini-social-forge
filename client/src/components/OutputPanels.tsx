@@ -204,6 +204,10 @@ function BRollPanel({ items }: { items: BRollItem[] }) {
   };
 
   const copyToClipboard = async (text: string, id: string) => {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) {
+      console.warn('Clipboard API not available');
+      return;
+    }
     try {
       await navigator.clipboard.writeText(text);
       setCopiedId(id);
