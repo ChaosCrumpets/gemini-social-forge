@@ -11,7 +11,17 @@ The system follows a state-machine pattern with seven distinct phases:
 4. **hook_visual** - Provide filming context, then select from 6 visual hooks (dual output: FIY filming guide + GenAI prompt)
 5. **hook_overview** - Review all 3 hook selections before final generation
 6. **generating** - AI agents produce the content package
-7. **complete** - View final output with script, storyboard, tech specs, B-roll, and captions
+7. **complete** - View final output with script, storyboard, tech specs, B-roll (with AI generation prompts), and captions
+
+### B-Roll AI Prompts
+Each B-roll suggestion now includes three output types:
+- **FIY (Film It Yourself)**: Practical filming instructions
+- **Alpha Image Prompt**: Cinematic, photorealistic prompt for AI image generation (Midjourney, DALL-E, etc.)
+- **Omega Video Prompt**: Motion-focused prompt for AI video generation (Runway, Sora, etc.)
+
+The prompts follow the Alpha/Omega framework:
+- Alpha prompts use the 3-Pillar structure: Structure (technical), Reference (style), Vision (emotion)
+- Omega prompts extend images into motion with camera movement, narrative arc, and controlled chaos
 
 ## User Preferences
 
