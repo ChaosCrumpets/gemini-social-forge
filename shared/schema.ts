@@ -45,7 +45,9 @@ export const hookSchema = z.object({
   id: z.string(),
   type: z.string(),
   text: z.string(),
-  preview: z.string()
+  preview: z.string(),
+  rank: z.number().min(1).max(6).optional(),
+  isRecommended: z.boolean().optional()
 });
 
 export type Hook = z.infer<typeof hookSchema>;

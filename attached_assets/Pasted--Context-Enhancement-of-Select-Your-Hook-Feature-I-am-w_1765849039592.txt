@@ -1,0 +1,32 @@
+# Context: Enhancement of "Select Your Hook" Feature
+I am working on a Replit app (React/Next.js). I have a "Select Your Hook" screen (see uploaded context) that currently displays ~6 generated hooks in a grid layout with classifications (Question, Statistic, Story, etc.).
+
+# Objective
+I need to upgrade this feature to include a "Smart Ranking System" powered by a `.tsv` database. The goal is to guide the user toward the hook with the highest probability of conversion/reach for their specific niche.
+
+# Feature Requirements
+
+## 1. Database Integration
+* I will upload a file named `hook_database.tsv` to the Replit file system.
+* Implement a backend utility to parse this TSV file.
+* **TSV Structure:** Assume columns for `hook_template`, `category`, `niche`, and `efficacy_score`.
+
+## 2. Updated Generation & Ranking Logic (C.A.L)
+* Modify the current hook generation logic. C.A.L must now:
+    1.  Perform its standard research on the user's input niche.
+    2.  Cross-reference the user's niche with high-scoring patterns in the `hook_database.tsv`.
+    3.  Generate the hook options as usual.
+    4.  **Ranking Step:** Analyze the generated hooks and assign a Rank (1 to 6) based on predicted efficacy (reach/conversions).
+    5.  Flag the #1 ranked hook as `isRecommended: true`.
+
+## 3. Frontend UI Updates (Critical)
+* **Maintain:** Keep the existing grid layout, dark theme, and hook classification labels (Question, Story, Bold, etc.) exactly as they are now.
+* **New Visuals:**
+    * **Ranking Badges:** Add a subtle visual indicator (e.g., a small number circle or label "1", "2", "3") to *every* hook tile.
+    * **Recommended Tag:** For the hook flagged as `isRecommended`, add a prominent badge (e.g., "Recommended" or "Best Choice") or a distinct border highlight (e.g., Gold or Accent color) to make it stand out immediately.
+
+# Implementation Plan
+Please provide the code changes required for:
+1.  The TSV parser utility.
+2.  The updated prompt/logic chain for C.A.L to handle the ranking.
+3.  The modified React component for the Hook Tile to accept and render the `rank` and `isRecommended` props.
