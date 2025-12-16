@@ -321,6 +321,395 @@ Generate 6 hooks with unique ranks (1-6, where 1 is best). The rank=1 hook shoul
   }
 }
 
+// TEXT HOOK GENERATION (On-screen text, captions, titles)
+const TEXT_HOOK_PROMPT = `Generate 6 TEXT HOOKS for short-form video content. These are the first text elements viewers read - thumbnails, on-screen text, title cards, and captions.
+
+TEXT HOOK CHARACTERISTICS:
+- Short, punchy, high-contrast text (typically 3-8 words)
+- Designed for quick scanning and instant curiosity
+- Works in ALL CAPS or sentence case
+- Creates immediate intrigue without audio
+
+Hook types to consider:
+- bold_statement: Direct, provocative claims
+- listicle: "3 Things...", "5 Ways..."
+- question: Short, punchy questions
+- contrast: "Stop [X]. Do [Y]."
+- secret: "The truth about...", "What they don't tell you..."
+- result: "How I [achieved result]"
+
+RANKING CRITERIA:
+1. Scan-speed readability (how fast can it be understood?)
+2. Curiosity gap strength
+3. Niche relevance and platform fit
+4. Thumbnail/scroll-stopping power
+
+Return ONLY valid JSON:
+{
+  "textHooks": [
+    {
+      "id": "T1",
+      "type": "bold_statement|listicle|question|contrast|secret|result",
+      "content": "The actual text hook (3-8 words)",
+      "placement": "thumbnail|title_card|caption_overlay",
+      "rank": 1-6 (1 is best, unique),
+      "isRecommended": true (only for rank 1) or false
+    }
+  ]
+}`;
+
+// VERBAL HOOK GENERATION (Script openers, spoken words)
+const VERBAL_HOOK_PROMPT = `Generate 6 VERBAL HOOKS for short-form video content. These are the first words spoken - the script opener that hooks the viewer's attention.
+
+VERBAL HOOK CHARACTERISTICS:
+- First 2-5 seconds of spoken content
+- Pattern interrupts, direct engagement
+- Uses "Super Hook" methodology for credibility
+- Conversational, direct, and compelling
+
+Super Hook Methods to apply:
+- effort_condensed: "I spent 1000 hours..." / "After testing 50 methods..."
+- failure: "I failed 5 times, but..." / "Everyone told me I was wrong..."
+- credibility_arbitrage: "According to [authority]..." / "Research shows..."
+- shared_emotion: "If you've ever felt..." / "You know that feeling when..."
+- pattern_interrupt: "Stop what you're doing." / "This is urgent."
+- direct_question: "Want to know the secret?" / "Have you ever wondered...?"
+
+RANKING CRITERIA:
+1. Emotional engagement strength
+2. Alignment with Super Hook strategy
+3. Credibility establishment speed
+4. Database efficacy patterns
+
+Return ONLY valid JSON:
+{
+  "verbalHooks": [
+    {
+      "id": "V1",
+      "type": "effort_condensed|failure|credibility_arbitrage|shared_emotion|pattern_interrupt|direct_question",
+      "content": "The spoken words (first 2-5 seconds)",
+      "emotionalTrigger": "curiosity|empathy|urgency|surprise|validation",
+      "retentionTrigger": "open_loop|information_gap|relatability|authority",
+      "rank": 1-6 (1 is best, unique),
+      "isRecommended": true (only for rank 1) or false
+    }
+  ]
+}`;
+
+// VISUAL HOOK GENERATION (Scene, camera, setting)
+const VISUAL_HOOK_PROMPT = `Generate 6 VISUAL HOOKS for short-form video content. These define the visual composition, camera work, and scene setting for the opening shot.
+
+CRITICAL: Each visual hook must provide TWO execution paths:
+1. FIY (Film It Yourself): Directorial instructions for shooting
+2. GenAI Prompt: Optimized prompt for Midjourney/DALL-E B-roll generation
+
+VISUAL HOOK CHARACTERISTICS:
+- First 2-3 seconds of visual content
+- Sets mood, establishes authority, creates intrigue
+- Camera angles, movement, lighting, composition
+- Must work with or without the creator on camera
+
+Visual types to consider:
+- dynamic_movement: Walking into frame, camera push/pull
+- close_up_reveal: Product/face reveal, dramatic lighting
+- environment_establish: Wide establishing shot
+- action_in_progress: Caught mid-activity
+- contrast_cut: Before/after, problem/solution visual
+- text_focused: Minimal background, text-forward
+
+RANKING CRITERIA:
+1. Scroll-stopping visual impact
+2. Production feasibility with user's setup
+3. Platform optimization (vertical format priority)
+4. Emotional/tonal alignment with content
+
+Return ONLY valid JSON:
+{
+  "visualHooks": [
+    {
+      "id": "VIS1",
+      "type": "dynamic_movement|close_up_reveal|environment_establish|action_in_progress|contrast_cut|text_focused",
+      "fiyGuide": "Detailed filming instructions: camera angle, movement, lighting, action, props",
+      "genAiPrompt": "Optimized prompt for AI image/video generation, include style, composition, mood --ar 9:16",
+      "sceneDescription": "Brief summary of the visual concept",
+      "rank": 1-6 (1 is best, unique),
+      "isRecommended": true (only for rank 1) or false
+    }
+  ]
+}`;
+
+export interface TextHookResponse {
+  textHooks: Array<{
+    id: string;
+    type: string;
+    content: string;
+    placement?: string;
+    rank: number;
+    isRecommended: boolean;
+  }>;
+}
+
+export interface VerbalHookResponse {
+  verbalHooks: Array<{
+    id: string;
+    type: string;
+    content: string;
+    emotionalTrigger?: string;
+    retentionTrigger?: string;
+    rank: number;
+    isRecommended: boolean;
+  }>;
+}
+
+export interface VisualHookResponse {
+  visualHooks: Array<{
+    id: string;
+    type: string;
+    fiyGuide: string;
+    genAiPrompt: string;
+    sceneDescription?: string;
+    rank: number;
+    isRecommended: boolean;
+  }>;
+}
+
+export async function generateTextHooks(
+  inputs: Record<string, unknown>
+): Promise<TextHookResponse> {
+  try {
+    const topic = (inputs.topic as string) || 'general content';
+    const niche = `${topic} ${inputs.targetAudience || ''} ${inputs.goal || ''}`;
+    
+    const hookPatterns = getHookPatternSummary(niche);
+
+    const prompt = `${TEXT_HOOK_PROMPT}
+
+PROVEN PATTERNS FOR THIS NICHE:
+${hookPatterns}
+
+Content Details:
+- Topic: ${inputs.topic || 'Not specified'}
+- Goal: ${inputs.goal || 'Not specified'}
+- Platforms: ${Array.isArray(inputs.platforms) ? inputs.platforms.join(', ') : 'Not specified'}
+- Target Audience: ${inputs.targetAudience || 'General audience'}
+- Tone: ${inputs.tone || 'Engaging and professional'}
+
+Generate 6 text hooks with unique ranks (1-6, where 1 is best):`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      config: { responseMimeType: "application/json" },
+      contents: prompt
+    });
+
+    const parsed = JSON.parse(response.text || '');
+    
+    if (!parsed.textHooks || !Array.isArray(parsed.textHooks)) {
+      throw new Error('Invalid text hooks response');
+    }
+
+    return { textHooks: validateAndRankHooks(parsed.textHooks, 'text') };
+  } catch (error) {
+    console.error('Text hooks error:', error);
+    throw new Error('Failed to generate text hooks');
+  }
+}
+
+export async function generateVerbalHooks(
+  inputs: Record<string, unknown>
+): Promise<VerbalHookResponse> {
+  try {
+    const topic = (inputs.topic as string) || 'general content';
+    const niche = `${topic} ${inputs.targetAudience || ''} ${inputs.goal || ''}`;
+    
+    const hookPatterns = getHookPatternSummary(niche);
+    const relevantTemplates = getRelevantHookPatterns(niche, 8);
+    const templateExamples = relevantTemplates.slice(0, 5).map(t => `- "${t.template}"`).join('\n');
+
+    const prompt = `${VERBAL_HOOK_PROMPT}
+
+PROVEN VIRAL PATTERNS FOR THIS NICHE:
+${hookPatterns}
+
+HIGH-PERFORMING VERBAL TEMPLATES:
+${templateExamples}
+
+Content Details:
+- Topic: ${inputs.topic || 'Not specified'}
+- Goal: ${inputs.goal || 'Not specified'}
+- Platforms: ${Array.isArray(inputs.platforms) ? inputs.platforms.join(', ') : 'Not specified'}
+- Target Audience: ${inputs.targetAudience || 'General audience'}
+- Tone: ${inputs.tone || 'Engaging and professional'}
+- Brand Voice: ${inputs.tone === 'educational' ? 'Educator' : inputs.tone === 'fun' ? 'Gamifier' : 'Experimenter'}
+
+Generate 6 verbal hooks with unique ranks (1-6, where 1 is best):`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      config: { responseMimeType: "application/json" },
+      contents: prompt
+    });
+
+    const parsed = JSON.parse(response.text || '');
+    
+    if (!parsed.verbalHooks || !Array.isArray(parsed.verbalHooks)) {
+      throw new Error('Invalid verbal hooks response');
+    }
+
+    return { verbalHooks: validateAndRankHooks(parsed.verbalHooks, 'verbal') };
+  } catch (error) {
+    console.error('Verbal hooks error:', error);
+    throw new Error('Failed to generate verbal hooks');
+  }
+}
+
+export async function generateVisualHooks(
+  inputs: Record<string, unknown>,
+  visualContext: { location?: string; lighting?: string; onCamera?: boolean }
+): Promise<VisualHookResponse> {
+  try {
+    const locationMap: Record<string, string> = {
+      desk_office: 'desk or office environment',
+      standing_wall: 'standing against a wall or backdrop',
+      outdoors: 'outdoor location',
+      car: 'inside a car',
+      gym: 'gym or fitness environment',
+      kitchen: 'kitchen setting',
+      studio: 'professional studio setup',
+      other: 'flexible environment'
+    };
+
+    const lightingMap: Record<string, string> = {
+      natural_window: 'natural window lighting',
+      ring_light: 'ring light setup',
+      professional_studio: 'professional studio lighting',
+      dark_moody: 'dark and moody atmosphere',
+      mixed: 'mixed lighting sources'
+    };
+
+    const prompt = `${VISUAL_HOOK_PROMPT}
+
+PRODUCTION CONTEXT:
+- Filming Location: ${locationMap[visualContext.location || 'other'] || 'flexible environment'}
+- Lighting Setup: ${lightingMap[visualContext.lighting || 'mixed'] || 'available lighting'}
+- Creator On Camera: ${visualContext.onCamera ? 'Yes - include presenter shots' : 'No - B-roll and text-focused only'}
+
+Content Details:
+- Topic: ${inputs.topic || 'Not specified'}
+- Goal: ${inputs.goal || 'Not specified'}
+- Platforms: ${Array.isArray(inputs.platforms) ? inputs.platforms.join(', ') : 'Not specified'}
+- Target Audience: ${inputs.targetAudience || 'General audience'}
+- Tone: ${inputs.tone || 'Engaging and professional'}
+
+Generate 6 visual hooks optimized for the user's production setup. Each must include both FIY filming instructions AND a GenAI prompt for AI-generated alternatives:`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      config: { responseMimeType: "application/json" },
+      contents: prompt
+    });
+
+    const parsed = JSON.parse(response.text || '');
+    
+    if (!parsed.visualHooks || !Array.isArray(parsed.visualHooks)) {
+      throw new Error('Invalid visual hooks response');
+    }
+
+    return { visualHooks: validateAndRankHooks(parsed.visualHooks, 'visual') };
+  } catch (error) {
+    console.error('Visual hooks error:', error);
+    throw new Error('Failed to generate visual hooks');
+  }
+}
+
+function validateAndRankHooks<T extends { id?: string; rank?: number; isRecommended?: boolean }>(
+  hooks: T[],
+  modality: string
+): T[] {
+  const usedRanks = new Set<number>();
+  
+  const validated = hooks.map((hook, index) => {
+    let rank = hook.rank;
+    
+    if (typeof rank !== 'number' || rank < 1 || rank > 6 || usedRanks.has(rank)) {
+      for (let r = 1; r <= 6; r++) {
+        if (!usedRanks.has(r)) {
+          rank = r;
+          break;
+        }
+      }
+      if (!rank) rank = index + 1;
+    }
+    
+    usedRanks.add(rank);
+    
+    return {
+      ...hook,
+      id: hook.id || `${modality.charAt(0).toUpperCase()}${index + 1}`,
+      rank,
+      isRecommended: rank === 1,
+      modality
+    };
+  });
+
+  return validated.sort((a, b) => (a.rank || 99) - (b.rank || 99)) as T[];
+}
+
+export async function generateContentFromMultiHooks(
+  inputs: Record<string, unknown>,
+  selectedHooks: {
+    text?: { content: string; type: string };
+    verbal?: { content: string; type: string };
+    visual?: { fiyGuide: string; genAiPrompt: string; type: string };
+  }
+): Promise<ContentResponse> {
+  try {
+    const prompt = `${CONTENT_GENERATION_PROMPT}
+
+Content Details:
+- Topic: ${inputs.topic || 'Not specified'}
+- Goal: ${inputs.goal || 'Not specified'}
+- Platforms: ${Array.isArray(inputs.platforms) ? inputs.platforms.join(', ') : 'Not specified'}
+- Target Audience: ${inputs.targetAudience || 'General audience'}
+- Tone: ${inputs.tone || 'Engaging and professional'}
+- Duration: ${inputs.duration || '30-60 seconds'}
+
+SELECTED HOOKS (Integrate all three into the content):
+
+TEXT HOOK (On-screen/Title):
+- Type: ${selectedHooks.text?.type || 'Not selected'}
+- Content: "${selectedHooks.text?.content || 'Not selected'}"
+
+VERBAL HOOK (Script Opener):
+- Type: ${selectedHooks.verbal?.type || 'Not selected'}
+- Content: "${selectedHooks.verbal?.content || 'Not selected'}"
+
+VISUAL HOOK (Opening Shot):
+- Type: ${selectedHooks.visual?.type || 'Not selected'}
+- FIY Guide: ${selectedHooks.visual?.fiyGuide || 'Not selected'}
+- GenAI Prompt: ${selectedHooks.visual?.genAiPrompt || 'Not selected'}
+
+Generate a cohesive content package that integrates all three hook elements seamlessly:`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      config: { responseMimeType: "application/json" },
+      contents: prompt
+    });
+
+    const parsed = JSON.parse(response.text || '');
+    
+    if (!parsed.output) {
+      throw new Error('Invalid content response format');
+    }
+
+    return parsed as ContentResponse;
+  } catch (error) {
+    console.error('Content generation error:', error);
+    throw new Error('Failed to generate content');
+  }
+}
+
 export async function generateContent(
   inputs: Record<string, unknown>,
   selectedHook: { id: string; type: string; text: string; preview: string }

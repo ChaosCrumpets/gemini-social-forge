@@ -1,5 +1,8 @@
 import { create } from 'zustand';
-import type { Project, ChatMessage, Hook, ContentOutput, AgentStatus, UserInputs, ProjectStatusType } from '@shared/schema';
+import type { 
+  Project, ChatMessage, Hook, ContentOutput, AgentStatus, UserInputs, ProjectStatusType,
+  TextHook, VerbalHook, VisualHook, SelectedHooks, VisualContext
+} from '@shared/schema';
 import { ProjectStatus } from '@shared/schema';
 
 interface ProjectStore {
@@ -10,6 +13,13 @@ interface ProjectStore {
   initProject: () => void;
   addMessage: (message: ChatMessage) => void;
   updateInputs: (inputs: Partial<UserInputs>) => void;
+  setVisualContext: (context: VisualContext) => void;
+  setTextHooks: (hooks: TextHook[]) => void;
+  setVerbalHooks: (hooks: VerbalHook[]) => void;
+  setVisualHooks: (hooks: VisualHook[]) => void;
+  selectTextHook: (hook: TextHook) => void;
+  selectVerbalHook: (hook: VerbalHook) => void;
+  selectVisualHook: (hook: VisualHook) => void;
   setHooks: (hooks: Hook[]) => void;
   selectHook: (hook: Hook) => void;
   setOutput: (output: ContentOutput) => void;
@@ -18,6 +28,7 @@ interface ProjectStore {
   updateAgent: (name: string, status: AgentStatus['status'], task?: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  goToStage: (stage: ProjectStatusType) => void;
   reset: () => void;
 }
 
@@ -25,7 +36,12 @@ const createInitialProject = (): Project => ({
   id: crypto.randomUUID(),
   status: ProjectStatus.INPUTTING,
   inputs: {},
+  visualContext: undefined,
   messages: [],
+  textHooks: undefined,
+  verbalHooks: undefined,
+  visualHooks: undefined,
+  selectedHooks: undefined,
   hooks: undefined,
   selectedHook: undefined,
   output: undefined,
@@ -73,6 +89,109 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     });
   },
 
+  setVisualContext: (context: VisualContext) => {
+    const { project } = get();
+    if (!project) return;
+    
+    set({
+      project: {
+        ...project,
+        visualContext: context,
+        updatedAt: Date.now()
+      }
+    });
+  },
+
+  setTextHooks: (hooks: TextHook[]) => {
+    const { project } = get();
+    if (!project) return;
+    
+    set({
+      project: {
+        ...project,
+        textHooks: hooks,
+        status: ProjectStatus.HOOK_TEXT,
+        updatedAt: Date.now()
+      }
+    });
+  },
+
+  setVerbalHooks: (hooks: VerbalHook[]) => {
+    const { project } = get();
+    if (!project) return;
+    
+    set({
+      project: {
+        ...project,
+        verbalHooks: hooks,
+        status: ProjectStatus.HOOK_VERBAL,
+        updatedAt: Date.now()
+      }
+    });
+  },
+
+  setVisualHooks: (hooks: VisualHook[]) => {
+    const { project } = get();
+    if (!project) return;
+    
+    set({
+      project: {
+        ...project,
+        visualHooks: hooks,
+        status: ProjectStatus.HOOK_VISUAL,
+        updatedAt: Date.now()
+      }
+    });
+  },
+
+  selectTextHook: (hook: TextHook) => {
+    const { project } = get();
+    if (!project) return;
+    
+    set({
+      project: {
+        ...project,
+        selectedHooks: {
+          ...project.selectedHooks,
+          text: hook
+        },
+        updatedAt: Date.now()
+      }
+    });
+  },
+
+  selectVerbalHook: (hook: VerbalHook) => {
+    const { project } = get();
+    if (!project) return;
+    
+    set({
+      project: {
+        ...project,
+        selectedHooks: {
+          ...project.selectedHooks,
+          verbal: hook
+        },
+        updatedAt: Date.now()
+      }
+    });
+  },
+
+  selectVisualHook: (hook: VisualHook) => {
+    const { project } = get();
+    if (!project) return;
+    
+    set({
+      project: {
+        ...project,
+        selectedHooks: {
+          ...project.selectedHooks,
+          visual: hook
+        },
+        updatedAt: Date.now()
+      }
+    });
+  },
+
   setHooks: (hooks: Hook[]) => {
     const { project } = get();
     if (!project) return;
@@ -81,7 +200,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       project: {
         ...project,
         hooks,
-        status: ProjectStatus.HOOK_SELECTION,
+        status: ProjectStatus.HOOK_TEXT,
         updatedAt: Date.now()
       }
     });
@@ -153,6 +272,19 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       project: {
         ...project,
         agents,
+        updatedAt: Date.now()
+      }
+    });
+  },
+
+  goToStage: (stage: ProjectStatusType) => {
+    const { project } = get();
+    if (!project) return;
+    
+    set({
+      project: {
+        ...project,
+        status: stage,
         updatedAt: Date.now()
       }
     });

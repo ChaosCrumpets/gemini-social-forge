@@ -1,0 +1,40 @@
+### **Phase 2: Frontend State Logic (Replit/Next.js)**
+
+To achieve the workflow you described ("Select one tile per stage"), you need to modify your React state to handle a linear progression.
+
+**The Workflow Logic:**
+
+1.  **State Initialization:**
+    * `currentStage`: 0 (Input) -> 1 (Text Select) -> 2 (Verbal Select) -> 3 (Visual Select) -> 4 (Overview).
+    * `selections`: `{ text: null, verbal: null, visual: null }`.
+2.  **Input Gathering (New Visual Questions):**
+    * Before entering Stage 3 (Visual), trigger a modal or input form asking:
+        * *Setting:* (e.g., Office, Gym, Car, Green Screen)
+        * *Vibe:* (e.g., Professional, Energetic, Dark/Moody)
+        * *Props:* (e.g., Laptop, Coffee, Whiteboard)
+3.  **The "Select" Action:**
+    * When a user clicks a tile in Stage 1 (Text), save ID to `selections.text` → Advance to Stage 2.
+    * Repeat for Verbal and Visual.
+4.  **The Overview Stage (New):**
+    * Render a summary card showing all 3 selections side-by-side.
+    * **Buttons:** "Edit" (goes back to specific stage) and "Confirm & Generate Script".
+    * **Copy Feature:** Add a standardized `navigator.clipboard.writeText()` button to every tile in the overview.
+
+### **Phase 3: Visual Hook Prompting Strategy**
+
+Since the Visual stage requires specific user context to work effectively, here are the **Lyra-Optimized Input Questions** you should code into the interface before the Visual Generation trigger:
+
+**Prompt to User (Frontend UI):**
+> "To generate the perfect Visual Hook, C.A.L needs to know your production environment:"
+> 1.  **Where are you filming?** (Dropdown: Desk/Office, Standing/Wall, Outdoors, Car, Gym, Kitchen)
+> 2.  **What is your lighting setup?** (Dropdown: Natural Window, Ring Light, Professional Studio, Dark/Moody)
+> 3.  **Do you want to appear on camera?** (Yes / No - I want B-Roll/AI Images)
+
+### **Implementation Checklist for You**
+
+1.  **Update Database:** Ensure your `.tsv` file has a column for `hook_category` containing values: `text`, `verbal`, `visual`.
+2.  **Apply Prompt:** Update the C.A.L system prompt with the "Substage" logic above.
+3.  **Update Component:** Modify your `HookTile` component to handle the specific display logic for Visual hooks (showing the "FIY" text vs "GenAI Prompt" text).
+4.  **Add Overview:** Build the final confirmation screen.
+
+Would you like me to write the **React code for the "Visual Hook Tile"** specifically, showing how to toggle between the "FIY" instructions and the "GenAI Prompt"?

@@ -1,14 +1,26 @@
 import { z } from "zod";
 
-// Project Status enum
+// Project Status enum with hook substages
 export const ProjectStatus = {
   INPUTTING: "inputting",
-  HOOK_SELECTION: "hook_selection", 
+  HOOK_TEXT: "hook_text",
+  HOOK_VERBAL: "hook_verbal", 
+  HOOK_VISUAL: "hook_visual",
+  HOOK_OVERVIEW: "hook_overview",
   GENERATING: "generating",
   COMPLETE: "complete"
 } as const;
 
 export type ProjectStatusType = typeof ProjectStatus[keyof typeof ProjectStatus];
+
+// Hook modality types
+export const HookModality = {
+  TEXT: "text",
+  VERBAL: "verbal",
+  VISUAL: "visual"
+} as const;
+
+export type HookModalityType = typeof HookModality[keyof typeof HookModality];
 
 // Platform options for content generation
 export const Platforms = ["tiktok", "instagram", "youtube_shorts", "twitter", "linkedin"] as const;
@@ -40,7 +52,53 @@ export const userInputsSchema = z.object({
 
 export type UserInputs = z.infer<typeof userInputsSchema>;
 
-// Hook schema for hook selection stage
+// Visual context inputs for visual hook generation
+export const visualContextSchema = z.object({
+  location: z.enum(["desk_office", "standing_wall", "outdoors", "car", "gym", "kitchen", "studio", "other"]).optional(),
+  lighting: z.enum(["natural_window", "ring_light", "professional_studio", "dark_moody", "mixed"]).optional(),
+  onCamera: z.boolean().optional()
+});
+
+export type VisualContext = z.infer<typeof visualContextSchema>;
+
+// Base hook schema with common fields
+const baseHookSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  rank: z.number().min(1).max(6).optional(),
+  isRecommended: z.boolean().optional()
+});
+
+// Text Hook schema (on-screen text, captions, titles)
+export const textHookSchema = baseHookSchema.extend({
+  modality: z.literal("text"),
+  content: z.string(),
+  placement: z.string().optional()
+});
+
+export type TextHook = z.infer<typeof textHookSchema>;
+
+// Verbal Hook schema (script openers, spoken words)
+export const verbalHookSchema = baseHookSchema.extend({
+  modality: z.literal("verbal"),
+  content: z.string(),
+  emotionalTrigger: z.string().optional(),
+  retentionTrigger: z.string().optional()
+});
+
+export type VerbalHook = z.infer<typeof verbalHookSchema>;
+
+// Visual Hook schema (scene, camera, lighting with dual output)
+export const visualHookSchema = baseHookSchema.extend({
+  modality: z.literal("visual"),
+  fiyGuide: z.string(),
+  genAiPrompt: z.string(),
+  sceneDescription: z.string().optional()
+});
+
+export type VisualHook = z.infer<typeof visualHookSchema>;
+
+// Legacy hook schema for backward compatibility
 export const hookSchema = z.object({
   id: z.string(),
   type: z.string(),
@@ -51,6 +109,15 @@ export const hookSchema = z.object({
 });
 
 export type Hook = z.infer<typeof hookSchema>;
+
+// Selected hooks structure for all three modalities
+export const selectedHooksSchema = z.object({
+  text: textHookSchema.optional(),
+  verbal: verbalHookSchema.optional(),
+  visual: visualHookSchema.optional()
+});
+
+export type SelectedHooks = z.infer<typeof selectedHooksSchema>;
 
 // Script line schema
 export const scriptLineSchema = z.object({
@@ -131,9 +198,14 @@ export type AgentStatus = z.infer<typeof agentStatusSchema>;
 // Full project schema
 export const projectSchema = z.object({
   id: z.string(),
-  status: z.enum(["inputting", "hook_selection", "generating", "complete"]),
+  status: z.enum(["inputting", "hook_text", "hook_verbal", "hook_visual", "hook_overview", "generating", "complete"]),
   inputs: userInputsSchema,
+  visualContext: visualContextSchema.optional(),
   messages: z.array(chatMessageSchema),
+  textHooks: z.array(textHookSchema).optional(),
+  verbalHooks: z.array(verbalHookSchema).optional(),
+  visualHooks: z.array(visualHookSchema).optional(),
+  selectedHooks: selectedHooksSchema.optional(),
   hooks: z.array(hookSchema).optional(),
   selectedHook: hookSchema.optional(),
   output: contentOutputSchema.optional(),
@@ -153,14 +225,23 @@ export const sendMessageRequestSchema = z.object({
 export type SendMessageRequest = z.infer<typeof sendMessageRequestSchema>;
 
 export const generateHooksRequestSchema = z.object({
-  projectId: z.string()
+  projectId: z.string(),
+  modality: z.enum(["text", "verbal", "visual"]).optional()
 });
 
 export type GenerateHooksRequest = z.infer<typeof generateHooksRequestSchema>;
 
+export const generateVisualHooksRequestSchema = z.object({
+  projectId: z.string(),
+  visualContext: visualContextSchema
+});
+
+export type GenerateVisualHooksRequest = z.infer<typeof generateVisualHooksRequestSchema>;
+
 export const selectHookRequestSchema = z.object({
   projectId: z.string(),
-  hookId: z.string()
+  hookId: z.string(),
+  modality: z.enum(["text", "verbal", "visual"])
 });
 
 export type SelectHookRequest = z.infer<typeof selectHookRequestSchema>;
