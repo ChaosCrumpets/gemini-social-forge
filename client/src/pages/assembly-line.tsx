@@ -16,7 +16,10 @@ export default function AssemblyLine() {
   const { 
     project, 
     initProject, 
-    addMessage, 
+    addMessage,
+    addEditMessage,
+    editMessages,
+    reset,
     updateInputs,
     setVisualContext,
     setTextHooks,
@@ -300,6 +303,68 @@ export default function AssemblyLine() {
     }
   }, [project, setLoading, setStatus, setAgents, updateAgent, setOutput, addMessage, setError]);
 
+  const handleEditMessage = useCallback(async (content: string) => {
+    if (!project || !project.output) return;
+
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content,
+      timestamp: Date.now()
+    };
+    
+    addEditMessage(userMessage);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await apiRequest('POST', '/api/edit-content', {
+        message: content,
+        currentOutput: project.output,
+        messages: [...editMessages, userMessage]
+      });
+
+      const data = await response.json();
+
+      if (data.updatedOutput) {
+        setOutput(data.updatedOutput);
+      }
+
+      if (data.message) {
+        const assistantMessage: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: data.message,
+          timestamp: Date.now()
+        };
+        addEditMessage(assistantMessage);
+      }
+    } catch (error) {
+      console.error('Edit error:', error);
+      setError('Failed to apply edit. Please try again.');
+      
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: 'Sorry, I encountered an error while trying to edit. Please try again.',
+        timestamp: Date.now()
+      };
+      addEditMessage(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [project, editMessages, addEditMessage, setOutput, setLoading, setError]);
+
+  const handleCreateNew = useCallback(() => {
+    reset();
+    setShowVisualContextForm(true);
+    setLocalVisualContext({
+      location: undefined,
+      lighting: undefined,
+      onCamera: true
+    });
+  }, [reset]);
+
   if (!project) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -396,9 +461,12 @@ export default function AssemblyLine() {
         return (
           <SplitDashboard
             messages={project.messages}
+            editMessages={editMessages}
             output={project.output!}
             selectedHook={project.selectedHook}
             onSendMessage={handleSendMessage}
+            onSendEditMessage={handleEditMessage}
+            onCreateNew={handleCreateNew}
             isLoading={isLoading}
           />
         );

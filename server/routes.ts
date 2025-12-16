@@ -8,7 +8,8 @@ import {
   generateTextHooks,
   generateVerbalHooks,
   generateVisualHooks,
-  generateContentFromMultiHooks
+  generateContentFromMultiHooks,
+  editContent
 } from "./gemini";
 
 export async function registerRoutes(
@@ -182,6 +183,36 @@ export async function registerRoutes(
       console.error("Content generation error:", error);
       res.status(500).json({ 
         error: "Failed to generate content"
+      });
+    }
+  });
+
+  // Edit content output via chat
+  app.post("/api/edit-content", async (req, res) => {
+    try {
+      const { message, currentOutput, messages } = req.body;
+
+      if (!message) {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      if (!currentOutput) {
+        return res.status(400).json({ error: "Current output is required" });
+      }
+
+      const conversationHistory = (messages || []).map((msg: { role: string; content: string }) => ({
+        role: msg.role === 'user' ? 'user' : 'model',
+        content: msg.content
+      }));
+
+      const response = await editContent(message, currentOutput, conversationHistory);
+
+      res.json(response);
+    } catch (error) {
+      console.error("Edit content error:", error);
+      res.status(500).json({ 
+        error: "Failed to edit content",
+        message: "I apologize, but I'm having trouble processing your edit request. Please try again."
       });
     }
   });

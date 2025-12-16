@@ -9,9 +9,12 @@ interface ProjectStore {
   project: Project | null;
   isLoading: boolean;
   error: string | null;
+  editMessages: ChatMessage[];
   
   initProject: () => void;
   addMessage: (message: ChatMessage) => void;
+  addEditMessage: (message: ChatMessage) => void;
+  clearEditMessages: () => void;
   updateInputs: (inputs: Partial<UserInputs>) => void;
   setVisualContext: (context: VisualContext) => void;
   setTextHooks: (hooks: TextHook[]) => void;
@@ -54,12 +57,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   project: null,
   isLoading: false,
   error: null,
+  editMessages: [],
 
   initProject: () => {
     set({ 
       project: createInitialProject(),
       isLoading: false,
-      error: null
+      error: null,
+      editMessages: []
     });
   },
 
@@ -294,9 +299,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   
   setError: (error: string | null) => set({ error }),
 
+  addEditMessage: (message: ChatMessage) => {
+    set(state => ({
+      editMessages: [...state.editMessages, message]
+    }));
+  },
+
+  clearEditMessages: () => {
+    set({ editMessages: [] });
+  },
+
   reset: () => set({ 
     project: createInitialProject(),
     isLoading: false,
-    error: null
+    error: null,
+    editMessages: []
   })
 }));

@@ -11,6 +11,7 @@ interface ChatInterfaceProps {
   isLoading: boolean;
   disabled?: boolean;
   compact?: boolean;
+  placeholder?: string;
 }
 
 export function ChatInterface({ 
@@ -18,7 +19,8 @@ export function ChatInterface({
   onSendMessage, 
   isLoading,
   disabled = false,
-  compact = false
+  compact = false,
+  placeholder
 }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -89,7 +91,7 @@ export function ChatInterface({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={disabled ? "Select a hook to continue..." : "Type your message..."}
+            placeholder={disabled ? "Select a hook to continue..." : (placeholder || "Type your message...")}
             disabled={isLoading || disabled}
             className={`resize-none pr-12 ${compact ? 'min-h-[80px]' : 'min-h-[120px]'} rounded-2xl`}
             data-testid="input-chat-message"

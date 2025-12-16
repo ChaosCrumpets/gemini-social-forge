@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { getHookPatternSummary, getRelevantHookPatterns } from "./hookDatabase";
+import type { ContentOutput } from "@shared/schema";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
@@ -730,6 +731,93 @@ Generate a cohesive content package that integrates all three hook elements seam
   } catch (error) {
     console.error('Content generation error:', error);
     throw new Error('Failed to generate content');
+  }
+}
+
+// Edit content output via chat
+const EDIT_CONTENT_PROMPT = `You are the Content Assembly Line (C.A.L.) AI editor. The user has completed content generation and now wants to make edits to their content package.
+
+Your job is to:
+1. Understand what the user wants to change
+2. Apply their requested edits to the appropriate section(s)
+3. Return the complete updated content with their changes applied
+
+Editable sections:
+- script: Array of script lines with speaker, text, timing, and notes
+- storyboard: Array of frames with shotType, description, visualNotes, and duration
+- techSpecs: Technical specifications object (aspectRatio, resolution, frameRate, duration, audioFormat, exportFormat, platforms)
+- bRoll: Array of B-roll items with description, source, timestamp, keywords, imagePrompt, videoPrompt
+- captions: Array of caption objects with timestamp, text, and style
+
+When the user requests changes:
+- Be helpful and apply their edits precisely
+- Maintain the overall structure and quality
+- Only modify what they ask for, keep everything else the same
+- If they want to change tech specs (like switching platforms or aspect ratios), update accordingly
+
+RESPONSE FORMAT:
+Return ONLY valid JSON in this exact format:
+{
+  "message": "Brief description of what you changed",
+  "updatedOutput": {
+    "script": [...],
+    "storyboard": [...],
+    "techSpecs": {...},
+    "bRoll": [...],
+    "captions": [...]
+  }
+}`;
+
+export interface EditContentResponse {
+  message: string;
+  updatedOutput: ContentOutput;
+}
+
+export async function editContent(
+  userMessage: string,
+  currentOutput: ContentOutput,
+  conversationHistory: Array<{ role: string; content: string }>
+): Promise<EditContentResponse> {
+  try {
+    const systemContext = `${EDIT_CONTENT_PROMPT}
+
+Current content package:
+${JSON.stringify(currentOutput, null, 2)}`;
+
+    const contents = [
+      ...conversationHistory.map(msg => ({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content }]
+      })),
+      {
+        role: 'user' as const,
+        parts: [{ text: userMessage }]
+      }
+    ];
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      config: {
+        responseMimeType: "application/json",
+        systemInstruction: systemContext
+      },
+      contents
+    });
+
+    const text = response.text || '';
+    const parsed = JSON.parse(text);
+
+    if (!parsed.updatedOutput) {
+      throw new Error('Invalid edit response format');
+    }
+
+    return {
+      message: parsed.message || 'Content updated successfully',
+      updatedOutput: parsed.updatedOutput
+    };
+  } catch (error) {
+    console.error('Edit content error:', error);
+    throw new Error('Failed to edit content');
   }
 }
 
