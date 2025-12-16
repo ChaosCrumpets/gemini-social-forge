@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { getHookPatternSummary, getRelevantHookPatterns } from "./hookDatabase";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
@@ -30,7 +31,7 @@ Always respond in valid JSON with this structure:
   "readyForHooks": boolean (true when you have at least topic, goal, and platform)
 }`;
 
-const HOOK_GENERATION_PROMPT = `Generate 5-6 compelling hooks for short-form video content based on the provided topic and goals. Each hook should have a different style/approach.
+const HOOK_GENERATION_PROMPT = `Generate 5-6 compelling hooks for short-form video content based on the provided topic, goals, and proven hook patterns from our database.
 
 Hook types to consider:
 - QUESTION: Opens with a thought-provoking question
@@ -40,6 +41,16 @@ Hook types to consider:
 - CHALLENGE: Poses a challenge to the viewer
 - INSIGHT: Shares an unexpected insight
 
+SMART RANKING SYSTEM:
+After generating hooks, you MUST rank them from 1 (best) to 6 (worst) based on:
+1. Alignment with proven viral patterns in the provided database
+2. Predicted reach and conversion potential for the target niche
+3. Psychological impact (curiosity gap, emotional resonance, urgency)
+4. Platform-specific effectiveness
+5. Audience relevance
+
+The hook with rank=1 should also have isRecommended=true.
+
 Return ONLY valid JSON in this exact format:
 {
   "hooks": [
@@ -47,7 +58,9 @@ Return ONLY valid JSON in this exact format:
       "id": "unique-id",
       "type": "QUESTION|STATISTIC|STORY|BOLD|CHALLENGE|INSIGHT",
       "text": "The actual hook text (first 2-3 seconds of video)",
-      "preview": "Brief explanation of how this hook works"
+      "preview": "Brief explanation of how this hook works and why it's effective",
+      "rank": 1-6 (1 is best, must be unique for each hook),
+      "isRecommended": true (only for rank 1) or false
     }
   ]
 }`;
@@ -123,6 +136,8 @@ export interface HooksResponse {
     type: string;
     text: string;
     preview: string;
+    rank: number;
+    isRecommended: boolean;
   }>;
 }
 
@@ -222,7 +237,23 @@ export async function generateHooks(
   inputs: Record<string, unknown>
 ): Promise<HooksResponse> {
   try {
+    const topic = (inputs.topic as string) || 'general content';
+    const niche = `${topic} ${inputs.targetAudience || ''} ${inputs.goal || ''}`;
+    
+    const hookPatterns = getHookPatternSummary(niche);
+    const relevantTemplates = getRelevantHookPatterns(niche, 10);
+    
+    const templateExamples = relevantTemplates.slice(0, 5).map(t => `- "${t.template}"`).join('\n');
+
     const prompt = `${HOOK_GENERATION_PROMPT}
+
+PROVEN VIRAL HOOK PATTERNS FOR THIS NICHE:
+${hookPatterns}
+
+HIGH-PERFORMING HOOK TEMPLATES TO DRAW INSPIRATION FROM:
+${templateExamples}
+
+Use these proven patterns as inspiration to create hooks that align with what has already gone viral in similar niches. Adapt the templates to the specific topic while maintaining the psychological hooks that made them successful.
 
 Content Details:
 - Topic: ${inputs.topic || 'Not specified'}
@@ -232,7 +263,7 @@ Content Details:
 - Tone: ${inputs.tone || 'Engaging and professional'}
 - Duration: ${inputs.duration || '30-60 seconds'}
 
-Generate hooks now:`;
+Generate 6 hooks with unique ranks (1-6, where 1 is best). The rank=1 hook should have isRecommended=true:`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -250,11 +281,13 @@ Generate hooks now:`;
     }
 
     return {
-      hooks: parsed.hooks.map((hook: { id?: string; type: string; text: string; preview: string }, index: number) => ({
+      hooks: parsed.hooks.map((hook: { id?: string; type: string; text: string; preview: string; rank?: number; isRecommended?: boolean }, index: number) => ({
         id: hook.id || `hook-${index + 1}`,
         type: hook.type,
         text: hook.text,
-        preview: hook.preview
+        preview: hook.preview,
+        rank: hook.rank || (index + 1),
+        isRecommended: hook.isRecommended || (hook.rank === 1)
       }))
     };
   } catch (error) {
