@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { pgTable, text, integer, timestamp, jsonb, serial, boolean } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
 
 // Project Status enum with hook substages
 export const ProjectStatus = {
@@ -261,3 +263,44 @@ export type User = {
   username: string;
   password: string;
 };
+
+// ============================================
+// Database Tables (Drizzle ORM)
+// ============================================
+
+// Sessions table - stores each content generation session
+export const sessions = pgTable("sessions", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull().default("New Script"),
+  status: text("status").notNull().default("inputting"),
+  inputs: jsonb("inputs").$type<UserInputs>().default({}),
+  visualContext: jsonb("visual_context").$type<VisualContext>(),
+  textHooks: jsonb("text_hooks").$type<TextHook[]>(),
+  verbalHooks: jsonb("verbal_hooks").$type<VerbalHook[]>(),
+  visualHooks: jsonb("visual_hooks").$type<VisualHook[]>(),
+  selectedHooks: jsonb("selected_hooks").$type<SelectedHooks>(),
+  selectedHook: jsonb("selected_hook").$type<Hook>(),
+  output: jsonb("output").$type<ContentOutput>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
+// Session messages table - stores chat history for each session
+export const sessionMessages = pgTable("session_messages", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id").notNull().references(() => sessions.id, { onDelete: "cascade" }),
+  role: text("role").notNull(),
+  content: text("content").notNull(),
+  isEditMessage: boolean("is_edit_message").default(false),
+  timestamp: timestamp("timestamp").defaultNow().notNull()
+});
+
+// Drizzle insert schemas
+export const insertSessionSchema = createInsertSchema(sessions).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertMessageSchema = createInsertSchema(sessionMessages).omit({ id: true, timestamp: true });
+
+// Drizzle select types
+export type Session = typeof sessions.$inferSelect;
+export type SessionMessage = typeof sessionMessages.$inferSelect;
+export type InsertSession = z.infer<typeof insertSessionSchema>;
+export type InsertSessionMessage = z.infer<typeof insertMessageSchema>;

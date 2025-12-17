@@ -1,0 +1,44 @@
+# Context: Adding "Chat History & Saved Scripts" Feature
+I need to update my Replit app (Next.js/React) to allow users to save and revisit their past script generation sessions. Currently, the app resets on reload. I want to persist the entire chat history and script outputs in a database.
+
+# Constraints (Critical)
+1.  **DO NOT** change the existing logic for Hook Selection, Script Generation, or the 5-Part Model.
+2.  **DO NOT** alter the design of the result pages (Script/Storyboard/B-roll view).
+3.  **ONLY** add the infrastructure to save data and the Sidebar UI to navigate it.
+
+# Feature Requirements
+
+## 1. Database Schema (Prisma/PostgreSQL)
+Update the `schema.prisma` file to include:
+* `Session`: Represents a unique script generation run. Fields: `id`, `createdAt`, `title` (string, defaults to "New Script"), `userId` (optional).
+* `Message`: Stores the chat log. Fields: `id`, `sessionId`, `role` (user/system/ai), `content` (text), `timestamp`.
+* `ScriptArtifact`: Stores the final generated JSON output linked to the `Session`.
+
+## 2. Backend Logic (API)
+* Create endpoints to:
+    * `POST /api/sessions`: Create a new session.
+    * `POST /api/messages`: Save a message to a session.
+    * `GET /api/sessions`: Retrieve all past sessions for the sidebar, sorted by newest first.
+    * `GET /api/sessions/[id]`: Retrieve full chat history for a specific session.
+* **Naming Logic:** When the user selects a Hook in the "Hook Selection" stage, trigger an update to the `Session.title` using the first 5-7 words of the selected hook as the name.
+
+## 3. Frontend UI: Collapsible Sidebar
+* Create a `Sidebar` component.
+    * **State:** Collapsible (Open/Close icon).
+    * **Content:** A list of past sessions (displaying the `title`).
+    * **Action:** Clicking a session loads that chat history into the main view.
+    * **"New Chat" Button:** A prominent button at the top to clear the current state and start a fresh session.
+* Update the Main Layout to include this Sidebar on the left side of the screen.
+
+## 4. Chat Interface Updates
+* When a user clicks a "Saved Session" from the sidebar:
+    * Fetch and populate the chat window with the saved `Message` history.
+    * If the session was completed, show a clickable "View Completed Script" card/button at the end of the chat.
+    * **Click Action:** Clicking "View Completed Script" routes the user to the existing Result Page (Script/Storyboard view) populated with the saved `ScriptArtifact` data.
+
+# Implementation Plan
+Please generate the code for:
+1.  The updated `schema.prisma`.
+2.  The API route handlers.
+3.  The `Sidebar` component (using Tailwind CSS for styling).
+4.  The state management logic to switch between sessions.
