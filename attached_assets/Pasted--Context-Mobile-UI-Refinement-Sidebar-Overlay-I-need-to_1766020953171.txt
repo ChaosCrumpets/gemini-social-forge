@@ -1,0 +1,29 @@
+# Context: Mobile UI Refinement - Sidebar Overlay
+I need to fix the responsive behavior of the new Sidebar component on mobile devices. Currently, opening the sidebar "pushes" and compresses the chat interface.
+
+# Objective
+Refactor the Sidebar to mimic the Google Gemini mobile UX. On mobile screens, the sidebar must behave as an **Overlay (Drawer)**, not a structural element that consumes width.
+
+# Specific Requirements
+
+## 1. CSS/Layout Changes (Tailwind/React)
+* **Positioning:** Change the Sidebar's mobile styling from `relative` to `fixed` (top-0, left-0, h-full).
+* **Z-Index:** Ensure the Sidebar has a high z-index (e.g., `z-50`) so it floats above the chat interface.
+* **Transition:** Add a smooth transform transition (`translate-x`) so it slides in from the left rather than just appearing.
+
+## 2. The "Backdrop" Mechanism (Click-to-Close)
+* When the sidebar is OPEN on mobile, render a semi-transparent black overlay (backdrop) that covers the rest of the screen (the chat area).
+* **Style:** `fixed inset-0 bg-black/50 z-40`.
+* **Logic:**
+    * If the user clicks on this Backdrop, the sidebar should close (`setIsOpen(false)`).
+    * If the user clicks *inside* the Sidebar (e.g., clicking a past chat), the sidebar should remain open (unless the action triggers a navigation that implies closing, but for now, focus on the backdrop logic).
+
+## 3. Responsive Breakpoints
+* **Mobile (< md):** Use the Overlay/Fixed behavior described above.
+* **Desktop (>= md):** (Optional) You can keep the existing "Push" behavior or sidebar visibility if preferred, but strictly ensure the Mobile view uses the Overlay approach.
+
+# Implementation Plan
+Please provide the updated React code for the `Sidebar` component and the `Layout` wrapper. Focus on:
+1.  Adding the Backdrop `div` with the `onClick` handler.
+2.  Updating the Sidebar's classes to support `fixed` positioning on mobile.
+3.  Ensuring the main Chat interface remains full-width and uncompressed behind the overlay.

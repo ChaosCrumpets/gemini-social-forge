@@ -6,7 +6,7 @@ import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useProjectStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import type { Session, SessionMessage } from '@shared/schema';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface SessionWithMessages {
   session: Session;
@@ -15,13 +15,24 @@ interface SessionWithMessages {
 }
 
 interface SessionSidebarProps {
-  isCollapsed: boolean;
+  isOpen: boolean;
+  onClose: () => void;
   onToggle: () => void;
 }
 
-export function SessionSidebar({ isCollapsed, onToggle }: SessionSidebarProps) {
-  const { currentSessionId, loadSession, reset, setLoading } = useProjectStore();
+export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProps) {
+  const { currentSessionId, loadSession, reset, setLoading, setCurrentSessionId } = useProjectStore();
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const { data: sessions = [], isLoading } = useQuery<Session[]>({
     queryKey: ['/api/sessions']
@@ -46,6 +57,7 @@ export function SessionSidebar({ isCollapsed, onToggle }: SessionSidebarProps) {
       queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
       if (currentSessionId === deletedId) {
         reset();
+        setCurrentSessionId(null);
       }
       setDeletingId(null);
     }
@@ -53,13 +65,19 @@ export function SessionSidebar({ isCollapsed, onToggle }: SessionSidebarProps) {
 
   const handleNewChat = () => {
     reset();
+    setCurrentSessionId(null);
+    if (isMobile) onClose();
   };
 
   const handleSelectSession = async (sessionId: number) => {
-    if (sessionId === currentSessionId) return;
+    if (sessionId === currentSessionId) {
+      if (isMobile) onClose();
+      return;
+    }
     setLoading(true);
     try {
       await loadSessionMutation.mutateAsync(sessionId);
+      if (isMobile) onClose();
     } finally {
       setLoading(false);
     }
@@ -82,31 +100,8 @@ export function SessionSidebar({ isCollapsed, onToggle }: SessionSidebarProps) {
     return d.toLocaleDateString();
   };
 
-  if (isCollapsed) {
-    return (
-      <div className="h-full w-12 border-r bg-sidebar flex flex-col items-center py-3 gap-2">
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={onToggle}
-          data-testid="button-expand-sidebar"
-        >
-          <PanelLeft className="h-4 w-4" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={handleNewChat}
-          data-testid="button-new-chat-collapsed"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-full w-64 border-r bg-sidebar flex flex-col">
+  const sidebarContent = (
+    <div className="h-full w-64 bg-sidebar flex flex-col">
       <div className="flex items-center justify-between gap-2 p-3 border-b">
         <Button
           onClick={handleNewChat}
@@ -119,8 +114,8 @@ export function SessionSidebar({ isCollapsed, onToggle }: SessionSidebarProps) {
         <Button
           size="icon"
           variant="ghost"
-          onClick={onToggle}
-          data-testid="button-collapse-sidebar"
+          onClick={onClose}
+          data-testid="button-close-sidebar"
         >
           <PanelLeftClose className="h-4 w-4" />
         </Button>
@@ -176,5 +171,70 @@ export function SessionSidebar({ isCollapsed, onToggle }: SessionSidebarProps) {
         )}
       </ScrollArea>
     </div>
+  );
+
+  if (isMobile) {
+    return (
+      <>
+        {isOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+            onClick={onClose}
+            data-testid="sidebar-backdrop"
+          />
+        )}
+        <div
+          className={cn(
+            "fixed top-0 left-0 h-full z-50 transition-transform duration-300 ease-in-out",
+            isOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          {sidebarContent}
+        </div>
+      </>
+    );
+  }
+
+  if (!isOpen) {
+    return (
+      <div className="h-full w-12 border-r bg-sidebar flex flex-col items-center py-3 gap-2">
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={onToggle}
+          data-testid="button-expand-sidebar"
+        >
+          <PanelLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={handleNewChat}
+          data-testid="button-new-chat-collapsed"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full border-r">
+      {sidebarContent}
+    </div>
+  );
+}
+
+export function SidebarToggle({ onClick }: { onClick: () => void }) {
+  return (
+    <Button
+      size="icon"
+      variant="ghost"
+      onClick={onClick}
+      className="md:hidden"
+      data-testid="button-mobile-sidebar-toggle"
+    >
+      <PanelLeft className="h-4 w-4" />
+    </Button>
   );
 }
