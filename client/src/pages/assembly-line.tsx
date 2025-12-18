@@ -446,13 +446,14 @@ export default function AssemblyLine() {
 
   const handleCreateNew = useCallback(() => {
     reset();
+    setCurrentSessionId(null);
     setShowVisualContextForm(true);
     setLocalVisualContext({
       location: undefined,
       lighting: undefined,
       onCamera: true
     });
-  }, [reset]);
+  }, [reset, setCurrentSessionId]);
 
   if (!project) {
     return (
