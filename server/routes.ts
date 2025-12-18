@@ -9,8 +9,12 @@ import {
   generateVerbalHooks,
   generateVisualHooks,
   generateContentFromMultiHooks,
-  editContent
+  editContent,
+  generateDiscoveryQuestions,
+  getQueryDatabaseCategories,
+  getQuestionsFromCategory
 } from "./gemini";
+import { queryDatabase } from "./queryDatabase";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -213,6 +217,65 @@ export async function registerRoutes(
       res.status(500).json({ 
         error: "Failed to edit content",
         message: "I apologize, but I'm having trouble processing your edit request. Please try again."
+      });
+    }
+  });
+
+  // ============================================
+  // Query Database API Endpoints
+  // ============================================
+
+  app.get("/api/query-database", (req, res) => {
+    try {
+      res.json(queryDatabase);
+    } catch (error) {
+      console.error("Query database error:", error);
+      res.status(500).json({ error: "Failed to fetch query database" });
+    }
+  });
+
+  app.get("/api/query-database/categories", (req, res) => {
+    try {
+      const categories = getQueryDatabaseCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error("Query categories error:", error);
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
+  app.get("/api/query-database/:categoryId", (req, res) => {
+    try {
+      const { categoryId } = req.params;
+      const count = parseInt(req.query.count as string) || 5;
+      const questions = getQuestionsFromCategory(categoryId, count);
+      
+      if (questions.length === 0) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      
+      res.json({ categoryId, questions });
+    } catch (error) {
+      console.error("Query questions error:", error);
+      res.status(500).json({ error: "Failed to fetch questions" });
+    }
+  });
+
+  app.post("/api/generate-discovery-questions", async (req, res) => {
+    try {
+      const { topic, intent } = req.body;
+
+      if (!topic) {
+        return res.status(400).json({ error: "Topic is required" });
+      }
+
+      const response = await generateDiscoveryQuestions(topic, intent);
+      res.json(response);
+    } catch (error) {
+      console.error("Discovery questions error:", error);
+      res.status(500).json({ 
+        error: "Failed to generate discovery questions",
+        questions: []
       });
     }
   });

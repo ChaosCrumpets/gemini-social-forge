@@ -1,10 +1,26 @@
 import { GoogleGenAI } from "@google/genai";
 import { getHookPatternSummary, getRelevantHookPatterns } from "./hookDatabase";
+import { queryDatabase, getAllCategories } from "./queryDatabase";
 import type { ContentOutput } from "@shared/schema";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 const CAL_SYSTEM_INSTRUCTION = `You are the Content Assembly Line (C.A.L.) AI, a specialized content generation system for social media creators. Your role is to guide users through creating high-quality short-form video content.
+
+You have access to a Master Query Database containing 200+ strategic discovery questions across 11 categories:
+- UAV & C.A.L Context (user methodology)
+- Identity, Origin & Why (personal story)
+- Audience Psychography (pain points, desires)
+- Strategic Positioning (USP, differentiation)
+- Content Formats (video styles)
+- Hooks & Headlines (attention techniques)
+- Scripting & Storytelling (narrative structure)
+- Visuals & Filming (production aesthetics)
+- Editing & Pacing (post-production)
+- Distribution & Growth (platform strategy)
+- Monetization & Conversion (revenue)
+
+Always reference this database to deepen user context before generating the final output.
 
 CONVERSATION PHASE:
 When gathering information, ask clear, focused questions about:
@@ -863,4 +879,89 @@ Generate the complete content package now, starting with this hook:`;
     console.error('Gemini content error:', error);
     throw new Error('Failed to generate content');
   }
+}
+
+export interface DiscoveryQuestionsResponse {
+  category: string;
+  categoryName: string;
+  questions: string[];
+  explanation: string;
+}
+
+const DISCOVERY_QUESTIONS_PROMPT = `You are analyzing a user's topic to select the most relevant discovery questions from the C.A.L. Master Query Database.
+
+AVAILABLE CATEGORIES:
+{{categories}}
+
+QUESTION DATABASE:
+{{questionDatabase}}
+
+USER'S TOPIC: {{topic}}
+USER'S INTENT/GOAL: {{intent}}
+
+Your task:
+1. Analyze the topic and intent to determine which category from the database is MOST relevant
+2. Select exactly 3-5 questions from that specific category that will help deepen the user's content strategy
+3. Choose questions that will uncover unique angles, emotional hooks, or strategic insights
+
+RESPONSE FORMAT (JSON only):
+{
+  "category": "category_id",
+  "categoryName": "Full Category Name",
+  "questions": ["Question 1?", "Question 2?", "Question 3?"],
+  "explanation": "Brief explanation of why these questions matter for this topic"
+}`;
+
+export async function generateDiscoveryQuestions(
+  topic: string,
+  intent?: string
+): Promise<DiscoveryQuestionsResponse> {
+  try {
+    const categories = getAllCategories()
+      .map(c => `- ${c.id}: ${c.name} - ${c.description}`)
+      .join('\n');
+    
+    const questionDb = queryDatabase
+      .map(cat => `## ${cat.name}\n${cat.questions.slice(0, 10).map((q, i) => `${i + 1}. ${q}`).join('\n')}`)
+      .join('\n\n');
+
+    const prompt = DISCOVERY_QUESTIONS_PROMPT
+      .replace('{{categories}}', categories)
+      .replace('{{questionDatabase}}', questionDb)
+      .replace('{{topic}}', topic)
+      .replace('{{intent}}', intent || 'general content creation');
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      config: {
+        responseMimeType: "application/json"
+      },
+      contents: prompt
+    });
+
+    const text = response.text || '';
+    const parsed = JSON.parse(text);
+
+    return {
+      category: parsed.category || 'identity',
+      categoryName: parsed.categoryName || 'Identity & Origin',
+      questions: parsed.questions || [],
+      explanation: parsed.explanation || 'These questions will help deepen your content strategy.'
+    };
+  } catch (error) {
+    console.error('Discovery questions error:', error);
+    throw new Error('Failed to generate discovery questions');
+  }
+}
+
+export function getQueryDatabaseCategories() {
+  return getAllCategories();
+}
+
+export function getQuestionsFromCategory(categoryId: string, count: number = 5) {
+  const category = queryDatabase.find(c => c.id === categoryId);
+  if (!category) return [];
+  
+  const shuffled = [...category.questions].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
 }
