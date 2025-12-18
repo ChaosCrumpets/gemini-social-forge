@@ -9,8 +9,8 @@ import { ThinkingState } from '@/components/ThinkingState';
 import { SplitDashboard } from '@/components/SplitDashboard';
 import { StatusBar } from '@/components/StatusBar';
 import { ProjectStatus } from '@shared/schema';
-import type { TextHook, VerbalHook, VisualHook, ChatMessage, AgentStatus, UserInputs, VisualContext } from '@shared/schema';
-import { apiRequest } from '@/lib/queryClient';
+import type { TextHook, VerbalHook, VisualHook, ChatMessage, AgentStatus, UserInputs, VisualContext, Session } from '@shared/schema';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 export default function AssemblyLine() {
   const { 
@@ -35,7 +35,9 @@ export default function AssemblyLine() {
     updateAgent,
     isLoading, 
     setLoading,
-    setError
+    setError,
+    currentSessionId,
+    setCurrentSessionId
   } = useProjectStore();
 
   const [showVisualContextForm, setShowVisualContextForm] = useState(true);
@@ -50,6 +52,36 @@ export default function AssemblyLine() {
       initProject();
     }
   }, [project, initProject]);
+
+  const saveMessageToSession = useCallback(async (sessionId: number, role: string, content: string, isEditMessage = false) => {
+    try {
+      await apiRequest('POST', `/api/sessions/${sessionId}/messages`, { role, content, isEditMessage });
+    } catch (error) {
+      console.error('Failed to save message to session:', error);
+    }
+  }, []);
+
+  const updateSessionData = useCallback(async (sessionId: number, data: Record<string, unknown>) => {
+    try {
+      await apiRequest('PATCH', `/api/sessions/${sessionId}`, data);
+      queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+    } catch (error) {
+      console.error('Failed to update session:', error);
+    }
+  }, []);
+
+  const createSession = useCallback(async (): Promise<number | null> => {
+    try {
+      const response = await apiRequest('POST', '/api/sessions');
+      const session: Session = await response.json();
+      setCurrentSessionId(session.id);
+      queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+      return session.id;
+    } catch (error) {
+      console.error('Failed to create session:', error);
+      return null;
+    }
+  }, [setCurrentSessionId]);
 
   const generateTextHooks = useCallback(async (inputsOverride?: Partial<UserInputs>) => {
     if (!project) return;
@@ -161,6 +193,15 @@ export default function AssemblyLine() {
   const handleSendMessage = useCallback(async (content: string) => {
     if (!project) return;
 
+    let sessionId = currentSessionId;
+    if (!sessionId) {
+      sessionId = await createSession();
+      if (!sessionId) {
+        setError('Failed to create session. Please try again.');
+        return;
+      }
+    }
+
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -171,6 +212,8 @@ export default function AssemblyLine() {
     addMessage(userMessage);
     setLoading(true);
     setError(null);
+
+    saveMessageToSession(sessionId, 'user', content);
 
     try {
       const response = await apiRequest('POST', '/api/chat', {
@@ -188,6 +231,7 @@ export default function AssemblyLine() {
       
       if (data.extractedInputs) {
         updateInputs(data.extractedInputs);
+        updateSessionData(sessionId, { inputs: updatedInputs });
       }
 
       if (data.message) {
@@ -198,6 +242,7 @@ export default function AssemblyLine() {
           timestamp: Date.now()
         };
         addMessage(assistantMessage);
+        saveMessageToSession(sessionId, 'assistant', data.message);
       }
 
       if (data.readyForHooks) {
@@ -217,26 +262,50 @@ export default function AssemblyLine() {
     } finally {
       setLoading(false);
     }
-  }, [project, addMessage, updateInputs, setLoading, setError, generateTextHooks]);
+  }, [project, addMessage, updateInputs, setLoading, setError, generateTextHooks, currentSessionId, createSession, saveMessageToSession, updateSessionData]);
 
   const handleSelectTextHook = useCallback(async (hook: TextHook) => {
     if (!project) return;
     selectTextHook(hook);
+    
+    if (currentSessionId) {
+      const title = hook.content.split(/\s+/).slice(0, 6).join(' ') + (hook.content.split(/\s+/).length > 6 ? '...' : '');
+      updateSessionData(currentSessionId, { 
+        title,
+        selectedHooks: { text: hook },
+        status: 'hook_text'
+      });
+    }
+    
     await generateVerbalHooks();
-  }, [project, selectTextHook, generateVerbalHooks]);
+  }, [project, selectTextHook, generateVerbalHooks, currentSessionId, updateSessionData]);
 
   const handleSelectVerbalHook = useCallback((hook: VerbalHook) => {
     if (!project) return;
     selectVerbalHook(hook);
     setShowVisualContextForm(true);
     setStatus(ProjectStatus.HOOK_VISUAL);
-  }, [project, selectVerbalHook, setStatus]);
+    
+    if (currentSessionId && project.selectedHooks) {
+      updateSessionData(currentSessionId, { 
+        selectedHooks: { ...project.selectedHooks, verbal: hook },
+        status: 'hook_verbal'
+      });
+    }
+  }, [project, selectVerbalHook, setStatus, currentSessionId, updateSessionData]);
 
   const handleSelectVisualHook = useCallback((hook: VisualHook) => {
     if (!project) return;
     selectVisualHook(hook);
     setStatus(ProjectStatus.HOOK_OVERVIEW);
-  }, [project, selectVisualHook, setStatus]);
+    
+    if (currentSessionId && project.selectedHooks) {
+      updateSessionData(currentSessionId, { 
+        selectedHooks: { ...project.selectedHooks, visual: hook },
+        status: 'hook_overview'
+      });
+    }
+  }, [project, selectVisualHook, setStatus, currentSessionId, updateSessionData]);
 
   const handleEditFromOverview = useCallback((stage: 'text' | 'verbal' | 'visual') => {
     const stageMap = {
@@ -293,6 +362,14 @@ export default function AssemblyLine() {
           timestamp: Date.now()
         };
         addMessage(completeMessage);
+        
+        if (currentSessionId) {
+          updateSessionData(currentSessionId, { 
+            output: data.output,
+            status: 'complete'
+          });
+          saveMessageToSession(currentSessionId, 'assistant', completeMessage.content);
+        }
       }
     } catch (error) {
       console.error('Content generation error:', error);
@@ -301,7 +378,7 @@ export default function AssemblyLine() {
     } finally {
       setLoading(false);
     }
-  }, [project, setLoading, setStatus, setAgents, updateAgent, setOutput, addMessage, setError]);
+  }, [project, setLoading, setStatus, setAgents, updateAgent, setOutput, addMessage, setError, currentSessionId, updateSessionData, saveMessageToSession]);
 
   const handleEditMessage = useCallback(async (content: string) => {
     if (!project || !project.output) return;
@@ -317,6 +394,10 @@ export default function AssemblyLine() {
     setLoading(true);
     setError(null);
 
+    if (currentSessionId) {
+      saveMessageToSession(currentSessionId, 'user', content, true);
+    }
+
     try {
       const response = await apiRequest('POST', '/api/edit-content', {
         message: content,
@@ -328,6 +409,10 @@ export default function AssemblyLine() {
 
       if (data.updatedOutput) {
         setOutput(data.updatedOutput);
+        
+        if (currentSessionId) {
+          updateSessionData(currentSessionId, { output: data.updatedOutput });
+        }
       }
 
       if (data.message) {
@@ -338,6 +423,10 @@ export default function AssemblyLine() {
           timestamp: Date.now()
         };
         addEditMessage(assistantMessage);
+        
+        if (currentSessionId) {
+          saveMessageToSession(currentSessionId, 'assistant', data.message, true);
+        }
       }
     } catch (error) {
       console.error('Edit error:', error);
@@ -353,7 +442,7 @@ export default function AssemblyLine() {
     } finally {
       setLoading(false);
     }
-  }, [project, editMessages, addEditMessage, setOutput, setLoading, setError]);
+  }, [project, editMessages, addEditMessage, setOutput, setLoading, setError, currentSessionId, saveMessageToSession, updateSessionData]);
 
   const handleCreateNew = useCallback(() => {
     reset();
