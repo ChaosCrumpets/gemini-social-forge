@@ -15,11 +15,19 @@ import {
   getQuestionsFromCategory
 } from "./gemini";
 import { queryDatabase } from "./queryDatabase";
+import { setupAuth, registerAuthRoutes, isAuthenticated, authStorage } from "./replit_integrations/auth";
+import { adminRequired, premiumRequired, getUserFromRequest } from "./middleware/auth";
+import { db } from "./db";
+import { users } from "@shared/models/auth";
+import { eq } from "drizzle-orm";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  
+  await setupAuth(app);
+  registerAuthRoutes(app);
   
   app.post("/api/chat", async (req, res) => {
     try {
@@ -414,6 +422,208 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Session delete error:", error);
       res.status(500).json({ error: "Failed to delete session" });
+    }
+  });
+
+  // ============================================
+  // Admin Routes (Protected by adminRequired)
+  // ============================================
+
+  app.get("/api/admin/users", isAuthenticated, adminRequired, async (req, res) => {
+    try {
+      const allUsers = await db.select().from(users);
+      res.json(allUsers);
+    } catch (error) {
+      console.error("Admin users fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/premium", isAuthenticated, adminRequired, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { isPremium } = req.body;
+      
+      const [updatedUser] = await db.update(users)
+        .set({ 
+          isPremium: isPremium,
+          subscriptionEndDate: isPremium ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) : null,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, id))
+        .returning();
+      
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Admin toggle premium error:", error);
+      res.status(500).json({ error: "Failed to update user premium status" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/role", isAuthenticated, adminRequired, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { role } = req.body;
+      
+      if (role !== "user" && role !== "admin") {
+        return res.status(400).json({ error: "Invalid role. Must be 'user' or 'admin'" });
+      }
+      
+      const [updatedUser] = await db.update(users)
+        .set({ role, updatedAt: new Date() })
+        .where(eq(users.id, id))
+        .returning();
+      
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Admin toggle role error:", error);
+      res.status(500).json({ error: "Failed to update user role" });
+    }
+  });
+
+  // ============================================
+  // Stripe Payment Routes
+  // ============================================
+
+  app.post("/api/create-checkout-session", isAuthenticated, async (req, res) => {
+    try {
+      const user = await getUserFromRequest(req);
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+
+      const stripeKey = process.env.STRIPE_SECRET_KEY;
+      if (!stripeKey) {
+        return res.status(500).json({ error: "Stripe not configured" });
+      }
+
+      const stripe = await import("stripe").then(m => new m.default(stripeKey));
+      
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        mode: "subscription",
+        customer_email: user.email || undefined,
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: "C.A.L. Premium",
+                description: "Unlimited content generation with all features"
+              },
+              unit_amount: 1999,
+              recurring: {
+                interval: "month"
+              }
+            },
+            quantity: 1
+          }
+        ],
+        success_url: `${req.protocol}://${req.get("host")}/upgrade/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.protocol}://${req.get("host")}/upgrade`,
+        metadata: {
+          userId: user.id
+        }
+      });
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Checkout session error:", error);
+      res.status(500).json({ error: "Failed to create checkout session" });
+    }
+  });
+
+  app.post("/api/webhook/stripe", async (req, res) => {
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    
+    if (!stripeKey) {
+      return res.status(500).json({ error: "Stripe not configured" });
+    }
+
+    try {
+      const stripe = await import("stripe").then(m => new m.default(stripeKey));
+      
+      let event;
+      
+      if (webhookSecret) {
+        const sig = req.headers["stripe-signature"] as string;
+        event = stripe.webhooks.constructEvent(req.rawBody as Buffer, sig, webhookSecret);
+      } else {
+        event = req.body;
+      }
+
+      if (event.type === "checkout.session.completed") {
+        const session = event.data.object;
+        const userId = session.metadata?.userId;
+        
+        if (userId) {
+          await db.update(users)
+            .set({ 
+              isPremium: true,
+              stripeCustomerId: session.customer as string,
+              stripeSubscriptionId: session.subscription as string,
+              subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              updatedAt: new Date()
+            })
+            .where(eq(users.id, userId));
+        }
+      } else if (event.type === "customer.subscription.deleted") {
+        const subscription = event.data.object;
+        const customerId = subscription.customer as string;
+        
+        await db.update(users)
+          .set({ 
+            isPremium: false,
+            subscriptionEndDate: null,
+            updatedAt: new Date()
+          })
+          .where(eq(users.stripeCustomerId, customerId));
+      }
+
+      res.json({ received: true });
+    } catch (error) {
+      console.error("Webhook error:", error);
+      res.status(400).json({ error: "Webhook error" });
+    }
+  });
+
+  app.get("/api/upgrade/success", isAuthenticated, async (req, res) => {
+    try {
+      const { session_id } = req.query;
+      const stripeKey = process.env.STRIPE_SECRET_KEY;
+      
+      if (!stripeKey || !session_id) {
+        return res.redirect("/");
+      }
+
+      const stripe = await import("stripe").then(m => new m.default(stripeKey));
+      const session = await stripe.checkout.sessions.retrieve(session_id as string);
+      
+      if (session.payment_status === "paid" && session.metadata?.userId) {
+        await db.update(users)
+          .set({ 
+            isPremium: true,
+            stripeCustomerId: session.customer as string,
+            stripeSubscriptionId: session.subscription as string,
+            subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            updatedAt: new Date()
+          })
+          .where(eq(users.id, session.metadata.userId));
+      }
+
+      res.redirect("/");
+    } catch (error) {
+      console.error("Upgrade success error:", error);
+      res.redirect("/");
     }
   });
 

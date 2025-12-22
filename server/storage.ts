@@ -17,7 +17,7 @@ import type {
   SelectedHooks,
   VisualContext
 } from "@shared/schema";
-import { sessions, sessionMessages } from "@shared/schema";
+import { contentSessions, sessionMessages } from "@shared/schema";
 
 export interface IStorage {
   createProject(): Promise<Project>;
@@ -174,7 +174,7 @@ export interface SessionWithMessages {
 
 export const sessionStorage = {
   async createSession(): Promise<Session> {
-    const [session] = await db.insert(sessions)
+    const [session] = await db.insert(contentSessions)
       .values({
         title: "New Script",
         status: "inputting",
@@ -186,8 +186,8 @@ export const sessionStorage = {
 
   async getSession(id: number): Promise<Session | undefined> {
     const [session] = await db.select()
-      .from(sessions)
-      .where(eq(sessions.id, id));
+      .from(contentSessions)
+      .where(eq(contentSessions.id, id));
     return session;
   },
 
@@ -208,14 +208,14 @@ export const sessionStorage = {
 
   async listSessions(): Promise<Session[]> {
     return db.select()
-      .from(sessions)
-      .orderBy(desc(sessions.createdAt));
+      .from(contentSessions)
+      .orderBy(desc(contentSessions.createdAt));
   },
 
   async updateSession(id: number, updates: Record<string, unknown>): Promise<Session | undefined> {
-    const [session] = await db.update(sessions)
-      .set({ ...updates, updatedAt: new Date() } as Partial<typeof sessions.$inferInsert>)
-      .where(eq(sessions.id, id))
+    const [session] = await db.update(contentSessions)
+      .set({ ...updates, updatedAt: new Date() } as Partial<typeof contentSessions.$inferInsert>)
+      .where(eq(contentSessions.id, id))
       .returning();
     return session;
   },
@@ -258,8 +258,8 @@ export const sessionStorage = {
   },
 
   async deleteSession(id: number): Promise<boolean> {
-    const result = await db.delete(sessions)
-      .where(eq(sessions.id, id))
+    const result = await db.delete(contentSessions)
+      .where(eq(contentSessions.id, id))
       .returning();
     return result.length > 0;
   },
