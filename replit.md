@@ -150,3 +150,105 @@ All content generation endpoints require authentication + premium subscription:
 - `zustand` - Frontend state management
 - `@tanstack/react-query` - Data fetching
 - `zod` - Schema validation (shared between frontend/backend)
+- `stripe` - Payment processing for subscriptions
+- `passport` / `openid-client` - Authentication via Replit Auth OIDC
+- `express-session` / `connect-pg-simple` - Session management with PostgreSQL
+
+## Development Changelog
+
+### Phase 1: Foundation & AI Integration
+1. **Initial Setup** - Created React + Express full-stack application with Vite bundling
+2. **Gemini AI Integration** - Added Google Gemini API for conversational AI and content generation
+3. **Dashboard Interface** - Built main chat-to-dashboard UI for content creation workflow
+
+### Phase 2: Hook Generation System
+4. **Hook Generation** - Added ability to generate content hooks from user inputs
+5. **Hook Database & Ranking** - Created hook schema with ranking and recommendation fields
+6. **Hook Selection UI** - Added visual indicators for ranked and recommended hooks
+7. **Multi-Stage Hook Selection** - Introduced distinct text, verbal, and visual hook stages:
+   - Text hooks (on-screen captions/titles)
+   - Verbal hooks (script openers)
+   - Visual hooks (filming guides with dual FIY + GenAI output)
+8. **Visual Context Form** - Added filming context collection before visual hook generation
+9. **Hook Overview Stage** - Added review screen showing all 3 hook selections before final generation
+
+### Phase 3: Content Output & B-Roll
+10. **B-Roll AI Prompts** - Added AI-generated prompts for B-roll creation with three output types:
+    - FIY (Film It Yourself) - Practical filming instructions
+    - Alpha Image Prompt - Cinematic prompts for AI image generation (Midjourney, DALL-E)
+    - Omega Video Prompt - Motion-focused prompts for AI video generation (Runway, Sora)
+11. **Alpha/Omega Framework** - Implemented 3-Pillar structure for Alpha prompts and motion extension for Omega prompts
+
+### Phase 4: Editing & Chat Enhancement
+12. **Content Editing** - Added chat interface for editing generated content post-creation
+13. **New Plan Flow** - Added "New Plan" buttons to start fresh content generation
+14. **Split-View Layout** - Created left panel (edit chat) and right panel (content output) design
+
+### Phase 5: Persistence & Session Management
+15. **Database Storage** - Added persistent storage for chat sessions and messages using PostgreSQL
+16. **Session Management** - Implemented database-backed session management for content generation
+17. **Project Store Sessions** - Added session management functionality to Zustand store
+18. **Chat History Persistence** - Enabled saving and loading of chat history across sessions
+19. **Session Reset** - Added proper session reset when creating new content
+
+### Phase 6: UI/UX Improvements
+20. **Mobile Sidebar** - Updated sidebar to use overlay pattern on mobile devices
+21. **Responsive Design** - Ensured proper layout across different screen sizes
+
+### Phase 7: Discovery Questions System
+22. **Discovery Questions Database** - Created system to store 200+ discovery questions across 11 categories:
+    - Topic Depth, Audience Insights, Content Style, Emotional Resonance
+    - Authority Building, Practical Details, Differentiation, Call to Action
+    - Platform Optimization, Content Constraints, Trend Alignment
+23. **Interactive Discovery UI** - Added interactive discovery questions to gather user context
+24. **AI-Powered Question Selection** - Implemented AI selection of 3-5 relevant questions based on topic/intent
+25. **Discovery Context Integration** - Passed discovery answers to all hook generation prompts for personalization
+
+### Phase 8: Authentication & Premium Paywall
+26. **Replit Auth Integration** - Added OIDC-based authentication (Google, GitHub, X, Apple, email)
+27. **User Model** - Created user table with role (user/admin) and premium subscription fields
+28. **Auth Middleware** - Built isAuthenticated, adminRequired, and premiumRequired middleware
+29. **Stripe Integration** - Added Stripe checkout for premium subscriptions with webhook handling
+30. **Admin Dashboard** - Created `/admin` page for managing users, roles, and premium status
+31. **Upgrade Page** - Built `/upgrade` page with Stripe checkout integration
+32. **Protected Endpoints** - Secured all AI generation endpoints behind authentication + premium requirement:
+    - generate-hooks, generate-text-hooks, generate-verbal-hooks, generate-visual-hooks
+    - generate-content, generate-content-multi, edit-content, generate-discovery-questions
+
+### Database Tables
+- `users` - User accounts with role, premium status, Stripe IDs
+- `sessions` - Auth session storage (PostgreSQL-backed)
+- `content_sessions` - Content generation sessions with userId, messages, hooks, output
+
+### Key Files Structure
+```
+client/src/
+├── pages/
+│   ├── home.tsx          # Main content generation interface
+│   ├── admin.tsx         # Admin dashboard
+│   ├── upgrade.tsx       # Premium upgrade page
+│   └── not-found.tsx     # 404 page
+├── components/
+│   ├── ChatPanel.tsx     # Chat interface component
+│   ├── ContentOutput.tsx # Generated content display
+│   ├── HookSelection.tsx # Hook selection UI
+│   └── ui/               # shadcn components
+├── store/
+│   └── projectStore.ts   # Zustand state management
+└── lib/
+    └── queryClient.ts    # TanStack Query setup
+
+server/
+├── routes.ts             # All API endpoints
+├── storage.ts            # Storage interface (MemStorage)
+├── gemini.ts             # Gemini AI integration
+├── middleware/
+│   └── auth.ts           # Auth middleware (admin, premium)
+└── replit_integrations/
+    └── auth/             # Replit Auth OIDC setup
+
+shared/
+├── schema.ts             # Drizzle schema & Zod types
+└── models/
+    └── auth.ts           # Auth-related types
+```
