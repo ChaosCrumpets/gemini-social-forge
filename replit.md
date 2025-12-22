@@ -54,6 +54,44 @@ The prompts follow the Alpha/Omega framework:
 
 Preferred communication style: Simple, everyday language.
 
+## Authentication & Subscription
+
+### User Authentication
+- **Replit Auth**: OIDC-based authentication supporting Google, GitHub, X, Apple, and email/password
+- Users are stored in `users` table with role-based access control
+- Auth sessions stored in `sessions` table (PostgreSQL-backed)
+
+### User Roles
+- **user**: Standard access, can use the app with premium subscription
+- **admin**: Full access including admin dashboard at `/admin`
+
+### Premium Subscription
+- Premium users have access to all content generation features
+- Free users are blocked from generation endpoints (403 response)
+- Stripe integration for subscription payments
+- Upgrade page available at `/upgrade`
+
+### Protected Endpoints (Premium Required)
+All content generation endpoints require authentication + premium subscription:
+- `POST /api/generate-hooks`
+- `POST /api/generate-text-hooks`
+- `POST /api/generate-verbal-hooks`
+- `POST /api/generate-visual-hooks`
+- `POST /api/generate-content`
+- `POST /api/generate-content-multi`
+- `POST /api/edit-content`
+- `POST /api/generate-discovery-questions`
+
+### Admin Endpoints
+- `GET /api/admin/users` - List all users
+- `PATCH /api/admin/users/:id/premium` - Toggle user premium status
+- `PATCH /api/admin/users/:id/role` - Change user role
+
+### Stripe Integration
+- `POST /api/create-checkout-session` - Create Stripe checkout for premium subscription
+- `POST /api/webhook/stripe` - Handle Stripe webhook events
+- `GET /api/upgrade/success` - Handle successful subscription redirect
+
 ## System Architecture
 
 ### Frontend Architecture
