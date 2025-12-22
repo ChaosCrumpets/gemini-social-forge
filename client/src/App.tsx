@@ -6,12 +6,17 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import AssemblyLine from "@/pages/assembly-line";
+import AdminDashboard from "@/pages/admin";
+import UpgradePage from "@/pages/upgrade";
 import { SessionSidebar, SidebarToggle } from "@/components/SessionSidebar";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={AssemblyLine} />
+      <Route path="/admin" component={AdminDashboard} />
+      <Route path="/upgrade" component={UpgradePage} />
+      <Route path="/upgrade/success" component={AssemblyLine} />
       <Route component={NotFound} />
     </Switch>
   );

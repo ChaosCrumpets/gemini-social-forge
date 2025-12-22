@@ -65,8 +65,8 @@ export async function registerRoutes(
     }
   });
 
-  // Legacy hook generation endpoint
-  app.post("/api/generate-hooks", async (req, res) => {
+  // Legacy hook generation endpoint (Premium required)
+  app.post("/api/generate-hooks", isAuthenticated, premiumRequired, async (req, res) => {
     try {
       const { projectId, inputs } = req.body;
 
@@ -90,8 +90,8 @@ export async function registerRoutes(
     }
   });
 
-  // New modality-specific hook endpoints
-  app.post("/api/generate-text-hooks", async (req, res) => {
+  // New modality-specific hook endpoints (Premium required)
+  app.post("/api/generate-text-hooks", isAuthenticated, premiumRequired, async (req, res) => {
     try {
       const { inputs } = req.body;
 
@@ -110,7 +110,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/generate-verbal-hooks", async (req, res) => {
+  app.post("/api/generate-verbal-hooks", isAuthenticated, premiumRequired, async (req, res) => {
     try {
       const { inputs } = req.body;
 
@@ -129,7 +129,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/generate-visual-hooks", async (req, res) => {
+  app.post("/api/generate-visual-hooks", isAuthenticated, premiumRequired, async (req, res) => {
     try {
       const { inputs, visualContext } = req.body;
 
@@ -152,8 +152,8 @@ export async function registerRoutes(
     }
   });
 
-  // New multi-hook content generation endpoint
-  app.post("/api/generate-content-multi", async (req, res) => {
+  // New multi-hook content generation endpoint (Premium required)
+  app.post("/api/generate-content-multi", isAuthenticated, premiumRequired, async (req, res) => {
     try {
       const { inputs, selectedHooks } = req.body;
 
@@ -175,8 +175,8 @@ export async function registerRoutes(
     }
   });
 
-  // Legacy content generation endpoint
-  app.post("/api/generate-content", async (req, res) => {
+  // Legacy content generation endpoint (Premium required)
+  app.post("/api/generate-content", isAuthenticated, premiumRequired, async (req, res) => {
     try {
       const { projectId, inputs, selectedHook } = req.body;
 
@@ -200,7 +200,7 @@ export async function registerRoutes(
   });
 
   // Edit content output via chat
-  app.post("/api/edit-content", async (req, res) => {
+  app.post("/api/edit-content", isAuthenticated, premiumRequired, async (req, res) => {
     try {
       const { message, currentOutput, messages } = req.body;
 
@@ -269,7 +269,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/generate-discovery-questions", async (req, res) => {
+  app.post("/api/generate-discovery-questions", isAuthenticated, premiumRequired, async (req, res) => {
     try {
       const { topic, intent } = req.body;
 
