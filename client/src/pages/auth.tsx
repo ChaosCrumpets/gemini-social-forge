@@ -123,8 +123,13 @@ export default function AuthPage() {
                             <Input 
                               placeholder="you@example.com" 
                               className="pl-10" 
+                              autoComplete="email"
                               data-testid="input-email"
-                              {...field} 
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
                             />
                           </div>
                         </FormControl>
@@ -145,8 +150,13 @@ export default function AuthPage() {
                               type="password" 
                               placeholder="Enter your password" 
                               className="pl-10"
+                              autoComplete="current-password"
                               data-testid="input-password"
-                              {...field} 
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
                             />
                           </div>
                         </FormControl>
@@ -184,8 +194,13 @@ export default function AuthPage() {
                               <Input 
                                 placeholder="John" 
                                 className="pl-10"
+                                autoComplete="given-name"
                                 data-testid="input-first-name"
-                                {...field} 
+                                value={field.value}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                name={field.name}
+                                ref={field.ref}
                               />
                             </div>
                           </FormControl>
@@ -202,8 +217,13 @@ export default function AuthPage() {
                           <FormControl>
                             <Input 
                               placeholder="Doe"
+                              autoComplete="family-name"
                               data-testid="input-last-name"
-                              {...field} 
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
                             />
                           </FormControl>
                           <FormMessage />
@@ -223,8 +243,13 @@ export default function AuthPage() {
                             <Input 
                               placeholder="you@example.com" 
                               className="pl-10"
+                              autoComplete="email"
                               data-testid="input-register-email"
-                              {...field} 
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
                             />
                           </div>
                         </FormControl>
@@ -245,8 +270,13 @@ export default function AuthPage() {
                               type="password" 
                               placeholder="At least 8 characters" 
                               className="pl-10"
+                              autoComplete="new-password"
                               data-testid="input-register-password"
-                              {...field} 
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
                             />
                           </div>
                         </FormControl>
