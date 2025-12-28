@@ -173,12 +173,13 @@ export interface SessionWithMessages {
 }
 
 export const sessionStorage = {
-  async createSession(): Promise<Session> {
+  async createSession(userId?: string): Promise<Session> {
     const [session] = await db.insert(contentSessions)
       .values({
         title: "New Script",
         status: "inputting",
-        inputs: {}
+        inputs: {},
+        userId: userId || null
       })
       .returning();
     return session;

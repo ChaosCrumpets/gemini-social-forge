@@ -56,7 +56,12 @@ Preferred communication style: Simple, everyday language.
 - **Stripe**: For managing premium subscriptions and checkout flows.
 
 ### Authentication
-- **Replit Auth**: OIDC-based authentication supporting various providers (Google, GitHub, X, Apple, email/password).
+- **Dual Auth Support**: Native password-based authentication AND Replit Auth (OIDC-based).
+  - Native auth uses bcrypt for password hashing and express-session for session management.
+  - The `server/middleware/native-auth.ts` middleware supports both auth modes seamlessly.
+- **5-Tier Membership System**: Bronze (free), Silver ($10/mo), Gold ($20/mo), Platinum ($50/mo), Diamond ($200 lifetime).
+  - Bronze users can access basic features including chat and discovery questions.
+  - Premium tiers (Silver+) unlock hook generation and content creation features.
 
 ### Key NPM Packages
 - `@google/genai`

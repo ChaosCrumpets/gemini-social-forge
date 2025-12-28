@@ -1,0 +1,39 @@
+Act as a Lead QA Automation Engineer and Backend Architect. I need you to perform a rigorous "Deep Trace Audit" of the entire C.A.L (Content Assembly Line) user flow to ensure the application actually functions as intended.
+
+**Context:**
+We have migrated from a Supabase architecture to a native Node/Express/Drizzle stack. I need to verify that the frontend inputs are correctly hitting the backend, the database is updating, and the AI is generating content.
+
+**Your Objective:**
+Conduct a 4-step verification process. Do not just "look" at the code; verify the logic flow by tracing the API calls and creating a simulation script.
+
+### Step 1: The Auth & Schema Audit
+* **Analyze:** `shared/schema.ts` vs `server/routes.ts`.
+* **Verify:** When a user registers via `/api/register`, are they correctly assigned the default "Bronze" tier in the `users` table?
+* **Check:** Does the password hashing (scrypt/bcrypt) implementation in `server/lib/auth-utils.ts` match the verification logic in the Login route?
+
+### Step 2: The "Assembly Line" State Machine Audit
+* **Analyze:** `client/src/pages/assembly-line.tsx` and `server/storage.ts`.
+* **Trace:** Follow the data flow for a new project:
+    1.  User enters a chat message -> POST `/api/chat`.
+    2.  Does the backend save this message to `session_messages`?
+    3.  Does the backend update the `content_sessions` status (e.g., from 'inputting' to 'hook_generation')?
+    4.  **Critical:** Verify that the JSONB columns (`text_hooks`, `visual_hooks`, etc.) in the database match the data structure expected by the frontend components.
+
+### Step 3: The AI Integration Link
+* **Analyze:** `server/gemini.ts` and the frontend Hook Selection stage.
+* **Verify:** When the user selects a hook, does the frontend successfully send that selection to the backend? Does the backend then trigger the *next* specific Gemini function (e.g., `generateScript`) using that selection?
+
+### Step 4: Execution (The Simulation Script)
+**Action:** Create and run a temporary server-side script named `scripts/test-user-flow.ts` to simulate a user journey without a browser.
+The script must:
+1.  **Register** a mock user ("testuser@cal.com").
+2.  **Log in** to get a session cookie.
+3.  **Create** a new Content Session.
+4.  **Send** a mock chat message: "I want a video about eco-friendly coffee cups."
+5.  **Trigger** the hook generation endpoint.
+6.  **Log the result:** Print the generated hooks to the console to prove Gemini is responding.
+
+**Deliverables:**
+1.  **Run** the `scripts/test-user-flow.ts` file and show me the output logs.
+2.  **Report:** List any "Broken Links" found (e.g., "The frontend expects `hookId` but the database stores `id`").
+3.  **Fix:** If the script fails or links are broken, automatically apply the fixes to the codebase.

@@ -15,8 +15,8 @@ import {
   getQuestionsFromCategory
 } from "./gemini";
 import { queryDatabase } from "./queryDatabase";
-import { setupAuth, registerAuthRoutes, isAuthenticated, authStorage } from "./replit_integrations/auth";
-import { adminRequired, premiumRequired, getUserFromRequest } from "./middleware/auth";
+import { setupAuth, registerAuthRoutes, authStorage } from "./replit_integrations/auth";
+import { requireAuth, requirePremium, requireAdmin, getUserIdFromSession, getUserFromSession } from "./middleware/native-auth";
 import { db } from "./db";
 import { users, registerSchema, loginSchema, upgradeSchema, SubscriptionTier, TierInfo } from "@shared/models/auth";
 import { eq } from "drizzle-orm";
@@ -137,7 +137,7 @@ export async function registerRoutes(
   // Get current user
   app.get("/api/me", async (req: Request, res: Response) => {
     try {
-      const userId = (req.session as any)?.userId;
+      const userId = await getUserIdFromSession(req);
       if (!userId) {
         return res.status(401).json({ error: "Not authenticated" });
       }
@@ -166,7 +166,7 @@ export async function registerRoutes(
   // Upgrade subscription tier (mock payment)
   app.post("/api/upgrade", async (req: Request, res: Response) => {
     try {
-      const userId = (req.session as any)?.userId;
+      const userId = await getUserIdFromSession(req);
       if (!userId) {
         return res.status(401).json({ error: "Not authenticated" });
       }
@@ -261,7 +261,7 @@ export async function registerRoutes(
   });
 
   // Legacy hook generation endpoint (Premium required)
-  app.post("/api/generate-hooks", isAuthenticated, premiumRequired, async (req, res) => {
+  app.post("/api/generate-hooks", requireAuth, requirePremium, async (req, res) => {
     try {
       const { projectId, inputs } = req.body;
 
@@ -286,7 +286,7 @@ export async function registerRoutes(
   });
 
   // New modality-specific hook endpoints (Premium required)
-  app.post("/api/generate-text-hooks", isAuthenticated, premiumRequired, async (req, res) => {
+  app.post("/api/generate-text-hooks", requireAuth, requirePremium, async (req, res) => {
     try {
       const { inputs } = req.body;
 
@@ -305,7 +305,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/generate-verbal-hooks", isAuthenticated, premiumRequired, async (req, res) => {
+  app.post("/api/generate-verbal-hooks", requireAuth, requirePremium, async (req, res) => {
     try {
       const { inputs } = req.body;
 
@@ -324,7 +324,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/generate-visual-hooks", isAuthenticated, premiumRequired, async (req, res) => {
+  app.post("/api/generate-visual-hooks", requireAuth, requirePremium, async (req, res) => {
     try {
       const { inputs, visualContext } = req.body;
 
@@ -348,7 +348,7 @@ export async function registerRoutes(
   });
 
   // New multi-hook content generation endpoint (Premium required)
-  app.post("/api/generate-content-multi", isAuthenticated, premiumRequired, async (req, res) => {
+  app.post("/api/generate-content-multi", requireAuth, requirePremium, async (req, res) => {
     try {
       const { inputs, selectedHooks } = req.body;
 
@@ -371,7 +371,7 @@ export async function registerRoutes(
   });
 
   // Legacy content generation endpoint (Premium required)
-  app.post("/api/generate-content", isAuthenticated, premiumRequired, async (req, res) => {
+  app.post("/api/generate-content", requireAuth, requirePremium, async (req, res) => {
     try {
       const { projectId, inputs, selectedHook } = req.body;
 
@@ -395,7 +395,7 @@ export async function registerRoutes(
   });
 
   // Edit content output via chat
-  app.post("/api/edit-content", isAuthenticated, premiumRequired, async (req, res) => {
+  app.post("/api/edit-content", requireAuth, requirePremium, async (req, res) => {
     try {
       const { message, currentOutput, messages } = req.body;
 
@@ -464,7 +464,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/generate-discovery-questions", isAuthenticated, premiumRequired, async (req, res) => {
+  app.post("/api/generate-discovery-questions", requireAuth, async (req, res) => {
     try {
       const { topic, intent } = req.body;
 
@@ -522,7 +522,8 @@ export async function registerRoutes(
 
   app.post("/api/sessions", async (req, res) => {
     try {
-      const session = await sessionStorage.createSession();
+      const userId = await getUserIdFromSession(req);
+      const session = await sessionStorage.createSession(userId || undefined);
       res.json(session);
     } catch (error) {
       console.error("Session creation error:", error);
@@ -624,7 +625,7 @@ export async function registerRoutes(
   // Admin Routes (Protected by adminRequired)
   // ============================================
 
-  app.get("/api/admin/users", isAuthenticated, adminRequired, async (req, res) => {
+  app.get("/api/admin/users", requireAuth, requireAdmin, async (req, res) => {
     try {
       const allUsers = await db.select().from(users);
       res.json(allUsers);
@@ -634,7 +635,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/admin/users/:id/premium", isAuthenticated, adminRequired, async (req, res) => {
+  app.patch("/api/admin/users/:id/premium", requireAuth, requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const { isPremium } = req.body;
@@ -659,7 +660,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/admin/users/:id/role", isAuthenticated, adminRequired, async (req, res) => {
+  app.patch("/api/admin/users/:id/role", requireAuth, requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const { role } = req.body;
@@ -688,9 +689,9 @@ export async function registerRoutes(
   // Stripe Payment Routes
   // ============================================
 
-  app.post("/api/create-checkout-session", isAuthenticated, async (req, res) => {
+  app.post("/api/create-checkout-session", requireAuth, async (req, res) => {
     try {
-      const user = await getUserFromRequest(req);
+      const user = await getUserFromSession(req);
       if (!user) {
         return res.status(401).json({ error: "User not found" });
       }
@@ -791,7 +792,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/upgrade/success", isAuthenticated, async (req, res) => {
+  app.get("/api/upgrade/success", requireAuth, async (req, res) => {
     try {
       const { session_id } = req.query;
       const stripeKey = process.env.STRIPE_SECRET_KEY;
