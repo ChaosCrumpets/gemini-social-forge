@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage, sessionStorage } from "./storage";
 import { 
@@ -18,8 +18,9 @@ import { queryDatabase } from "./queryDatabase";
 import { setupAuth, registerAuthRoutes, isAuthenticated, authStorage } from "./replit_integrations/auth";
 import { adminRequired, premiumRequired, getUserFromRequest } from "./middleware/auth";
 import { db } from "./db";
-import { users } from "@shared/models/auth";
+import { users, registerSchema, loginSchema, upgradeSchema, SubscriptionTier, TierInfo } from "@shared/models/auth";
 import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -28,6 +29,200 @@ export async function registerRoutes(
   
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  // ============================================
+  // Native Authentication Routes
+  // ============================================
+
+  // Register new user
+  app.post("/api/register", async (req: Request, res: Response) => {
+    try {
+      const parseResult = registerSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: parseResult.error.errors[0].message });
+      }
+
+      const { email, password, firstName, lastName } = parseResult.data;
+
+      // Check if user already exists
+      const existingUser = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (existingUser.length > 0) {
+        return res.status(400).json({ error: "Email already registered" });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create user
+      const [newUser] = await db.insert(users).values({
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName,
+        role: "user",
+        subscriptionTier: "bronze",
+        isPremium: false
+      }).returning();
+
+      // Set session
+      (req.session as any).userId = newUser.id;
+
+      res.json({
+        id: newUser.id,
+        email: newUser.email,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        role: newUser.role,
+        subscriptionTier: newUser.subscriptionTier,
+        isPremium: newUser.isPremium
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      res.status(500).json({ error: "Failed to register user" });
+    }
+  });
+
+  // Login user
+  app.post("/api/login", async (req: Request, res: Response) => {
+    try {
+      const parseResult = loginSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: parseResult.error.errors[0].message });
+      }
+
+      const { email, password } = parseResult.data;
+
+      // Find user
+      const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (!user || !user.password) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+
+      // Set session
+      (req.session as any).userId = user.id;
+
+      res.json({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profileImageUrl: user.profileImageUrl,
+        role: user.role,
+        subscriptionTier: user.subscriptionTier,
+        isPremium: user.isPremium
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Failed to login" });
+    }
+  });
+
+  // Logout user
+  app.post("/api/logout", (req: Request, res: Response) => {
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ error: "Failed to logout" });
+      }
+      res.json({ success: true });
+    });
+  });
+
+  // Get current user
+  app.get("/api/me", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+
+      res.json({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profileImageUrl: user.profileImageUrl,
+        role: user.role,
+        subscriptionTier: user.subscriptionTier,
+        isPremium: user.isPremium
+      });
+    } catch (error) {
+      console.error("Get me error:", error);
+      res.status(500).json({ error: "Failed to get user" });
+    }
+  });
+
+  // Upgrade subscription tier (mock payment)
+  app.post("/api/upgrade", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const parseResult = upgradeSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: parseResult.error.errors[0].message });
+      }
+
+      const { tier } = parseResult.data;
+      const tierData = TierInfo[tier as keyof typeof TierInfo];
+      
+      // Determine if premium based on tier
+      const isPremium = tier !== "bronze";
+      
+      // Calculate subscription end date (1 year for diamond, 1 month for others)
+      const subscriptionEndDate = tier === "diamond" 
+        ? new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000) // 100 years for lifetime
+        : tier !== "bronze" 
+          ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 1 month
+          : null;
+
+      const [updatedUser] = await db.update(users)
+        .set({
+          subscriptionTier: tier,
+          isPremium,
+          subscriptionEndDate,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId))
+        .returning();
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({
+        id: updatedUser.id,
+        email: updatedUser.email,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        role: updatedUser.role,
+        subscriptionTier: updatedUser.subscriptionTier,
+        isPremium: updatedUser.isPremium,
+        message: `Successfully upgraded to ${tierData.name}!`
+      });
+    } catch (error) {
+      console.error("Upgrade error:", error);
+      res.status(500).json({ error: "Failed to upgrade subscription" });
+    }
+  });
+
+  // Get tier info
+  app.get("/api/tiers", (_req: Request, res: Response) => {
+    res.json(TierInfo);
+  });
   
   app.post("/api/chat", async (req, res) => {
     try {

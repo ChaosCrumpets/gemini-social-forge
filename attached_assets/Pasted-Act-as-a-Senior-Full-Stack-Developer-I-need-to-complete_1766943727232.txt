@@ -1,0 +1,38 @@
+Act as a Senior Full Stack Developer. I need to complete the "Production Refactor" of my app by implementing a native Authentication system and a Tiered Membership system.
+
+**Context:**
+I have uploaded a folder containing a reference codebase from "Lovable" (React/Supabase).
+* **Reference UI:** Please analyze the Lovable folder, specifically `src/pages/LoginPage.tsx`, `src/pages/ProfilePage.tsx`, and `src/layouts/AppLayout.tsx` for the visual design and UX flow.
+* **Target Stack:** My current app uses Node.js, Express, Drizzle ORM, PostgreSQL, and basic local Auth (Passport/Session).
+
+**Objective:**
+Implement a complete Login/Signup flow and a 5-tier membership system using our native Replit database and Express backend.
+
+**Task 1: Database Schema Updates (`shared/schema.ts`)**
+Modify the `users` table to include a `subscriptionTier` column.
+Define these specific tiers in an Enum or const object:
+1.  **Bronze** (Free)
+2.  **Silver** (Tier 1)
+3.  **Gold** (Tier 2)
+4.  **Platinum** (Tier 3)
+5.  **Diamond** (Lifetime Buy-out)
+
+**Task 2: Backend Implementation (`server/routes.ts`)**
+1.  Create API routes for `/api/register`, `/api/login`, and `/api/logout`.
+2.  Implement a mock "upgrade" route `/api/upgrade` that takes a `tier` and updates the user's `subscriptionTier` in the database (simulate a payment success).
+3.  Ensure user sessions persist correctly.
+
+**Task 3: Frontend Implementation**
+1.  **Auth Pages:** Create a `AuthPage.tsx` (or separate Login/Signup pages) that visually mimics the Lovable `LoginPage.tsx`. It must interact with our Node/Express backend, NOT Supabase.
+2.  **Pricing Page:** Create a `UpgradePage.tsx` that displays the 5 tiers in 5 cards with mock prices (e.g., Free, $10, $20, $50, $200). Clicking a tier should call the mock upgrade API.
+3.  **Navigation Update:** Update the top navigation bar (in `App.tsx` or your main layout file) to show:
+    * A Profile Thumbnail (user avatar or placeholder).
+    * A **Tier Emblem/Badge** right next to the avatar displaying their current tier (Bronze, Silver, etc.).
+4.  **Routing:** Ensure unauthorized users are redirected to `/auth` if they try to access protected routes.
+
+**Constraints:**
+* Do NOT use Supabase libraries. Use standard `fetch` or `tanstack-query` to hit our Express API.
+* Use the existing `shadcn` UI components we have installed.
+* Maintain the current "Assembly Line" styling.
+
+Please execute this plan step-by-step, starting with the `shared/schema.ts` update.

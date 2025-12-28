@@ -7,7 +7,7 @@ export default function LandingPage() {
   const [, setLocation] = useLocation();
 
   const handleGetStarted = () => {
-    setLocation("/app");
+    setLocation("/auth");
   };
 
   return (
@@ -23,7 +23,7 @@ export default function LandingPage() {
           </Link>
           <div className="flex items-center gap-2">
             <Button variant="ghost" asChild data-testid="link-login">
-              <Link href="/app">Sign In</Link>
+              <Link href="/auth">Sign In</Link>
             </Button>
             <Button className="gradient-primary" onClick={handleGetStarted} data-testid="button-get-started-header">
               Get Started
