@@ -71,7 +71,8 @@ interface TextHookCardProps {
 }
 
 function TextHookCard({ hook, isSelected, onSelect, disabled }: TextHookCardProps) {
-  const Icon = hookIcons[hook.type.toLowerCase()] || hookIcons.default;
+  const hookType = hook.type?.toLowerCase() || 'default';
+  const Icon = hookIcons[hookType] || hookIcons.default;
   
   return (
     <Card

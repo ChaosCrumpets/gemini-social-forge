@@ -628,7 +628,7 @@ export default function AssemblyLine() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background" data-testid="assembly-line-page">
+    <div className="h-screen flex flex-col bg-background overflow-hidden" data-testid="assembly-line-page">
       {project.status !== ProjectStatus.COMPLETE && (
         <StatusBar status={project.status} />
       )}
