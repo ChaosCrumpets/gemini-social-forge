@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -8,12 +8,14 @@ import NotFound from "@/pages/not-found";
 import AssemblyLine from "@/pages/assembly-line";
 import AdminDashboard from "@/pages/admin";
 import UpgradePage from "@/pages/upgrade";
+import LandingPage from "@/pages/landing";
+import ProjectsPage from "@/pages/projects";
 import { SessionSidebar, SidebarToggle } from "@/components/SessionSidebar";
 
-function Router() {
+function AppRouter() {
   return (
     <Switch>
-      <Route path="/" component={AssemblyLine} />
+      <Route path="/app" component={AssemblyLine} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/upgrade" component={UpgradePage} />
       <Route path="/upgrade/success" component={AssemblyLine} />
@@ -53,7 +55,7 @@ function AppLayout() {
           </div>
         )}
         <main className="flex-1 overflow-hidden">
-          <Router />
+          <AppRouter />
         </main>
       </div>
     </div>
@@ -61,11 +63,22 @@ function AppLayout() {
 }
 
 function App() {
+  const [location] = useLocation();
+  
+  const isLandingOrProjects = location === "/" || location === "/projects";
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <AppLayout />
+        {isLandingOrProjects ? (
+          <Switch>
+            <Route path="/" component={LandingPage} />
+            <Route path="/projects" component={ProjectsPage} />
+          </Switch>
+        ) : (
+          <AppLayout />
+        )}
       </TooltipProvider>
     </QueryClientProvider>
   );

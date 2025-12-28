@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Plus, MessageSquare, Trash2, FileText, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, FileText, PanelLeftClose, PanelLeft, Zap, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { queryClient, apiRequest } from '@/lib/queryClient';
@@ -7,6 +7,7 @@ import { useProjectStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import type { Session, SessionMessage } from '@shared/schema';
 import { useState, useEffect } from 'react';
+import { Link } from 'wouter';
 
 interface SessionWithMessages {
   session: Session;
@@ -101,33 +102,52 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
   };
 
   const sidebarContent = (
-    <div className="h-full w-64 bg-sidebar flex flex-col">
-      <div className="flex items-center justify-between gap-2 p-3 border-b">
+    <div className="h-full w-64 bg-sidebar text-sidebar-foreground flex flex-col">
+      {/* Header with branding */}
+      <div className="p-4 border-b border-sidebar-border">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
+            <Zap className="h-5 w-5 text-sidebar-primary-foreground" />
+          </div>
+          <span className="font-bold text-sidebar-foreground" data-testid="text-sidebar-logo">C.A.L.</span>
+        </Link>
+      </div>
+      
+      {/* Actions */}
+      <div className="p-2 space-y-1">
         <Button
           onClick={handleNewChat}
-          className="flex-1"
+          className="w-full justify-start"
+          variant="outline"
           data-testid="button-new-chat"
         >
           <Plus className="h-4 w-4 mr-2" />
-          New Chat
+          New Project
         </Button>
         <Button
-          size="icon"
           variant="ghost"
-          onClick={onClose}
-          data-testid="button-close-sidebar"
+          className="w-full justify-start text-sidebar-foreground"
+          asChild
+          data-testid="button-view-projects"
         >
-          <PanelLeftClose className="h-4 w-4" />
+          <Link href="/projects">
+            <FolderOpen className="h-4 w-4 mr-2" />
+            View All Projects
+          </Link>
         </Button>
       </div>
 
-      <ScrollArea className="flex-1 p-2">
+      {/* Recent sessions */}
+      <div className="px-2 py-1">
+        <p className="text-xs font-medium text-sidebar-foreground/60 px-2 mb-1">Recent</p>
+      </div>
+      <ScrollArea className="flex-1 px-2">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-sidebar-primary animate-pulse" />
           </div>
         ) : sessions.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground text-sm">
+          <div className="text-center py-8 text-sidebar-foreground/60 text-sm">
             No saved sessions yet
           </div>
         ) : (
@@ -137,28 +157,30 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
                 key={session.id}
                 onClick={() => handleSelectSession(session.id)}
                 className={cn(
-                  "group flex items-start gap-2 p-2 rounded-md cursor-pointer hover-elevate",
-                  currentSessionId === session.id && "bg-accent"
+                  "group flex items-start gap-2 p-2 rounded-md cursor-pointer transition-colors",
+                  currentSessionId === session.id 
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                    : "hover:bg-sidebar-accent/50"
                 )}
                 data-testid={`session-item-${session.id}`}
               >
                 <div className="flex-shrink-0 mt-0.5">
                   {session.status === 'complete' ? (
-                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <FileText className="h-4 w-4" />
                   ) : (
-                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    <MessageSquare className="h-4 w-4" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{session.title}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-sidebar-foreground/60">
                     {formatDate(session.createdAt)}
                   </p>
                 </div>
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 text-sidebar-foreground"
                   onClick={(e) => handleDeleteSession(e, session.id)}
                   disabled={deletingId === session.id}
                   data-testid={`button-delete-session-${session.id}`}
@@ -170,6 +192,19 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
           </div>
         )}
       </ScrollArea>
+      
+      {/* Footer with collapse button */}
+      <div className="p-2 border-t border-sidebar-border">
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={onClose}
+          className="w-full text-sidebar-foreground"
+          data-testid="button-close-sidebar"
+        >
+          <PanelLeftClose className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 

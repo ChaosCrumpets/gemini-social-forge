@@ -1,7 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* C.A.L. Design System - Creative Assembly Line */
 /* LIGHT MODE */
 :root {
   --button-outline: rgba(0,0,0, .10);
@@ -9,44 +12,44 @@
   --opaque-button-border-intensity: -8;
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
-  --background: 0 0% 100%;
-  --foreground: 0 0% 9%;
-  --border: 0 0% 89%;
-  --card: 0 0% 98%;
-  --card-foreground: 0 0% 9%;
-  --card-border: 0 0% 94%;
-  --sidebar: 0 0% 96%;
-  --sidebar-foreground: 0 0% 9%;
-  --sidebar-border: 0 0% 91%;
-  --sidebar-primary: 142 76% 36%;
-  --sidebar-primary-foreground: 144 80% 98%;
-  --sidebar-accent: 0 0% 92%;
-  --sidebar-accent-foreground: 0 0% 9%;
-  --sidebar-ring: 142 76% 36%;
-  --popover: 0 0% 94%;
-  --popover-foreground: 0 0% 9%;
-  --popover-border: 0 0% 89%;
-  --primary: 142 76% 36%;
-  --primary-foreground: 144 80% 98%;
-  --secondary: 0 0% 90%;
-  --secondary-foreground: 0 0% 9%;
-  --muted: 0 0% 92%;
-  --muted-foreground: 0 0% 35%;
-  --accent: 142 8% 91%;
-  --accent-foreground: 0 0% 9%;
-  --destructive: 0 84% 40%;
-  --destructive-foreground: 0 0% 98%;
-  --input: 0 0% 70%;
-  --ring: 142 76% 36%;
-  --chart-1: 142 76% 36%;
-  --chart-2: 28 80% 52%;
+  --background: 220 20% 97%;
+  --foreground: 220 30% 10%;
+  --border: 220 15% 88%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 30% 10%;
+  --card-border: 220 15% 90%;
+  --sidebar: 220 25% 12%;
+  --sidebar-foreground: 220 10% 90%;
+  --sidebar-border: 220 20% 20%;
+  --sidebar-primary: 250 75% 60%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 220 20% 18%;
+  --sidebar-accent-foreground: 220 10% 90%;
+  --sidebar-ring: 250 75% 55%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 30% 10%;
+  --popover-border: 220 15% 88%;
+  --primary: 250 75% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 15% 92%;
+  --secondary-foreground: 220 30% 10%;
+  --muted: 220 15% 94%;
+  --muted-foreground: 220 10% 45%;
+  --accent: 170 70% 45%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 75% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 220 15% 88%;
+  --ring: 250 75% 55%;
+  --chart-1: 250 75% 55%;
+  --chart-2: 170 70% 45%;
   --chart-3: 197 37% 40%;
   --chart-4: 271 60% 45%;
   --chart-5: 340 75% 48%;
-  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-sans: 'Space Grotesk', system-ui, sans-serif;
   --font-serif: 'Libre Baskerville', Georgia, serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-  --radius: .5rem;
+  --radius: 0.75rem;
   --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
   --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
   --shadow-sm: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 1px 2px -1px hsl(0 0% 0% / 0.00);
@@ -57,6 +60,13 @@
   --shadow-2xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
+
+  /* Custom C.A.L. tokens */
+  --cal-gradient-start: 250 75% 55%;
+  --cal-gradient-end: 280 80% 60%;
+  --cal-success: 145 65% 45%;
+  --cal-warning: 40 90% 50%;
+  --cal-info: 200 85% 50%;
 
 /* Fallback for older browsers */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
@@ -93,37 +103,37 @@
   --opaque-button-border-intensity: 9;
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
-  --background: 0 0% 7%;
-  --foreground: 0 0% 98%;
-  --border: 0 0% 16%;
-  --card: 0 0% 9%;
-  --card-foreground: 0 0% 98%;
-  --card-border: 0 0% 12%;
-  --sidebar: 0 0% 11%;
-  --sidebar-foreground: 0 0% 98%;
-  --sidebar-border: 0 0% 14%;
-  --sidebar-primary: 142 70% 45%;
-  --sidebar-primary-foreground: 144 80% 98%;
-  --sidebar-accent: 0 0% 14%;
-  --sidebar-accent-foreground: 0 0% 98%;
-  --sidebar-ring: 142 70% 45%;
-  --popover: 0 0% 13%;
-  --popover-foreground: 0 0% 98%;
-  --popover-border: 0 0% 17%;
-  --primary: 142 70% 45%;
-  --primary-foreground: 144 80% 98%;
-  --secondary: 0 0% 16%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 0 0% 15%;
-  --muted-foreground: 0 0% 65%;
-  --accent: 142 8% 16%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62% 30%;
-  --destructive-foreground: 0 0% 98%;
-  --input: 0 0% 30%;
-  --ring: 142 70% 45%;
-  --chart-1: 142 70% 60%;
-  --chart-2: 28 80% 65%;
+  --background: 220 25% 8%;
+  --foreground: 220 10% 95%;
+  --border: 220 20% 20%;
+  --card: 220 25% 12%;
+  --card-foreground: 220 10% 95%;
+  --card-border: 220 20% 16%;
+  --sidebar: 220 30% 6%;
+  --sidebar-foreground: 220 10% 90%;
+  --sidebar-border: 220 25% 15%;
+  --sidebar-primary: 250 75% 60%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 220 25% 12%;
+  --sidebar-accent-foreground: 220 10% 90%;
+  --sidebar-ring: 250 75% 60%;
+  --popover: 220 25% 12%;
+  --popover-foreground: 220 10% 95%;
+  --popover-border: 220 20% 20%;
+  --primary: 250 75% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 20% 18%;
+  --secondary-foreground: 220 10% 95%;
+  --muted: 220 20% 15%;
+  --muted-foreground: 220 10% 55%;
+  --accent: 170 70% 50%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 70% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 220 20% 20%;
+  --ring: 250 75% 60%;
+  --chart-1: 250 75% 65%;
+  --chart-2: 170 70% 55%;
   --chart-3: 197 37% 65%;
   --chart-4: 271 60% 70%;
   --chart-5: 340 75% 68%;
@@ -135,6 +145,13 @@
   --shadow-lg: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 4px 6px -1px hsl(0 0% 0% / 0.00);
   --shadow-xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 8px 10px -1px hsl(0 0% 0% / 0.00);
   --shadow-2xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
+
+  /* Custom C.A.L. tokens (dark mode) */
+  --cal-gradient-start: 250 75% 60%;
+  --cal-gradient-end: 280 80% 65%;
+  --cal-success: 145 65% 50%;
+  --cal-warning: 40 90% 55%;
+  --cal-info: 200 85% 55%;
 
 /* Fallback for older browsers */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
@@ -284,5 +301,79 @@
   .border.active-elevate-2:not(.no-active-interaction-elevate)::after,
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
+  }
+
+  /* C.A.L. Custom Utilities */
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(var(--cal-gradient-start)), hsl(var(--cal-gradient-end)));
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(var(--cal-gradient-start)), hsl(var(--cal-gradient-end)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glass {
+    background: hsl(var(--card) / 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+
+  .shadow-glow {
+    box-shadow: 0 0 40px hsl(var(--primary) / 0.2);
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@layer components {
+  /* Stage indicators for content creation workflow */
+  .stage-indicator {
+    @apply flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium;
+  }
+
+  .stage-active {
+    @apply bg-primary text-primary-foreground;
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  }
+
+  .stage-complete {
+    @apply bg-accent text-accent-foreground;
+  }
+
+  .stage-pending {
+    @apply bg-muted text-muted-foreground;
+  }
+
+  /* Chat bubbles */
+  .chat-bubble {
+    @apply rounded-2xl px-4 py-3 max-w-[85%];
+  }
+
+  .chat-bubble-user {
+    background: linear-gradient(135deg, hsl(var(--cal-gradient-start)), hsl(var(--cal-gradient-end)));
+    @apply text-primary-foreground ml-auto;
+  }
+
+  .chat-bubble-assistant {
+    @apply bg-card border border-border;
+  }
+
+  /* Hook cards */
+  .hook-card {
+    @apply p-4 rounded-xl border border-border bg-card transition-all duration-200 cursor-pointer;
+  }
+
+  .hook-card:hover {
+    @apply border-primary/50 shadow-lg;
+  }
+
+  .hook-card-selected {
+    @apply border-primary bg-primary/5;
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.2);
   }
 }
