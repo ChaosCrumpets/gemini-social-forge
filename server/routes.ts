@@ -16,7 +16,7 @@ import {
 } from "./gemini";
 import { queryDatabase } from "./queryDatabase";
 import { setupAuth, registerAuthRoutes, authStorage } from "./replit_integrations/auth";
-import { requireAuth, requirePremium, requireAdmin, getUserIdFromSession, getUserFromSession } from "./middleware/native-auth";
+import { requireAuth, requirePremium, requireAdmin, getUserIdFromSession, getUserFromSession, incrementScriptCount } from "./middleware/native-auth";
 import { db } from "./db";
 import { users, registerSchema, loginSchema, upgradeSchema, SubscriptionTier, TierInfo } from "@shared/models/auth";
 import { eq } from "drizzle-orm";
@@ -361,6 +361,12 @@ export async function registerRoutes(
       }
 
       const response = await generateContentFromMultiHooks(inputs, selectedHooks);
+      
+      // Increment script count for Bronze users using their free script
+      if ((req as any).isFreeScript && (req as any).dbUser?.id) {
+        await incrementScriptCount((req as any).dbUser.id);
+      }
+      
       res.json(response);
     } catch (error) {
       console.error("Multi-hook content generation error:", error);
@@ -383,6 +389,11 @@ export async function registerRoutes(
 
       if (projectId && response.output) {
         await storage.setOutput(projectId, response.output);
+      }
+
+      // Increment script count for Bronze users using their free script
+      if ((req as any).isFreeScript && (req as any).dbUser?.id) {
+        await incrementScriptCount((req as any).dbUser.id);
       }
 
       res.json(response);

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, jsonb, pgTable, timestamp, varchar, boolean } from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, timestamp, varchar, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -43,6 +43,9 @@ export const TierInfo = {
   diamond: { name: "Diamond", price: 200, priceLabel: "$200 one-time", color: "#B9F2FF", features: ["Lifetime access", "All Platinum features", "Early feature access"] }
 } as const;
 
+// Free tier limits
+export const FREE_TIER_SCRIPT_LIMIT = 1;
+
 // User storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 export const users = pgTable("users", {
@@ -55,6 +58,7 @@ export const users = pgTable("users", {
   role: varchar("role").default("user").notNull(),
   subscriptionTier: varchar("subscription_tier").default("bronze").notNull(),
   isPremium: boolean("is_premium").default(false).notNull(),
+  scriptsGenerated: integer("scripts_generated").default(0).notNull(),
   subscriptionEndDate: timestamp("subscription_end_date"),
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),
