@@ -46,6 +46,15 @@ export const TierInfo = {
 // Free tier limits
 export const FREE_TIER_SCRIPT_LIMIT = 1;
 
+// Monthly usage limits by tier
+export const TIER_USAGE_LIMITS = {
+  bronze: 10,
+  silver: 100,
+  gold: -1,      // -1 means unlimited
+  platinum: -1,
+  diamond: -1
+} as const;
+
 // User storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 export const users = pgTable("users", {
@@ -59,6 +68,8 @@ export const users = pgTable("users", {
   subscriptionTier: varchar("subscription_tier").default("bronze").notNull(),
   isPremium: boolean("is_premium").default(false).notNull(),
   scriptsGenerated: integer("scripts_generated").default(0).notNull(),
+  usageCount: integer("usage_count").default(0).notNull(),
+  lastUsageReset: timestamp("last_usage_reset").defaultNow(),
   subscriptionEndDate: timestamp("subscription_end_date"),
   stripeCustomerId: varchar("stripe_customer_id"),
   stripeSubscriptionId: varchar("stripe_subscription_id"),

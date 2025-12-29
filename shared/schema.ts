@@ -204,6 +204,7 @@ export type AgentStatus = z.infer<typeof agentStatusSchema>;
 export const projectSchema = z.object({
   id: z.string(),
   status: z.enum(["inputting", "hook_text", "hook_verbal", "hook_visual", "hook_overview", "generating", "complete"]),
+  highestReachedStatus: z.enum(["inputting", "hook_text", "hook_verbal", "hook_visual", "hook_overview", "generating", "complete"]).optional(),
   inputs: userInputsSchema,
   visualContext: visualContextSchema.optional(),
   messages: z.array(chatMessageSchema),

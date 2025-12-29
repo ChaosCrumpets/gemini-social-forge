@@ -39,9 +39,26 @@ interface ProjectStore {
   loadSession: (session: Session, messages: SessionMessage[], editMessages: SessionMessage[]) => void;
 }
 
+const statusOrder: ProjectStatusType[] = [
+  ProjectStatus.INPUTTING,
+  ProjectStatus.HOOK_TEXT,
+  ProjectStatus.HOOK_VERBAL,
+  ProjectStatus.HOOK_VISUAL,
+  ProjectStatus.HOOK_OVERVIEW,
+  ProjectStatus.GENERATING,
+  ProjectStatus.COMPLETE
+];
+
+const getHigherStatus = (a: ProjectStatusType, b: ProjectStatusType): ProjectStatusType => {
+  const indexA = statusOrder.indexOf(a);
+  const indexB = statusOrder.indexOf(b);
+  return indexA >= indexB ? a : b;
+};
+
 const createInitialProject = (): Project => ({
   id: crypto.randomUUID(),
   status: ProjectStatus.INPUTTING,
+  highestReachedStatus: ProjectStatus.INPUTTING,
   inputs: {},
   visualContext: undefined,
   messages: [],
@@ -235,11 +252,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const { project } = get();
     if (!project) return;
     
+    const currentHighest = project.highestReachedStatus || ProjectStatus.INPUTTING;
+    const newHighest = getHigherStatus(ProjectStatus.COMPLETE, currentHighest);
+    
     set({
       project: {
         ...project,
         output,
         status: ProjectStatus.COMPLETE,
+        highestReachedStatus: newHighest,
         updatedAt: Date.now()
       }
     });
@@ -249,10 +270,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const { project } = get();
     if (!project) return;
     
+    const currentHighest = project.highestReachedStatus || ProjectStatus.INPUTTING;
+    const newHighest = getHigherStatus(status, currentHighest);
+    
     set({
       project: {
         ...project,
         status,
+        highestReachedStatus: newHighest,
         updatedAt: Date.now()
       }
     });

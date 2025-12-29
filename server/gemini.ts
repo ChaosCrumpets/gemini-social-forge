@@ -56,9 +56,23 @@ Always respond in valid JSON with this structure:
   "readyForHooks": boolean (true when discovery phase is complete and ready for hook generation)
 }`;
 
-const HOOK_GENERATION_PROMPT = `Generate 5-6 compelling hooks for short-form video content based on the provided topic, goals, and proven hook patterns from our database.
+const HOOK_GENERATION_PROMPT = `Generate 5-6 compelling hooks for short-form video content using CHAIN-OF-THOUGHT reasoning.
 
-Hook types to consider:
+STEP 1: ANALYZE THE NICHE
+First, reason through what makes content go viral in this specific niche:
+- What psychological triggers resonate with this audience?
+- What format patterns have proven successful?
+- What common objections or pain points exist?
+
+STEP 2: APPLY VIRAL FRAMEWORKS
+For each hook, consider these proven psychological principles:
+- CURIOSITY GAP: Create tension between what viewers know and want to know
+- PATTERN INTERRUPT: Break expectations to capture attention
+- SELF-IDENTIFICATION: Make viewers see themselves in the content
+- OPEN LOOP: Leave something unresolved that demands closure
+- AUTHORITY SIGNAL: Establish credibility in the first 2 seconds
+
+HOOK TYPES TO USE:
 - QUESTION: Opens with a thought-provoking question
 - STATISTIC: Leads with a surprising fact or number
 - STORY: Begins with a relatable scenario
@@ -66,17 +80,18 @@ Hook types to consider:
 - CHALLENGE: Poses a challenge to the viewer
 - INSIGHT: Shares an unexpected insight
 
-SMART RANKING SYSTEM:
-After generating hooks, you MUST rank them from 1 (best) to 6 (worst) based on:
+STEP 3: GENERATE AND RANK
+Create hooks that combine proven patterns with novel execution.
+Rank them 1 (best) to 6 (worst) based on:
 1. Alignment with proven viral patterns in the provided database
 2. Predicted reach and conversion potential for the target niche
 3. Psychological impact (curiosity gap, emotional resonance, urgency)
-4. Platform-specific effectiveness
-5. Audience relevance
+4. Platform-specific effectiveness (TikTok hooks differ from LinkedIn)
+5. Scroll-stopping potential in the first 1.5 seconds
 
 The hook with rank=1 should also have isRecommended=true.
 
-Return ONLY valid JSON in this exact format:
+STEP 4: OUTPUT (Return ONLY this JSON, no additional text):
 {
   "hooks": [
     {
@@ -90,28 +105,43 @@ Return ONLY valid JSON in this exact format:
   ]
 }`;
 
-const CONTENT_GENERATION_PROMPT = `Generate a complete content package for short-form video. Create professional, engaging content based on the provided inputs and selected hook.
+const CONTENT_GENERATION_PROMPT = `Generate a complete content package for short-form video using CHAIN-OF-THOUGHT reasoning.
 
-IMPORTANT: For each B-Roll item, you must generate THREE outputs:
+STEP 1: CONTENT ARCHITECTURE ANALYSIS
+Before generating, reason through:
+- What is the core transformation or insight this content delivers?
+- What retention strategy will keep viewers watching? (Tension-release, escalation, surprise)
+- What call-to-action naturally flows from this content?
+
+STEP 2: SCRIPT ENGINEERING
+Apply the "AIDA" framework for viral scripts:
+- ATTENTION: Hook must stop the scroll in 1.5 seconds
+- INTEREST: Build curiosity through specific, relatable details
+- DESIRE: Create emotional investment in the outcome
+- ACTION: Clear next step that feels natural, not forced
+
+STEP 3: VISUAL STORYTELLING
+Consider visual hierarchy and pacing:
+- Opening shots must match hook energy (high energy = quick cuts, intimate = steady shots)
+- B-roll should reinforce, not distract from, the message
+- Transitions should feel intentional, not decorative
+
+STEP 4: B-ROLL GENERATION (THREE OUTPUTS PER ITEM)
 1. description: FIY (Film It Yourself) - practical filming instructions
-2. imagePrompt: Alpha Image Prompt - cinematic, photorealistic prompt following the 3-Pillar Framework (Structure, Reference, Vision) for AI image generation
-3. videoPrompt: Omega Video Prompt - cinematic sequence prompt that evolves the image into motion with camera movement, narrative arc, and emotional depth
+2. imagePrompt: Alpha Image Prompt - cinematic, photorealistic following the 3-Pillar Framework:
+   - Structure Pillar: Camera setup, lens, aperture, lighting direction, environmental physics
+   - Reference Pillar: Photographic era, analog formats, cinematographic influences
+   - Vision Pillar: Emotional tone, color palette, intentional imperfections (motion blur, chromatic flares, film grain)
+   - Write as a flowing creative-director brief, not a list
+   - Include technical specs: lens, aperture, ISO, aspect ratio (--ar 9:16 for vertical)
+3. videoPrompt: Omega Video Prompt - cinematic sequence that evolves the image into motion:
+   - Opening: Establish continuity with commanded lighting and physical textures
+   - Camera Movement: Deliberate motion paths (dolly, pan, push, tracking)
+   - Cinematography: Lens behavior, focal transitions, lighting evolution
+   - Narrative Arc: Tone progression, emotional escalation, controlled chaos
+   - Include: aspect ratio, duration (3-5 seconds), camera dynamics
 
-ALPHA IMAGE PROMPT GUIDELINES (for imagePrompt):
-- Structure Pillar: Camera setup, lens, aperture, lighting direction and quality, environmental physics, texture realism
-- Reference Pillar: Photographic era, analog formats, cinematographic influences, texture authenticity
-- Vision Pillar: Emotional tone, color palette, intentional imperfections (motion blur, chromatic flares, film grain)
-- Write as a flowing creative-director brief, not a list
-- Include technical specs: lens, aperture, ISO, aspect ratio (--ar 9:16 for vertical)
-
-OMEGA VIDEO PROMPT GUIDELINES (for videoPrompt):
-- Opening: Establish continuity with commanded lighting and physical textures
-- Camera Movement: Deliberate motion paths (dolly, pan, push, tracking)
-- Cinematography: Lens behavior, focal transitions, lighting evolution
-- Narrative Arc: Tone progression, emotional escalation, controlled chaos
-- Include: aspect ratio, duration (3-5 seconds), camera dynamics
-
-Return ONLY valid JSON in this exact format:
+STEP 5: OUTPUT (Return ONLY this JSON, no additional text):
 {
   "output": {
     "script": [
@@ -377,29 +407,37 @@ Generate 6 hooks with unique ranks (1-6, where 1 is best). The rank=1 hook shoul
 }
 
 // TEXT HOOK GENERATION (On-screen text, captions, titles)
-const TEXT_HOOK_PROMPT = `Generate 6 TEXT HOOKS for short-form video content. These are the first text elements viewers read - thumbnails, on-screen text, title cards, and captions.
+const TEXT_HOOK_PROMPT = `Generate 6 TEXT HOOKS for short-form video content using CHAIN-OF-THOUGHT reasoning.
 
-TEXT HOOK CHARACTERISTICS:
-- Short, punchy, high-contrast text (typically 3-8 words)
-- Designed for quick scanning and instant curiosity
-- Works in ALL CAPS or sentence case
-- Creates immediate intrigue without audio
+STEP 1: AUDIENCE PSYCHOLOGY ANALYSIS
+Before generating, reason through:
+- What SINGLE emotion will make this audience stop scrolling? (fear of missing out, curiosity, validation-seeking)
+- What specific RESULT or TRANSFORMATION are they seeking?
+- What contrarian or unexpected angle will pattern-interrupt their feed?
 
-Hook types to consider:
-- bold_statement: Direct, provocative claims
-- listicle: "3 Things...", "5 Ways..."
-- question: Short, punchy questions
-- contrast: "Stop [X]. Do [Y]."
+STEP 2: TEXT HOOK ENGINEERING
+Apply the "3-Second Rule" - if it can't be understood in 3 seconds, it fails:
+- SHORT: 3-8 words maximum
+- PUNCHY: High-impact words that create visual weight
+- SCANNABLE: Works at thumbnail size and full screen
+- STANDALONE: Creates curiosity without audio context
+
+Hook types to apply:
+- bold_statement: Direct, provocative claims that challenge assumptions
+- listicle: "3 Things...", "5 Ways..." with specific numbers
+- question: Short questions that create self-identification
+- contrast: "Stop [X]. Do [Y]." with clear before/after
 - secret: "The truth about...", "What they don't tell you..."
-- result: "How I [achieved result]"
+- result: "How I [achieved specific result]" with social proof
 
-RANKING CRITERIA:
-1. Scan-speed readability (how fast can it be understood?)
-2. Curiosity gap strength
+STEP 3: RANKING (1=best, 6=worst, all unique)
+Evaluate each hook on:
+1. Scan-speed readability (instant comprehension test)
+2. Curiosity gap strength (how badly do they need to know more?)
 3. Niche relevance and platform fit
-4. Thumbnail/scroll-stopping power
+4. Thumbnail/scroll-stopping visual power
 
-Return ONLY valid JSON:
+STEP 4: OUTPUT (Return ONLY this JSON, no additional text):
 {
   "textHooks": [
     {
@@ -414,29 +452,38 @@ Return ONLY valid JSON:
 }`;
 
 // VERBAL HOOK GENERATION (Script openers, spoken words)
-const VERBAL_HOOK_PROMPT = `Generate 6 VERBAL HOOKS for short-form video content. These are the first words spoken - the script opener that hooks the viewer's attention.
+const VERBAL_HOOK_PROMPT = `Generate 6 VERBAL HOOKS for short-form video content using CHAIN-OF-THOUGHT reasoning.
 
-VERBAL HOOK CHARACTERISTICS:
-- First 2-5 seconds of spoken content
-- Pattern interrupts, direct engagement
-- Uses "Super Hook" methodology for credibility
-- Conversational, direct, and compelling
+STEP 1: VOICE PSYCHOLOGY ANALYSIS
+Before generating, reason through:
+- What TONE will resonate with this audience? (mentor, peer, provocateur, insider)
+- What PACING creates the right tension? (rapid-fire urgency vs. measured authority)
+- What CONVERSATIONAL STYLE feels authentic to this niche?
 
-Super Hook Methods to apply:
-- effort_condensed: "I spent 1000 hours..." / "After testing 50 methods..."
-- failure: "I failed 5 times, but..." / "Everyone told me I was wrong..."
-- credibility_arbitrage: "According to [authority]..." / "Research shows..."
-- shared_emotion: "If you've ever felt..." / "You know that feeling when..."
-- pattern_interrupt: "Stop what you're doing." / "This is urgent."
-- direct_question: "Want to know the secret?" / "Have you ever wondered...?"
+STEP 2: SUPER HOOK METHODOLOGY
+Apply proven verbal hook frameworks:
+- effort_condensed: "I spent 1000 hours..." / "After testing 50 methods..." (borrowed authority through effort)
+- failure: "I failed 5 times, but..." / "Everyone told me I was wrong..." (vulnerability + redemption)
+- credibility_arbitrage: "According to [authority]..." / "Research shows..." (external validation)
+- shared_emotion: "If you've ever felt..." / "You know that feeling when..." (instant relatability)
+- pattern_interrupt: "Stop what you're doing." / "This is urgent." (disrupts scroll autopilot)
+- direct_question: "Want to know the secret?" / "Have you ever wondered...?" (activates curiosity)
 
-RANKING CRITERIA:
-1. Emotional engagement strength
-2. Alignment with Super Hook strategy
-3. Credibility establishment speed
-4. Database efficacy patterns
+STEP 3: VERBAL DELIVERY OPTIMIZATION
+Design for spoken performance:
+- First 2-5 seconds only (8-15 words maximum)
+- Natural speech rhythm (how would you say this to a friend?)
+- Built-in pause points for emphasis
+- Conversational, not scripted-sounding
 
-Return ONLY valid JSON:
+STEP 4: RANKING (1=best, 6=worst, all unique)
+Evaluate each hook on:
+1. Emotional engagement strength (does it create a visceral response?)
+2. Alignment with Super Hook strategy (proven psychological triggers)
+3. Credibility establishment speed (authority in under 3 seconds)
+4. Platform-specific effectiveness (TikTok energy vs LinkedIn professionalism)
+
+STEP 5: OUTPUT (Return ONLY this JSON, no additional text):
 {
   "verbalHooks": [
     {
@@ -989,4 +1036,46 @@ export function getQuestionsFromCategory(categoryId: string, count: number = 5) 
   
   const shuffled = [...category.questions].sort(() => 0.5 - Math.random());
   return shuffled.slice(0, count);
+}
+
+// Remix a text fragment based on an instruction
+export async function remixText(
+  selectedText: string, 
+  instruction: string,
+  context?: string
+): Promise<{ remixedText: string }> {
+  try {
+    const prompt = `You are a professional script editor. Your task is to rewrite ONLY the selected text fragment based on the instruction provided.
+
+INSTRUCTION: ${instruction}
+
+SELECTED TEXT TO REWRITE:
+"${selectedText}"
+
+${context ? `CONTEXT (for reference, DO NOT include in output):
+${context}` : ''}
+
+RULES:
+1. ONLY output the rewritten text - no explanations, no quotes, no additional formatting
+2. Maintain the same general meaning unless the instruction specifically asks to change it
+3. Keep approximately the same length unless the instruction specifies otherwise
+4. Match the tone and style of the original text
+5. If the instruction is "Shorten", reduce word count by 30-50%
+6. If the instruction is "Make Funnier", add humor while keeping the message
+7. If the instruction is "Rewrite", provide a fresh take with different wording
+
+OUTPUT ONLY THE REWRITTEN TEXT:`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt
+    });
+
+    const remixedText = (response.text || selectedText).trim();
+    
+    return { remixedText };
+  } catch (error) {
+    console.error('Remix text error:', error);
+    throw new Error('Failed to remix text');
+  }
 }

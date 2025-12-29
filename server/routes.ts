@@ -12,11 +12,12 @@ import {
   editContent,
   generateDiscoveryQuestions,
   getQueryDatabaseCategories,
-  getQuestionsFromCategory
+  getQuestionsFromCategory,
+  remixText
 } from "./gemini";
 import { queryDatabase } from "./queryDatabase";
 import { setupAuth, registerAuthRoutes, authStorage } from "./replit_integrations/auth";
-import { requireAuth, requirePremium, requireAdmin, getUserIdFromSession, getUserFromSession, incrementScriptCount } from "./middleware/native-auth";
+import { requireAuth, requirePremium, requireAdmin, getUserIdFromSession, getUserFromSession, incrementScriptCount, checkUsageLimit, incrementUsageCount } from "./middleware/native-auth";
 import { db } from "./db";
 import { users, registerSchema, loginSchema, upgradeSchema, SubscriptionTier, TierInfo } from "@shared/models/auth";
 import { eq } from "drizzle-orm";
@@ -431,6 +432,32 @@ export async function registerRoutes(
       res.status(500).json({ 
         error: "Failed to edit content",
         message: "I apologize, but I'm having trouble processing your edit request. Please try again."
+      });
+    }
+  });
+
+  // Remix selected text fragment (with usage limits)
+  app.post("/api/remix", requireAuth, checkUsageLimit, async (req, res) => {
+    try {
+      const { selectedText, instruction, context } = req.body;
+
+      if (!selectedText || !instruction) {
+        return res.status(400).json({ error: "Selected text and instruction are required" });
+      }
+
+      const response = await remixText(selectedText, instruction, context);
+      
+      // Increment usage count after successful remix
+      if ((req as any).dbUser?.id) {
+        await incrementUsageCount((req as any).dbUser.id);
+      }
+
+      res.json(response);
+    } catch (error) {
+      console.error("Remix error:", error);
+      res.status(500).json({ 
+        error: "Failed to remix text",
+        remixedText: null
       });
     }
   });

@@ -1,6 +1,6 @@
 import type { RequestHandler, Request, Response, NextFunction } from "express";
 import { db } from "../db";
-import { users, FREE_TIER_SCRIPT_LIMIT } from "@shared/models/auth";
+import { users, FREE_TIER_SCRIPT_LIMIT, TIER_USAGE_LIMITS } from "@shared/models/auth";
 import { eq, sql } from "drizzle-orm";
 
 export async function getUserIdFromSession(req: Request): Promise<string | null> {
@@ -138,3 +138,79 @@ export const requireAdmin: RequestHandler = async (req: Request, res: Response, 
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+// Check and enforce monthly usage limits by tier
+export const checkUsageLimit: RequestHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = await getUserIdFromSession(req);
+    
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    
+    const tier = user.subscriptionTier as keyof typeof TIER_USAGE_LIMITS;
+    const limit = TIER_USAGE_LIMITS[tier] ?? TIER_USAGE_LIMITS.bronze;
+    
+    // Unlimited tiers (-1) bypass the check
+    if (limit === -1) {
+      (req as any).dbUser = user;
+      return next();
+    }
+    
+    // Check if we need to reset the usage count (new month)
+    const now = new Date();
+    const lastReset = user.lastUsageReset ? new Date(user.lastUsageReset) : new Date(0);
+    const isNewMonth = now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear();
+    
+    if (isNewMonth) {
+      // Reset usage count for new month
+      await db.update(users)
+        .set({ 
+          usageCount: 0,
+          lastUsageReset: now,
+          updatedAt: now
+        })
+        .where(eq(users.id, userId));
+      
+      (req as any).dbUser = { ...user, usageCount: 0 };
+      return next();
+    }
+    
+    // Check if limit reached
+    const currentUsage = user.usageCount || 0;
+    if (currentUsage >= limit) {
+      return res.status(403).json({ 
+        message: `Monthly limit reached (${currentUsage}/${limit}). Upgrade to continue!`,
+        usageCount: currentUsage,
+        limit,
+        upgradeUrl: "/membership"
+      });
+    }
+    
+    (req as any).dbUser = user;
+    next();
+  } catch (error) {
+    console.error("Usage limit check error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Increment usage count after a successful request
+export async function incrementUsageCount(userId: string): Promise<void> {
+  try {
+    await db.update(users)
+      .set({ 
+        usageCount: sql`${users.usageCount} + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId));
+  } catch (error) {
+    console.error("Failed to increment usage count:", error);
+  }
+}

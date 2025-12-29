@@ -6,6 +6,7 @@ import { VerbalHookStage } from '@/components/VerbalHookStage';
 import { VisualHookStage } from '@/components/VisualHookStage';
 import { HookOverviewStage } from '@/components/HookOverviewStage';
 import { ThinkingState } from '@/components/ThinkingState';
+import { DirectorView } from '@/components/DirectorView';
 import { SplitDashboard } from '@/components/SplitDashboard';
 import { StatusBar } from '@/components/StatusBar';
 import { ProjectStatus } from '@shared/schema';
@@ -598,11 +599,17 @@ export default function AssemblyLine() {
 
       case ProjectStatus.GENERATING:
         return (
-          <div className="flex-1 flex items-center justify-center">
-            {project.agents && (
-              <ThinkingState 
+          <div className="flex-1 flex items-center justify-center overflow-auto">
+            {project.agents && project.agents.length > 2 ? (
+              <DirectorView 
                 agents={project.agents}
                 title="Assembling Your Content"
+                partialOutput={project.output}
+              />
+            ) : project.agents && (
+              <ThinkingState 
+                agents={project.agents}
+                title="Generating Hooks"
               />
             )}
           </div>
@@ -627,10 +634,18 @@ export default function AssemblyLine() {
     }
   };
 
+  const handleStageNavigate = (stage: typeof project.status) => {
+    goToStage(stage);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden" data-testid="assembly-line-page">
       {project.status !== ProjectStatus.COMPLETE && (
-        <StatusBar status={project.status} />
+        <StatusBar 
+          status={project.status}
+          highestReachedStatus={project.highestReachedStatus}
+          onNavigate={handleStageNavigate}
+        />
       )}
       {renderContent()}
     </div>

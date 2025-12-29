@@ -1,0 +1,123 @@
+# C.A.L Replit Update Prompts
+
+## 1. The "Remix" Button & Usage Limits
+**Act as a Senior React & Backend Engineer.**
+I need to implement a "Granular Remix" feature and a "Monthly Usage Limit" system for my content generation app.
+
+**Context:**
+Currently, users must regenerate the whole script if they don't like it. I want them to be able to highlight specific text in the `OutputPanels` (Script view) and request changes.
+
+**Requirements:**
+1.  **Frontend (Text Selection):**
+    * Implement a "Floating Action Menu" that appears when a user highlights text in the Script/Output tab.
+    * Options: "Shorten", "Make Funnier", "Rewrite", "Custom Input".
+    * When clicked, send the *selected text* + *instruction* to a new API endpoint `/api/remix`.
+
+2.  **Backend (Remix Logic):**
+    * Create `/api/remix` in `server/routes.ts`.
+    * Use the Gemini API to rewrite *only* the provided fragment based on the instruction.
+    * Return the new text fragment.
+
+3.  **Usage Limits (Tier Enforcement):**
+    * Modify `shared/schema.ts` to add `usageCount` (integer) and `lastUsageReset` (timestamp) to the `users` table.
+    * In `server/routes.ts`, create a middleware `checkUsageLimit` that runs before `/api/chat` or `/api/remix`.
+    * **Logic:**
+        * **Bronze:** Max 10 requests/month.
+        * **Silver:** Max 100 requests/month.
+        * **Gold/Platinum/Diamond:** Unlimited.
+    * If limit reached, return 403 Forbidden with a "Upgrade to continue" message.
+
+**Deliverable:** Update the schema, create the endpoint, and implement the frontend selection menu in `OutputPanels.tsx`.
+
+---
+
+## 2. "Editor-Ready" Exports (PDF/CSV/SRT)
+**Act as a Frontend Tooling Specialist.**
+I need to add professional export functionality to the `OutputPanels` component, restricted to paid tiers.
+
+**Prerequisites:**
+* Install `jspdf` and `jspdf-autotable` for PDF generation.
+* Install `papaparse` (or similar) for CSV.
+
+**Tasks:**
+1.  **Tier Gate:**
+    * In `OutputPanels.tsx`, check the user's tier. If "Bronze", disable/blur the export buttons and show a tooltip: "Upgrade to Silver for Exports".
+
+2.  **Export Functions:**
+    * **CSV (Bulk Upload):** Export the script in a format suitable for social media schedulers (Column A: Caption, Column B: Hashtags).
+    * **SRT (Subtitles):** specific function to format the script text into standard `.srt` time-stamped format (estimate 3 seconds per line).
+    * **PDF (Hollywood Shot List):**
+        * Create a stylized PDF layout.
+        * **Header:** Project Title, Date, "C.A.L Production Sheet".
+        * **Table:** Columns for [Scene #], [Visual/B-Roll Description], [Audio/Script], [Estimated Duration].
+        * Use a monospace font for the script column to look professional.
+
+**Deliverable:** Create a new utility file `client/src/lib/exports.ts` containing these functions and wire them up to a "Export" dropdown in the UI.
+
+---
+
+## 3. Non-Linear "Time Travel" Navigation
+**Act as a UX/UI Engineer.**
+I need to refactor the navigation flow in `assembly-line.tsx` to be non-linear. Currently, the app forces a strict Step 1 -> Step 2 flow.
+
+**Objective:**
+Convert the `StatusBar` (progress bar) into a clickable interactive navigation rail.
+
+**Requirements:**
+1.  **State Persistence:**
+    * Ensure that when moving from "Script" back to "Hooks", the generated script is **NOT** cleared from the Zustand store (`client/src/lib/store.ts`). It should remain cached.
+    * If the user changes a Hook and clicks "Generate" again, *then* overwrite the script.
+
+2.  **Navigation Logic:**
+    * Make the steps in `StatusBar.tsx` clickable buttons.
+    * **Constraint:** A user can only click "forward" to a step they have already completed (e.g., if I am on Step 3, I can click back to Step 1, but I cannot click Step 5 yet).
+
+3.  **UI Update:**
+    * Style the steps to look like "Nodes" or "Waypoints" rather than just a progress bar. Use a "hover" effect to indicate clickability.
+
+**Deliverable:** Update `StatusBar.tsx` and `assembly-line.tsx` to handle manual step switching.
+
+---
+
+## 4. "Director's View" (Async UI Refinement)
+**Act as a React Performance Expert.**
+I need to decouple the "Thinking" state of the Chat interface from the editability of the Output panels.
+
+**Current Issue:**
+When the AI is generating a response in `ChatInterface.tsx`, the entire `SplitDashboard` often locks up or shows a full-screen loader/overlay.
+
+**The Fix:**
+1.  **Localize the Loader:**
+    * Move the `isThinking` or `isLoading` state specifically into the `ChatInterface` component's internal UI.
+    * The Right Panel (`OutputPanels`) must remain fully interactive (scrollable, editable) even while `isThinking` is true.
+
+2.  **Optimistic UI:**
+    * Allow the user to switch tabs (e.g., from "Script" to "B-Roll") in the Right Panel while the Left Panel is generating.
+
+**Action:**
+* Analyze `SplitDashboard.tsx` and the parent state management.
+* Ensure the `ThinkingState` component only overlays the Chat section, NOT the Output section.
+* Verify that `textarea` inputs in the Output panel are not disabled during the API call.
+
+---
+
+## 5. Advanced Gemini Logic (The Brain Upgrade)
+**Act as a Senior AI Engineer specializing in Google Gemini.**
+I need to completely refactor the `server/gemini.ts` file to improve the chatbot's reasoning, parsing, and response quality using the latest Google GenAI SDK.
+
+**Objectives:**
+1.  **Upgrade Model:** Configure the client to use `gemini-1.5-pro` (or the latest available stable model) for complex reasoning tasks.
+2.  **Structured System Instruction:**
+    * Replace the current simple prompt with a robust "System Instruction" block.
+    * **Role:** "You are the C.A.L (Content Assembly Line) Director. Your goal is to extract structured content requirements from conversation."
+    * **Logic Flow:** Implement a "Chain of Thought" approach. Before generating the final script, the model should internally plan: "Identify Audience -> Determine Tone -> Select Hook Strategy -> Draft Content".
+
+3.  **JSON Mode (Schema Enforcement):**
+    * When generating Hooks or Scripts, force the model to output **pure JSON** using the `response_mime_type: "application/json"` configuration (if supported by the SDK version) or strict prompt engineering.
+    * Define a TypeScript interface for the expected output (e.g., `interface ScriptOutput { hooks: string[], visual_notes: string[], script_body: string }`) and pass this schema definition in the prompt context.
+
+4.  **Context Awareness:**
+    * Ensure the `chat` function accepts `previous_messages` to maintain conversation history.
+    * Limit history to the last 10 turns to save tokens/latency while keeping relevant context.
+
+**Deliverable:** Rewrite `server/gemini.ts` to implement these advanced patterns efficiently.

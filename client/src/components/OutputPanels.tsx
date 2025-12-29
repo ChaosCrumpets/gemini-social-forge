@@ -1,20 +1,60 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileText, Film, Settings, Video, MessageSquare, Camera, ImageIcon, Clapperboard, Copy, Check } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { FileText, Film, Settings, Video, MessageSquare, Camera, ImageIcon, Clapperboard, Copy, Check, Download, FileSpreadsheet, Subtitles, FileDown, Lock } from 'lucide-react';
+import { FloatingRemixMenu } from './FloatingRemixMenu';
+import { exportToCSV, exportToSRT, exportToPDF } from '@/lib/exports';
+import { useUser } from '@/hooks/use-user';
 import type { ContentOutput, ScriptLine, StoryboardFrame, TechSpecs, BRollItem, Caption } from '@shared/schema';
 
 interface OutputPanelsProps {
   output: ContentOutput;
+  onOutputUpdate?: (updatedOutput: ContentOutput) => void;
+  projectTitle?: string;
 }
 
-export function OutputPanels({ output }: OutputPanelsProps) {
+export function OutputPanels({ output, onOutputUpdate, projectTitle = 'Script' }: OutputPanelsProps) {
+  const [localOutput, setLocalOutput] = useState(output);
+  const scriptRef = useRef<HTMLDivElement>(null);
+  const { user, isLoading: isUserLoading } = useUser();
+  
+  const canExport = !isUserLoading && user?.subscriptionTier && user.subscriptionTier !== 'bronze';
+
+  const handleScriptRemix = (originalText: string, remixedText: string) => {
+    const updatedScript = localOutput.script.map(line => ({
+      ...line,
+      text: line.text.replace(originalText, remixedText)
+    }));
+    
+    const newOutput = { ...localOutput, script: updatedScript };
+    setLocalOutput(newOutput);
+    onOutputUpdate?.(newOutput);
+  };
+
+  const handleExport = (type: 'csv' | 'srt' | 'pdf') => {
+    if (!canExport) return;
+    
+    switch (type) {
+      case 'csv':
+        exportToCSV(localOutput, projectTitle);
+        break;
+      case 'srt':
+        exportToSRT(localOutput, projectTitle);
+        break;
+      case 'pdf':
+        exportToPDF(localOutput, projectTitle);
+        break;
+    }
+  };
+
   return (
     <Tabs defaultValue="script" className="h-full flex flex-col">
-      <div className="border-b border-border px-4 shrink-0">
+      <div className="border-b border-border px-4 shrink-0 flex items-center justify-between gap-2">
         <TabsList className="bg-transparent h-auto p-0 gap-1">
           <TabButton value="script" icon={FileText} label="Script" />
           <TabButton value="storyboard" icon={Film} label="Storyboard" />
@@ -22,29 +62,80 @@ export function OutputPanels({ output }: OutputPanelsProps) {
           <TabButton value="broll" icon={Video} label="B-Roll" />
           <TabButton value="captions" icon={MessageSquare} label="Captions" />
         </TabsList>
+        
+        {isUserLoading ? (
+          <Button variant="outline" size="sm" className="gap-2 opacity-50" disabled data-testid="button-export-loading">
+            <Download className="w-4 h-4" />
+            Export
+          </Button>
+        ) : canExport ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2" data-testid="button-export">
+                <Download className="w-4 h-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport('csv')} data-testid="menu-export-csv">
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                CSV (Bulk Upload)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('srt')} data-testid="menu-export-srt">
+                <Subtitles className="w-4 h-4 mr-2" />
+                SRT (Subtitles)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('pdf')} data-testid="menu-export-pdf">
+                <FileDown className="w-4 h-4 mr-2" />
+                PDF (Shot List)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={-1}>
+                <Button variant="outline" size="sm" className="gap-2 opacity-50 pointer-events-none" disabled data-testid="button-export-disabled">
+                  <Lock className="w-4 h-4" />
+                  Export
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Upgrade to Silver for Exports</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
       
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           <div className="p-8">
             <TabsContent value="script" className="mt-0">
-              <ScriptPanel lines={output.script} />
+              <div ref={scriptRef} className="relative">
+                <ScriptPanel lines={localOutput.script} />
+                <FloatingRemixMenu 
+                  containerRef={scriptRef as React.RefObject<HTMLElement>}
+                  onRemix={handleScriptRemix}
+                  context={localOutput.script.map(l => l.text).join('\n')}
+                />
+              </div>
             </TabsContent>
             
             <TabsContent value="storyboard" className="mt-0">
-              <StoryboardPanel frames={output.storyboard} />
+              <StoryboardPanel frames={localOutput.storyboard} />
             </TabsContent>
             
             <TabsContent value="tech" className="mt-0">
-              <TechSpecsPanel specs={output.techSpecs} />
+              <TechSpecsPanel specs={localOutput.techSpecs} />
             </TabsContent>
             
             <TabsContent value="broll" className="mt-0">
-              <BRollPanel items={output.bRoll} />
+              <BRollPanel items={localOutput.bRoll} />
             </TabsContent>
             
             <TabsContent value="captions" className="mt-0">
-              <CaptionsPanel captions={output.captions} />
+              <CaptionsPanel captions={localOutput.captions} />
             </TabsContent>
           </div>
         </ScrollArea>
