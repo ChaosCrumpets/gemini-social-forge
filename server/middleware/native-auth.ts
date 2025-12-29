@@ -63,6 +63,12 @@ export const requirePremium: RequestHandler = async (req: Request, res: Response
       return res.status(401).json({ message: "User not found" });
     }
     
+    // Admins always have full access - no tier limits
+    if (user.role === "admin") {
+      (req as any).dbUser = user;
+      return next();
+    }
+    
     // Premium users always have access
     if (user.isPremium) {
       (req as any).dbUser = user;
@@ -152,6 +158,12 @@ export const checkUsageLimit: RequestHandler = async (req: Request, res: Respons
     
     if (!user) {
       return res.status(401).json({ message: "User not found" });
+    }
+    
+    // Admins bypass all usage limits
+    if (user.role === "admin") {
+      (req as any).dbUser = user;
+      return next();
     }
     
     const tier = user.subscriptionTier as keyof typeof TIER_USAGE_LIMITS;
