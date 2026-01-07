@@ -1,12 +1,10 @@
 import { z } from "zod";
-import { pgTable, text, integer, timestamp, jsonb, serial, boolean } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 
 // Project Status enum with hook substages
 export const ProjectStatus = {
   INPUTTING: "inputting",
   HOOK_TEXT: "hook_text",
-  HOOK_VERBAL: "hook_verbal", 
+  HOOK_VERBAL: "hook_verbal",
   HOOK_VISUAL: "hook_visual",
   HOOK_OVERVIEW: "hook_overview",
   GENERATING: "generating",
@@ -260,53 +258,99 @@ export const insertUserSchema = z.object({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
-export type User = {
-  id: string;
-  username: string;
-  password: string;
+// ============================================
+// Firestore Document Types
+// ============================================
+
+// Session document type (replaces contentSessions table)
+export type Session = {
+  id: number; // For backward compatibility with existing code
+  userId: string | null;
+  title: string;
+  status: string;
+  inputs: UserInputs;
+  visualContext: VisualContext | null;
+  textHooks: TextHook[] | null;
+  verbalHooks: VerbalHook[] | null;
+  visualHooks: VisualHook[] | null;
+  selectedHooks: SelectedHooks | null;
+  selectedHook: Hook | null;
+  output: ContentOutput | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
-// ============================================
-// Database Tables (Drizzle ORM)
-// ============================================
+// Message document type (replaces sessionMessages table)
+export type SessionMessage = {
+  id: number; // For backward compatibility
+  sessionId: number;
+  role: string;
+  content: string;
+  isEditMessage: boolean;
+  timestamp: Date;
+};
 
-// Content sessions table - stores each content generation session
-export const contentSessions = pgTable("content_sessions", {
-  id: serial("id").primaryKey(),
-  userId: text("user_id"),
-  title: text("title").notNull().default("New Script"),
-  status: text("status").notNull().default("inputting"),
-  inputs: jsonb("inputs").$type<UserInputs>().default({}),
-  visualContext: jsonb("visual_context").$type<VisualContext>(),
-  textHooks: jsonb("text_hooks").$type<TextHook[]>(),
-  verbalHooks: jsonb("verbal_hooks").$type<VerbalHook[]>(),
-  visualHooks: jsonb("visual_hooks").$type<VisualHook[]>(),
-  selectedHooks: jsonb("selected_hooks").$type<SelectedHooks>(),
-  selectedHook: jsonb("selected_hook").$type<Hook>(),
-  output: jsonb("output").$type<ContentOutput>(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
+// Insert types for compatibility
+export type InsertSession = Omit<Session, "id" | "createdAt" | "updatedAt">;
+export type InsertSessionMessage = Omit<SessionMessage, "id" | "timestamp">;
+
+// User type for Firestore
+export type User = {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  profileImageUrl?: string;
+  role: string;
+  subscriptionTier: "bronze" | "silver" | "gold" | "platinum" | "diamond";
+  isPremium: boolean;
+  scriptsGenerated: number;
+  usageCount: number;
+  lastUsageReset?: Date;
+  subscriptionEndDate?: Date;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+// Auth schemas for Firebase
+export const registerSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional()
 });
 
-// Session messages table - stores chat history for each session
-export const sessionMessages = pgTable("session_messages", {
-  id: serial("id").primaryKey(),
-  sessionId: integer("session_id").notNull().references(() => contentSessions.id, { onDelete: "cascade" }),
-  role: text("role").notNull(),
-  content: text("content").notNull(),
-  isEditMessage: boolean("is_edit_message").default(false),
-  timestamp: timestamp("timestamp").defaultNow().notNull()
+export const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required")
 });
 
-// Drizzle insert schemas
-export const insertSessionSchema = createInsertSchema(contentSessions).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertMessageSchema = createInsertSchema(sessionMessages).omit({ id: true, timestamp: true });
+export const upgradeSchema = z.object({
+  tier: z.enum(["bronze", "silver", "gold", "platinum", "diamond"])
+});
 
-// Drizzle select types
-export type Session = typeof contentSessions.$inferSelect;
-export type SessionMessage = typeof sessionMessages.$inferSelect;
-export type InsertSession = z.infer<typeof insertSessionSchema>;
-export type InsertSessionMessage = z.infer<typeof insertMessageSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
+export type UpgradeInput = z.infer<typeof upgradeSchema>;
 
-// Re-export auth models
-export * from "./models/auth";
+// Subscription tiers
+export const SubscriptionTier = {
+  BRONZE: "bronze",
+  SILVER: "silver",
+  GOLD: "gold",
+  PLATINUM: "platinum",
+  DIAMOND: "diamond"
+} as const;
+
+export type SubscriptionTierType = typeof SubscriptionTier[keyof typeof SubscriptionTier];
+
+// Tier display info
+export const TierInfo = {
+  bronze: { name: "Bronze", price: 0, priceLabel: "Free", color: "#CD7F32", features: ["5 scripts/month", "Basic hooks", "Community support"] },
+  silver: { name: "Silver", price: 10, priceLabel: "$10/mo", color: "#C0C0C0", features: ["25 scripts/month", "All hook types", "Email support"] },
+  gold: { name: "Gold", price: 20, priceLabel: "$20/mo", color: "#FFD700", features: ["100 scripts/month", "Priority generation", "B-roll AI prompts"] },
+  platinum: { name: "Platinum", price: 50, priceLabel: "$50/mo", color: "#E5E4E2", features: ["Unlimited scripts", "API access", "White-label exports"] },
+  diamond: { name: "Diamond", price: 200, priceLabel: "$200 one-time", color: "#B9F2FF", features: ["Lifetime access", "All Platinum features", "Early feature access"] }
+} as const;

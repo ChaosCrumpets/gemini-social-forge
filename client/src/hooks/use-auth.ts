@@ -1,47 +1,78 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { User } from "@shared/models/auth";
+import { useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { signInWithCustomToken } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
-async function fetchUser(): Promise<User | null> {
-  const response = await fetch("/api/auth/user", {
-    credentials: "include",
-  });
-
-  if (response.status === 401) {
-    return null;
-  }
-
-  if (!response.ok) {
-    throw new Error(`${response.status}: ${response.statusText}`);
-  }
-
-  return response.json();
+interface RegisterData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName?: string;
 }
 
-async function logout(): Promise<void> {
-  window.location.href = "/api/logout";
+interface LoginData {
+  email: string;
+  password: string;
 }
 
-export function useAuth() {
-  const queryClient = useQueryClient();
-  const { data: user, isLoading } = useQuery<User | null>({
-    queryKey: ["/api/auth/user"],
-    queryFn: fetchUser,
-    retry: false,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
+interface AuthResponse {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+  subscriptionTier: string;
+  isPremium: boolean;
+  customToken: string; // Firebase custom token from backend
+}
 
-  const logoutMutation = useMutation({
-    mutationFn: logout,
-    onSuccess: () => {
-      queryClient.setQueryData(["/api/auth/user"], null);
+export function useRegister() {
+  const [, navigate] = useLocation();
+
+  return useMutation({
+    mutationFn: async (data: RegisterData) => {
+      const response = await apiRequest("POST", "/api/register", data);
+      const result: AuthResponse = await response.json();
+
+      // Sign in to Firebase with custom token from backend
+      await signInWithCustomToken(auth, result.customToken);
+
+      return result;
+    },
+    onSuccess: (data) => {
+      // Set user data immediately to avoid race conditions with /api/me fetch
+      const { customToken, ...user } = data;
+      queryClient.setQueryData(["/api/me"], user);
+      // Redirect to intended destination or default to home
+      const returnTo = sessionStorage.getItem("returnTo") || "/";
+      sessionStorage.removeItem("returnTo");
+      navigate(returnTo);
     },
   });
+}
 
-  return {
-    user,
-    isLoading,
-    isAuthenticated: !!user,
-    logout: logoutMutation.mutate,
-    isLoggingOut: logoutMutation.isPending,
-  };
+export function useLogin() {
+  const [, navigate] = useLocation();
+
+  return useMutation({
+    mutationFn: async (data: LoginData) => {
+      const response = await apiRequest("POST", "/api/login", data);
+      const result: AuthResponse = await response.json();
+
+      // Sign in to Firebase with custom token from backend
+      await signInWithCustomToken(auth, result.customToken);
+
+      return result;
+    },
+    onSuccess: (data) => {
+      // Set user data immediately to avoid race conditions with /api/me fetch
+      const { customToken, ...user } = data;
+      queryClient.setQueryData(["/api/me"], user);
+      // Redirect to intended destination or default to home
+      const returnTo = sessionStorage.getItem("returnTo") || "/";
+      sessionStorage.removeItem("returnTo");
+      navigate(returnTo);
+    },
+  });
 }

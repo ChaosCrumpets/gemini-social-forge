@@ -1,0 +1,327 @@
+﻿[dotenv@17.2.3] injecting env (23) from .env -- tip: ≡ƒöæ add access controls to secrets: https://dotenvx.com/ops
+≡ƒöº Initializing Firestore and creating admin user...
+
+≡ƒôï Firebase Config:
+   Project ID: cal-app-d414a
+   Client Email: firebase-adminsdk-fbsvc@cal-app-d414a.iam.gserviceaccount.com
+   Private Key: Γ£ô Loaded
+
+Step 1: Testing Firestore connection...
+node.exe : 
+At line:1 char:1
++ & "C:\Program Files
+\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (:String   
+ ) [], RemoteExce    
+ption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+Γ¥î Error: 9 
+FAILED_PRECONDITION: 
+Firestore API data 
+access is disabled. 
+Please enable it if 
+you want to access 
+the database through 
+Firestore API.
+
+Full error details:
+Error: 9 
+FAILED_PRECONDITION: 
+Firestore API data 
+access is disabled. 
+Please enable it if 
+you want to access 
+the database through 
+Firestore API.
+    at 
+callErrorFromStatus (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\node_modules\g
+oogle-gax\node_module
+s\@grpc\grpc-js\src\c
+all.ts:84:17)
+    at Object.onRecei
+veStatus (C:\Users\to
+bis\OneDrive\Document
+s\Information and Kno
+wledge\AI\Gemini-Soci
+al-Forge_4 - Copy\Gem
+ini-Social-Forge\node
+_modules\google-gax\n
+ode_modules\@grpc\grp
+c-js\src\client.ts:36
+0:55)
+    at Object.onRecei
+veStatus (C:\Users\to
+bis\OneDrive\Document
+s\Information and Kno
+wledge\AI\Gemini-Soci
+al-Forge_4 - Copy\Gem
+ini-Social-Forge\node
+_modules\google-gax\n
+ode_modules\@grpc\grp
+c-js\src\client-inter
+ceptors.ts:466:34)
+    at Object.onRecei
+veStatus (C:\Users\to
+bis\OneDrive\Document
+s\Information and Kno
+wledge\AI\Gemini-Soci
+al-Forge_4 - Copy\Gem
+ini-Social-Forge\node
+_modules\google-gax\n
+ode_modules\@grpc\grp
+c-js\src\client-inter
+ceptors.ts:424:48)
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\node_modules\go
+ogle-gax\node_modules
+\@grpc\grpc-js\src\re
+solving-call.ts:170:2
+4)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:85:11)
+for call at
+    at ServiceClientI
+mpl.makeUnaryRequest 
+(C:\Users\tobis\OneDr
+ive\Documents\Informa
+tion and Knowledge\AI
+\Gemini-Social-Forge_
+4 - Copy\Gemini-Socia
+l-Forge\node_modules\
+google-gax\node_modul
+es\@grpc\grpc-js\src\
+client.ts:325:42)
+    at ServiceClientI
+mpl.<anonymous> (C:\U
+sers\tobis\OneDrive\D
+ocuments\Information 
+and Knowledge\AI\Gemi
+ni-Social-Forge_4 - C
+opy\Gemini-Social-For
+ge\node_modules\googl
+e-gax\node_modules\@g
+rpc\grpc-js\src\make-
+client.ts:189:15)
+    at C:\Users\tobis
+\OneDrive\Documents\I
+nformation and Knowle
+dge\AI\Gemini-Social-
+Forge_4 - Copy\Gemini
+-Social-Forge\node_mo
+dules\@google-cloud\f
+irestore\build\src\v1
+\firestore_client.js:
+242:33
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\node_modules\go
+ogle-gax\src\normalCa
+lls\timeout.ts:54:13)
+    at repeat (C:\Use
+rs\tobis\OneDrive\Doc
+uments\Information 
+and Knowledge\AI\Gemi
+ni-Social-Forge_4 - C
+opy\Gemini-Social-For
+ge\node_modules\googl
+e-gax\src\normalCalls
+\retries.ts:110:19)
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\node_modules\go
+ogle-gax\src\normalCa
+lls\retries.ts:157:7)
+    at OngoingCallPro
+mise.call (C:\Users\t
+obis\OneDrive\Documen
+ts\Information and Kn
+owledge\AI\Gemini-Soc
+ial-Forge_4 - Copy\Ge
+mini-Social-Forge\nod
+e_modules\google-gax\
+src\call.ts:81:23)
+    at 
+NormalApiCaller.call 
+(C:\Users\tobis\OneDr
+ive\Documents\Informa
+tion and Knowledge\AI
+\Gemini-Social-Forge_
+4 - Copy\Gemini-Socia
+l-Forge\node_modules\
+google-gax\src\normal
+Calls\normalApiCaller
+.ts:43:15)
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\node_modules\go
+ogle-gax\src\createAp
+iCall.ts:157:26)
+Caused by: Error
+    at _firestore._tr
+aceUtil.startActiveSp
+an (C:\Users\tobis\On
+eDrive\Documents\Info
+rmation and Knowledge
+\AI\Gemini-Social-For
+ge_4 - Copy\Gemini-So
+cial-Forge\node_modul
+es\@google-cloud\fire
+store\build\src\write
+-batch.js:438:27)
+    at C:\Users\tobis
+\OneDrive\Documents\I
+nformation and Knowle
+dge\AI\Gemini-Social-
+Forge_4 - Copy\Gemini
+-Social-Forge\node_mo
+dules\@google-cloud\f
+irestore\build\src\te
+lemetry\enabled-trace
+-util.js:110:30
+    at NoopContextMan
+ager.with (C:\Users\t
+obis\OneDrive\Documen
+ts\Information and Kn
+owledge\AI\Gemini-Soc
+ial-Forge_4 - Copy\Ge
+mini-Social-Forge\nod
+e_modules\@openteleme
+try\api\src\context\N
+oopContextManager.ts:
+31:15)
+    at 
+ContextAPI.with (C:\U
+sers\tobis\OneDrive\D
+ocuments\Information 
+and Knowledge\AI\Gemi
+ni-Social-Forge_4 - C
+opy\Gemini-Social-For
+ge\node_modules\@open
+telemetry\api\src\api
+\context.ts:77:42)
+    at NoopTracer.sta
+rtActiveSpan (C:\User
+s\tobis\OneDrive\Docu
+ments\Information 
+and Knowledge\AI\Gemi
+ni-Social-Forge_4 - C
+opy\Gemini-Social-For
+ge\node_modules\@open
+telemetry\api\src\tra
+ce\NoopTracer.ts:98:2
+7)
+    at ProxyTracer.st
+artActiveSpan (C:\Use
+rs\tobis\OneDrive\Doc
+uments\Information 
+and Knowledge\AI\Gemi
+ni-Social-Forge_4 - C
+opy\Gemini-Social-For
+ge\node_modules\@open
+telemetry\api\src\tra
+ce\ProxyTracer.ts:51:
+20)
+    at EnabledTraceUt
+il.startActiveSpan (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\node_modules\@g
+oogle-cloud\firestore
+\build\src\telemetry\
+enabled-trace-util.js
+:102:28)
+    at 
+WriteBatch.commit (C:
+\Users\tobis\OneDrive
+\Documents\Informatio
+n and Knowledge\AI\Ge
+mini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\node_modules\@g
+oogle-cloud\firestore
+\build\src\write-batc
+h.js:436:43)
+    at C:\Users\tobis
+\OneDrive\Documents\I
+nformation and Knowle
+dge\AI\Gemini-Social-
+Forge_4 - Copy\Gemini
+-Social-Forge\node_mo
+dules\@google-cloud\f
+irestore\build\src\re
+ference\document-refe
+rence.js:350:31
+    at C:\Users\tobis
+\OneDrive\Documents\I
+nformation and Knowle
+dge\AI\Gemini-Social-
+Forge_4 - Copy\Gemini
+-Social-Forge\node_mo
+dules\@google-cloud\f
+irestore\build\src\te
+lemetry\enabled-trace
+-util.js:110:30 {
+  code: 9,
+  details: 
+'Firestore API data 
+access is disabled. 
+Please enable it if 
+you want to access 
+the database through 
+Firestore API.',
+  metadata: Metadata 
+{
+    internalRepr: 
+Map(1) { 'x-debug-tra
+cking-id' => [Array] 
+},
+    opaqueData: 
+Map(0) {},
+    options: {}
+  },
+  note: 'Exception 
+occurred in retry 
+method that was not 
+classified as 
+transient'
+}

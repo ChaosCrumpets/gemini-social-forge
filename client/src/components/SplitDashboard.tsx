@@ -1,5 +1,6 @@
 import { ChatInterface } from './ChatInterface';
 import { OutputPanels } from './OutputPanels';
+import { ExportPanel } from './ExportPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Circle, Plus, Pencil } from 'lucide-react';
@@ -16,15 +17,15 @@ interface SplitDashboardProps {
   isLoading: boolean;
 }
 
-export function SplitDashboard({ 
-  messages, 
+export function SplitDashboard({
+  messages,
   editMessages,
-  output, 
+  output,
   selectedHook,
-  onSendMessage, 
+  onSendMessage,
   onSendEditMessage,
   onCreateNew,
-  isLoading 
+  isLoading
 }: SplitDashboardProps) {
   return (
     <div className="h-screen flex flex-col lg:grid lg:grid-cols-[2fr_3fr]">
@@ -40,9 +41,9 @@ export function SplitDashboard({
           />
         </div>
       </div>
-      
+
       <div className="flex flex-col h-full lg:h-screen border-t lg:border-t-0">
-        <ContentOutputHeader onCreateNew={onCreateNew} />
+        <ContentOutputHeader onCreateNew={onCreateNew} output={output} />
         <div className="flex-1 overflow-hidden">
           <OutputPanels output={output} />
         </div>
@@ -60,8 +61,8 @@ function EditChatHeader({ onCreateNew }: { onCreateNew: () => void }) {
           Edit Content
         </h2>
       </div>
-      <Button 
-        variant="ghost" 
+      <Button
+        variant="ghost"
         size="sm"
         onClick={onCreateNew}
         data-testid="button-create-new-top"
@@ -73,7 +74,7 @@ function EditChatHeader({ onCreateNew }: { onCreateNew: () => void }) {
   );
 }
 
-function ContentOutputHeader({ onCreateNew }: { onCreateNew: () => void }) {
+function ContentOutputHeader({ onCreateNew, output }: { onCreateNew: () => void; output: ContentOutput }) {
   return (
     <div className="shrink-0 px-4 py-3 border-b border-border flex items-center justify-between gap-4 bg-card/50">
       <div className="flex items-center gap-3">
@@ -82,15 +83,18 @@ function ContentOutputHeader({ onCreateNew }: { onCreateNew: () => void }) {
           Content Output
         </h2>
       </div>
-      <Button 
-        variant="outline" 
-        size="sm"
-        onClick={onCreateNew}
-        data-testid="button-create-new-content"
-      >
-        <Plus className="w-4 h-4 mr-2" />
-        Create New Content Plan
-      </Button>
+      <div className="flex items-center gap-2">
+        <ExportPanel output={output} title="Content" />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onCreateNew}
+          data-testid="button-create-new-content"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          New
+        </Button>
+      </div>
     </div>
   );
 }
@@ -110,7 +114,7 @@ function DashboardHeader({ title, status, selectedHook }: DashboardHeaderProps) 
           {title}
         </h2>
       </div>
-      
+
       {selectedHook && (
         <Badge variant="secondary" className="text-xs font-mono truncate max-w-[200px]">
           Hook: {selectedHook.type}

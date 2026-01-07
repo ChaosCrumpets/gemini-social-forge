@@ -1,13 +1,15 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Plus, MessageSquare, Trash2, FileText, PanelLeftClose, PanelLeft, Zap, FolderOpen } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, FileText, PanelLeftClose, PanelLeft, Zap, FolderOpen, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useProjectStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import type { Session, SessionMessage } from '@shared/schema';
 import { useState, useEffect } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 
 interface SessionWithMessages {
   session: Session;
@@ -22,7 +24,8 @@ interface SessionSidebarProps {
 }
 
 export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProps) {
-  const { currentSessionId, loadSession, reset, setLoading, setCurrentSessionId } = useProjectStore();
+  const [, setLocation] = useLocation();
+  const { currentSessionId, loadSession, reset, setLoading, setCurrentSessionId, incognitoMode, setIncognitoMode } = useProjectStore();
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -36,7 +39,11 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
   }, []);
 
   const { data: sessions = [], isLoading } = useQuery<Session[]>({
-    queryKey: ['/api/sessions']
+    queryKey: ['/api/sessions'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/sessions');
+      return response.json() as Promise<Session[]>;
+    }
   });
 
   const loadSessionMutation = useMutation({
@@ -67,6 +74,8 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
   const handleNewChat = () => {
     reset();
     setCurrentSessionId(null);
+    // CRITICAL: Update URL to remove session param for new chat
+    setLocation('/app', { replace: false });
     if (isMobile) onClose();
   };
 
@@ -94,7 +103,7 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
     const now = new Date();
     const d = new Date(date);
     const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
@@ -112,7 +121,7 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
           <span className="font-bold text-sidebar-foreground" data-testid="text-sidebar-logo">C.A.L.</span>
         </Link>
       </div>
-      
+
       {/* Actions */}
       <div className="p-2 space-y-1">
         <Button
@@ -158,8 +167,8 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
                 onClick={() => handleSelectSession(session.id)}
                 className={cn(
                   "group flex items-start gap-2 p-2 rounded-md cursor-pointer transition-colors",
-                  currentSessionId === session.id 
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                  currentSessionId === session.id
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "hover:bg-sidebar-accent/50"
                 )}
                 data-testid={`session-item-${session.id}`}
@@ -192,9 +201,28 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
           </div>
         )}
       </ScrollArea>
-      
-      {/* Footer with collapse button */}
-      <div className="p-2 border-t border-sidebar-border">
+
+      {/* Footer with incognito toggle and collapse button */}
+      <div className="p-2 border-t border-sidebar-border space-y-2">
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-2">
+            <EyeOff className="h-4 w-4 text-sidebar-foreground/60" />
+            <Label htmlFor="incognito-mode" className="text-xs text-sidebar-foreground/80">
+              Incognito
+            </Label>
+          </div>
+          <Switch
+            id="incognito-mode"
+            checked={incognitoMode}
+            onCheckedChange={setIncognitoMode}
+            data-testid="switch-incognito-mode"
+          />
+        </div>
+        {incognitoMode && (
+          <p className="text-xs text-amber-500/80 px-2">
+            Sessions won't be saved
+          </p>
+        )}
         <Button
           size="icon"
           variant="ghost"

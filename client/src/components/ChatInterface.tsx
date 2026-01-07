@@ -12,25 +12,26 @@ interface ChatInterfaceProps {
   disabled?: boolean;
   compact?: boolean;
   placeholder?: string;
+  suggestedReplies?: string[];
 }
 
-export function ChatInterface({ 
-  messages, 
-  onSendMessage, 
+export function ChatInterface({
+  messages,
+  onSendMessage,
   isLoading,
   disabled = false,
   compact = false,
-  placeholder
+  placeholder,
+  suggestedReplies = []
 }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,10 +48,27 @@ export function ChatInterface({
     }
   };
 
+  const handleQuickReply = (reply: string) => {
+    if (!isLoading && !disabled) {
+      onSendMessage(reply);
+    }
+  };
+
+  // Detect if last message might be a yes/no question
+  const lastMessage = messages[messages.length - 1];
+  const isYesNoQuestion = lastMessage?.role === 'assistant' &&
+    /\?\s*$/.test(lastMessage.content) &&
+    (/\b(yes|no|ready|sure|want|would you|shall|should|can|do you)\b/i.test(lastMessage.content));
+
+  const defaultQuickReplies = isYesNoQuestion
+    ? ['Yes', 'No', 'Tell me more']
+    : [];
+
+  const quickReplies = suggestedReplies.length > 0 ? suggestedReplies : defaultQuickReplies;
+
   return (
     <div className={`flex flex-col h-full ${compact ? '' : 'max-w-3xl mx-auto'}`}>
-      <ScrollArea 
-        ref={scrollRef}
+      <ScrollArea
         className="flex-1 px-4 py-6"
         data-testid="chat-scroll-area"
       >
@@ -68,11 +86,11 @@ export function ChatInterface({
               </div>
             </div>
           )}
-          
+
           {messages.map((message) => (
             <MessageBubble key={message.id} message={message} />
           ))}
-          
+
           {isLoading && (
             <div className="flex items-center gap-3 text-muted-foreground">
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -81,8 +99,29 @@ export function ChatInterface({
               </span>
             </div>
           )}
+
+          {/* Scroll anchor */}
+          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
+
+      {/* Quick Reply Buttons */}
+      {quickReplies.length > 0 && !isLoading && !disabled && (
+        <div className="px-4 pb-2 flex flex-wrap gap-2">
+          {quickReplies.map((reply, idx) => (
+            <Button
+              key={idx}
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickReply(reply)}
+              className="rounded-full"
+              data-testid={`quick-reply-${reply.toLowerCase().replace(/\s+/g, '-')}`}
+            >
+              {reply}
+            </Button>
+          ))}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="p-4 border-t border-border">
         <div className="relative">
@@ -117,14 +156,14 @@ export function ChatInterface({
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
-  
+
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
         className={`
           max-w-lg p-4 rounded-xl
-          ${isUser 
-            ? 'bg-primary text-primary-foreground ml-auto' 
+          ${isUser
+            ? 'bg-primary text-primary-foreground ml-auto'
             : 'bg-card border border-card-border'
           }
         `}
@@ -147,9 +186,9 @@ function StatusBadge({ text, variant = 'default' }: { text: string; variant?: 'd
     success: 'bg-primary/10 text-primary border border-primary/20',
     warning: 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
   };
-  
+
   return (
-    <span 
+    <span
       className={`px-3 py-1 text-xs font-mono uppercase tracking-widest rounded-full ${variantClasses[variant]}`}
       data-testid={`status-badge-${text.toLowerCase().replace(/\s+/g, '-')}`}
     >

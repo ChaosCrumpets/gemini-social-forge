@@ -35,28 +35,28 @@ export { statusOrder };
 export function StatusBar({ status, highestReachedStatus, onNavigate }: StatusBarProps) {
   const currentIndex = statusOrder.indexOf(status);
   const highestIndex = highestReachedStatus ? statusOrder.indexOf(highestReachedStatus) : currentIndex;
-  
+
   const handleClick = (step: ProjectStatusType, index: number) => {
     if (!onNavigate) return;
-    
+
     // Can only navigate to steps that have been completed (at or before highest reached)
     if (index <= highestIndex && step !== status) {
       onNavigate(step);
     }
   };
-  
+
   return (
-    <div className="flex items-center justify-center gap-1 sm:gap-2 p-3 sm:p-4 bg-card/50 border-b border-border overflow-x-auto">
+    <div className="flex items-center justify-center gap-1 sm:gap-2 p-3 sm:p-4 bg-muted border-b border-border overflow-x-auto flex-shrink-0 min-h-[60px]">
       {statusOrder.map((step, index) => {
         const isComplete = index < currentIndex;
         const isCurrent = index === currentIndex;
         const isPending = index > currentIndex;
         const isClickable = !!(onNavigate && index <= highestIndex && step !== status);
         const wasReached = index <= highestIndex;
-        
+
         return (
           <div key={step} className="flex items-center gap-1 sm:gap-2 shrink-0">
-            <StatusStep 
+            <StatusStep
               label={statusLabels[step]}
               isComplete={isComplete}
               isCurrent={isCurrent}
@@ -88,7 +88,7 @@ interface StatusStepProps {
 function StatusStep({ label, isComplete, isCurrent, isPending, isClickable, wasReached, onClick }: StatusStepProps) {
   let variant: 'default' | 'secondary' | 'outline' = 'outline';
   let indicatorClass = 'bg-muted-foreground/30';
-  
+
   if (isComplete) {
     variant = 'default';
     indicatorClass = 'bg-primary';
@@ -99,12 +99,12 @@ function StatusStep({ label, isComplete, isCurrent, isPending, isClickable, wasR
     variant = 'outline';
     indicatorClass = 'bg-primary/50';
   }
-  
+
   const badge = (
-    <Badge 
+    <Badge
       variant={variant}
       className={`
-        text-[10px] sm:text-xs font-mono uppercase tracking-widest gap-1 sm:gap-2 px-2 py-0.5 sm:px-3 sm:py-1
+        text-[10px] sm:text-xs font-mono font-bold uppercase tracking-widest gap-1 sm:gap-2 px-2 py-0.5 sm:px-3 sm:py-1
         transition-all duration-200
         ${isPending && !wasReached ? 'opacity-50' : ''}
         ${isClickable ? 'cursor-pointer hover:ring-2 hover:ring-primary/50 hover:scale-105' : ''}
@@ -115,12 +115,12 @@ function StatusStep({ label, isComplete, isCurrent, isPending, isClickable, wasR
       {isComplete ? (
         <Check className="w-2 h-2 sm:w-3 sm:h-3" />
       ) : (
-        <Circle className={`w-1.5 h-1.5 sm:w-2 sm:h-2 ${indicatorClass} rounded-full`} />
+        <div className={`w-1.5 h-1.5 sm:w-2 sm:h-2 ${indicatorClass} rounded-full`} />
       )}
       {label}
     </Badge>
   );
-  
+
   if (isClickable) {
     return (
       <Tooltip>
@@ -133,6 +133,6 @@ function StatusStep({ label, isComplete, isCurrent, isPending, isClickable, wasR
       </Tooltip>
     );
   }
-  
+
   return badge;
 }

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { 
+import type {
   Project, ChatMessage, Hook, ContentOutput, AgentStatus, UserInputs, ProjectStatusType,
   TextHook, VerbalHook, VisualHook, SelectedHooks, VisualContext,
   Session, SessionMessage
@@ -12,7 +12,8 @@ interface ProjectStore {
   error: string | null;
   editMessages: ChatMessage[];
   currentSessionId: number | null;
-  
+  incognitoMode: boolean;
+
   initProject: () => void;
   addMessage: (message: ChatMessage) => void;
   addEditMessage: (message: ChatMessage) => void;
@@ -37,6 +38,7 @@ interface ProjectStore {
   reset: () => void;
   setCurrentSessionId: (id: number | null) => void;
   loadSession: (session: Session, messages: SessionMessage[], editMessages: SessionMessage[]) => void;
+  setIncognitoMode: (enabled: boolean) => void;
 }
 
 const statusOrder: ProjectStatusType[] = [
@@ -80,9 +82,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   error: null,
   editMessages: [],
   currentSessionId: null,
+  incognitoMode: false,
 
   initProject: () => {
-    set({ 
+    set({
       project: createInitialProject(),
       isLoading: false,
       error: null,
@@ -94,7 +97,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   addMessage: (message: ChatMessage) => {
     const { project } = get();
     if (!project) return;
-    
+
     set({
       project: {
         ...project,
@@ -107,7 +110,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   updateInputs: (inputs: Partial<UserInputs>) => {
     const { project } = get();
     if (!project) return;
-    
+
     set({
       project: {
         ...project,
@@ -120,7 +123,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setVisualContext: (context: VisualContext) => {
     const { project } = get();
     if (!project) return;
-    
+
     set({
       project: {
         ...project,
@@ -133,7 +136,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setTextHooks: (hooks: TextHook[]) => {
     const { project } = get();
     if (!project) return;
-    
+
     set({
       project: {
         ...project,
@@ -147,7 +150,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setVerbalHooks: (hooks: VerbalHook[]) => {
     const { project } = get();
     if (!project) return;
-    
+
     set({
       project: {
         ...project,
@@ -161,7 +164,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setVisualHooks: (hooks: VisualHook[]) => {
     const { project } = get();
     if (!project) return;
-    
+
     set({
       project: {
         ...project,
@@ -175,7 +178,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   selectTextHook: (hook: TextHook) => {
     const { project } = get();
     if (!project) return;
-    
+
     set({
       project: {
         ...project,
@@ -191,7 +194,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   selectVerbalHook: (hook: VerbalHook) => {
     const { project } = get();
     if (!project) return;
-    
+
     set({
       project: {
         ...project,
@@ -207,7 +210,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   selectVisualHook: (hook: VisualHook) => {
     const { project } = get();
     if (!project) return;
-    
+
     set({
       project: {
         ...project,
@@ -223,7 +226,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setHooks: (hooks: Hook[]) => {
     const { project } = get();
     if (!project) return;
-    
+
     set({
       project: {
         ...project,
@@ -237,7 +240,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   selectHook: (hook: Hook) => {
     const { project } = get();
     if (!project) return;
-    
+
     set({
       project: {
         ...project,
@@ -251,10 +254,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setOutput: (output: ContentOutput) => {
     const { project } = get();
     if (!project) return;
-    
+
     const currentHighest = project.highestReachedStatus || ProjectStatus.INPUTTING;
     const newHighest = getHigherStatus(ProjectStatus.COMPLETE, currentHighest);
-    
+
     set({
       project: {
         ...project,
@@ -269,10 +272,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setStatus: (status: ProjectStatusType) => {
     const { project } = get();
     if (!project) return;
-    
+
     const currentHighest = project.highestReachedStatus || ProjectStatus.INPUTTING;
     const newHighest = getHigherStatus(status, currentHighest);
-    
+
     set({
       project: {
         ...project,
@@ -286,7 +289,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setAgents: (agents: AgentStatus[]) => {
     const { project } = get();
     if (!project) return;
-    
+
     set({
       project: {
         ...project,
@@ -299,11 +302,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   updateAgent: (name: string, status: AgentStatus['status'], task?: string) => {
     const { project } = get();
     if (!project || !project.agents) return;
-    
-    const agents = project.agents.map(agent => 
+
+    const agents = project.agents.map(agent =>
       agent.name === name ? { ...agent, status, task } : agent
     );
-    
+
     set({
       project: {
         ...project,
@@ -316,7 +319,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   goToStage: (stage: ProjectStatusType) => {
     const { project } = get();
     if (!project) return;
-    
+
     set({
       project: {
         ...project,
@@ -327,7 +330,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   setLoading: (loading: boolean) => set({ isLoading: loading }),
-  
+
   setError: (error: string | null) => set({ error }),
 
   addEditMessage: (message: ChatMessage) => {
@@ -340,15 +343,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({ editMessages: [] });
   },
 
-  reset: () => set({ 
+  reset: () => set({
     project: createInitialProject(),
     isLoading: false,
     error: null,
     editMessages: [],
-    currentSessionId: null
+    currentSessionId: null,
+    incognitoMode: false
   }),
 
   setCurrentSessionId: (id: number | null) => set({ currentSessionId: id }),
+
+  setIncognitoMode: (enabled: boolean) => set({ incognitoMode: enabled }),
 
   loadSession: (session: Session, messages: SessionMessage[], editMsgs: SessionMessage[]) => {
     const chatMessages: ChatMessage[] = messages.map(m => ({

@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Crown, LogOut, Settings, User, Loader2 } from "lucide-react";
+import { Crown, LogOut, Settings, Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import AssemblyLine from "@/pages/assembly-line";
 import AdminDashboard from "@/pages/admin";
@@ -23,7 +23,10 @@ import ProjectsPage from "@/pages/projects";
 import AuthPage from "@/pages/auth";
 import MembershipPage from "@/pages/membership";
 import { SessionSidebar, SidebarToggle } from "@/components/SessionSidebar";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { FullPageLoader } from "@/components/FullPageLoader";
 import { useLogout, type User as UserType } from "@/hooks/use-user";
+
 import { cn } from "@/lib/utils";
 
 const tierColors: Record<string, string> = {
@@ -38,13 +41,13 @@ function UserNav({ user }: { user: UserType }) {
   const [, navigate] = useLocation();
   const logoutMutation = useLogout();
 
-  const initials = user.firstName && user.lastName 
+  const initials = user.firstName && user.lastName
     ? `${user.firstName[0]}${user.lastName[0]}`
     : user.email?.[0]?.toUpperCase() || "U";
 
   return (
     <div className="flex items-center gap-2">
-      <Badge 
+      <Badge
         className={cn("capitalize text-xs", tierColors[user.subscriptionTier] || "bg-primary")}
         data-testid="badge-tier"
       >
@@ -71,7 +74,7 @@ function UserNav({ user }: { user: UserType }) {
             </div>
           </div>
           <DropdownMenuSeparator />
-          <DropdownMenuItem 
+          <DropdownMenuItem
             onClick={() => navigate("/membership")}
             data-testid="menu-item-membership"
           >
@@ -79,7 +82,7 @@ function UserNav({ user }: { user: UserType }) {
             Membership
           </DropdownMenuItem>
           {user.role === "admin" && (
-            <DropdownMenuItem 
+            <DropdownMenuItem
               onClick={() => navigate("/admin")}
               data-testid="menu-item-admin"
             >
@@ -88,7 +91,7 @@ function UserNav({ user }: { user: UserType }) {
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem 
+          <DropdownMenuItem
             onClick={() => logoutMutation.mutate()}
             disabled={logoutMutation.isPending}
             data-testid="menu-item-logout"
@@ -103,6 +106,27 @@ function UserNav({ user }: { user: UserType }) {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+
+  const { data: user, isLoading } = useQuery<UserType | null>({
+    queryKey: ["/api/me"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    retry: false,
+  });
+
+  if (isLoading) {
+    return <FullPageLoader message="Checking authentication..." />;
+  }
+
+  if (!user) {
+    sessionStorage.setItem("returnTo", location);
+    return <Redirect to="/auth" />;
+  }
+
+  return <>{children}</>;
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useQuery<UserType | null>({
     queryKey: ["/api/me"],
     queryFn: getQueryFn({ on401: "returnNull" }),
@@ -110,15 +134,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   });
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <FullPageLoader message="Verifying access..." />;
   }
 
   if (!user) {
     return <Redirect to="/auth" />;
+  }
+
+  if (user.role !== "admin") {
+    return <Redirect to="/app" />;
   }
 
   return <>{children}</>;
@@ -132,10 +156,15 @@ function AppRouter() {
           <AssemblyLine />
         </ProtectedRoute>
       </Route>
-      <Route path="/admin">
+      <Route path="/projects">
         <ProtectedRoute>
-          <AdminDashboard />
+          <ProjectsPage />
         </ProtectedRoute>
+      </Route>
+      <Route path="/admin">
+        <AdminRoute>
+          <AdminDashboard />
+        </AdminRoute>
       </Route>
       <Route path="/membership">
         <ProtectedRoute>
@@ -191,28 +220,57 @@ function AppLayout() {
   );
 }
 
-function App() {
+function AppContent() {
   const [location] = useLocation();
-  
-  const publicRoutes = ["/", "/projects", "/auth"];
+
+  // Fetch user to determine auth status
+  const { data: user, isLoading } = useQuery<UserType | null>({
+    queryKey: ["/api/me"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    retry: false
+  });
+
+  // Show loading while checking auth
+  if (isLoading) {
+    return <FullPageLoader message="Starting up..." />;
+  }
+
+  const publicOnlyRoutes = ["/", "/auth"]; // Routes only for non-authenticated users
+  const isPublicOnlyRoute = publicOnlyRoutes.includes(location);
+
+  // If logged in and trying to access landing page or auth, redirect to app
+  if (user && isPublicOnlyRoute) {
+    return <Redirect to="/app" />;
+  }
+
+  // Public routes
+  const publicRoutes = ["/", "/auth"];
   const isPublicRoute = publicRoutes.includes(location);
 
+  if (isPublicRoute) {
+    return (
+      <Switch>
+        <Route path="/" component={LandingPage} />
+        <Route path="/auth" component={AuthPage} />
+      </Switch>
+    );
+  }
+
+  return <AppLayout />;
+}
+
+function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        {isPublicRoute ? (
-          <Switch>
-            <Route path="/" component={LandingPage} />
-            <Route path="/projects" component={ProjectsPage} />
-            <Route path="/auth" component={AuthPage} />
-          </Switch>
-        ) : (
-          <AppLayout />
-        )}
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <AppContent />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
 export default App;
+

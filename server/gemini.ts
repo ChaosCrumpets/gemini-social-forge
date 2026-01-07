@@ -5,55 +5,47 @@ import type { ContentOutput } from "@shared/schema";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
-const CAL_SYSTEM_INSTRUCTION = `You are the Content Assembly Line (C.A.L.) AI, a specialized content generation system for social media creators. Your role is to guide users through creating high-quality short-form video content.
+const CAL_SYSTEM_INSTRUCTION = `You are the Content Assembly Line (C.A.L.) AI, a specialized content generation system for social media creators.
 
-You have access to a Master Query Database containing 200+ strategic discovery questions across 11 categories:
-- UAV & C.A.L Context (user methodology)
-- Identity, Origin & Why (personal story)
-- Audience Psychography (pain points, desires)
-- Strategic Positioning (USP, differentiation)
-- Content Formats (video styles)
-- Hooks & Headlines (attention techniques)
-- Scripting & Storytelling (narrative structure)
-- Visuals & Filming (production aesthetics)
-- Editing & Pacing (post-production)
-- Distribution & Growth (platform strategy)
-- Monetization & Conversion (revenue)
+IMPORTANT: Be EFFICIENT. Minimize back-and-forth. Extract as much information as possible from each user message.
 
-Always reference this database to deepen user context before generating the final output.
+CORE BEHAVIOR:
+1. When user provides a topic, IMMEDIATELY extract topic, goal, target audience, and platform if mentioned
+2. If user gives you enough context (topic + at least one other detail), set readyForDiscovery=true
+3. After user answers discovery questions, set readyForHooks=true
+4. NEVER ask yes/no questions. Instead, make reasonable assumptions and proceed.
 
-CONVERSATION FLOW:
-1. First, gather basic information (topic, goal, platform)
-2. Once you have the basics, the system will present Discovery Questions to deepen context
-3. After discovery answers are gathered, proceed to hook generation
+EXAMPLE EFFICIENT FLOW:
+User: "I want to make a TikTok about productivity tips for students"
+Your extraction: topic="productivity tips", goal="educate", platforms=["tiktok"], targetAudience="students"
+Set readyForDiscovery=true and say: "Great! I'll create hooks about productivity tips for students on TikTok. Just a few quick questions to make this content even more targeted..."
 
-BASIC INPUT GATHERING:
-When gathering initial information, ask clear, focused questions about:
-1. TOPIC - What is the main subject/theme?
-2. GOAL - What should viewers feel/learn/do? (educate, entertain, promote, inspire, inform)
-3. PLATFORM - Where will this be posted? (TikTok, Instagram Reels, YouTube Shorts, Twitter, LinkedIn)
-4. TARGET AUDIENCE - Who is the ideal viewer?
-5. TONE - What vibe should it have? (professional, casual, humorous, dramatic, etc.)
-6. DURATION - Preferred length (15s, 30s, 60s, 90s)
+INPUT EXTRACTION:
+- topic: The main subject/theme
+- goal: educate, entertain, promote, inspire, or inform (infer from context)
+- platforms: tiktok, instagram, youtube_shorts, twitter, linkedin
+- targetAudience: Who the content is for
+- tone: professional, casual, humorous, dramatic, etc.
+- duration: 15s, 30s, 60s, 90s
 
-Set "readyForDiscovery" to true when you have at least topic, goal, and platform.
-Set "readyForHooks" to true when discovery questions have been answered and you're ready to generate hooks.
+PROGRESSION RULES:
+- If you have topic + goal OR topic + platform: Set readyForDiscovery=true
+- After ANY user response to discovery questions: Set readyForHooks=true
+- Be proactive - don't wait for explicit confirmation
 
-RESPONSE FORMAT:
-Always respond in valid JSON with this structure:
+RESPONSE FORMAT (always valid JSON):
 {
-  "message": "Your conversational response to the user",
+  "message": "Your conversational response (keep it brief and action-oriented)",
   "extractedInputs": {
-    "topic": "extracted topic or null",
-    "goal": "extracted goal or null", 
-    "platforms": ["extracted platforms"] or null,
-    "targetAudience": "extracted audience or null",
-    "tone": "extracted tone or null",
-    "duration": "extracted duration or null"
+    "topic": "extracted or null",
+    "goal": "extracted or null", 
+    "platforms": ["extracted"] or null,
+    "targetAudience": "extracted or null",
+    "tone": "extracted or null",
+    "duration": "extracted or null"
   },
-  "discoveryAnswers": { "key": "answer" } or null (when user answers discovery questions),
-  "readyForDiscovery": boolean (true when you have topic, goal, and platform, but haven't done discovery yet),
-  "readyForHooks": boolean (true when discovery phase is complete and ready for hook generation)
+  "readyForDiscovery": boolean,
+  "readyForHooks": boolean
 }`;
 
 const HOOK_GENERATION_PROMPT = `Generate 5-6 compelling hooks for short-form video content using CHAIN-OF-THOUGHT reasoning.
@@ -295,7 +287,7 @@ User message: ${userMessage}`;
     });
 
     const text = response.text || '';
-    
+
     try {
       const parsed = JSON.parse(text);
       return {
@@ -324,10 +316,10 @@ export async function generateHooks(
   try {
     const topic = (inputs.topic as string) || 'general content';
     const niche = `${topic} ${inputs.targetAudience || ''} ${inputs.goal || ''}`;
-    
+
     const hookPatterns = getHookPatternSummary(niche);
     const relevantTemplates = getRelevantHookPatterns(niche, 10);
-    
+
     const templateExamples = relevantTemplates.slice(0, 5).map(t => `- "${t.template}"`).join('\n');
 
     const prompt = `${HOOK_GENERATION_PROMPT}
@@ -360,7 +352,7 @@ Generate 6 hooks with unique ranks (1-6, where 1 is best). The rank=1 hook shoul
 
     const text = response.text || '';
     const parsed = JSON.parse(text);
-    
+
     if (!parsed.hooks || !Array.isArray(parsed.hooks)) {
       throw new Error('Invalid hooks response format');
     }
@@ -377,7 +369,7 @@ Generate 6 hooks with unique ranks (1-6, where 1 is best). The rank=1 hook shoul
     const usedRanks = new Set<number>();
     const validatedHooks = rawHooks.map((hook: { id: string; type: string; text: string; preview: string; rank?: number; isRecommended?: boolean }, index: number) => {
       let rank = hook.rank;
-      
+
       if (typeof rank !== 'number' || rank < 1 || rank > 6 || usedRanks.has(rank)) {
         for (let r = 1; r <= 6; r++) {
           if (!usedRanks.has(r)) {
@@ -387,9 +379,9 @@ Generate 6 hooks with unique ranks (1-6, where 1 is best). The rank=1 hook shoul
         }
         if (!rank) rank = index + 1;
       }
-      
+
       usedRanks.add(rank);
-      
+
       return {
         ...hook,
         rank,
@@ -582,10 +574,10 @@ export async function generateTextHooks(
     const topic = (inputs.topic as string) || 'general content';
     const niche = `${topic} ${inputs.targetAudience || ''} ${inputs.goal || ''}`;
     const discoveryContext = (inputs.discoveryContext as string) || '';
-    
+
     const hookPatterns = getHookPatternSummary(niche);
 
-    const discoverySection = discoveryContext 
+    const discoverySection = discoveryContext
       ? `\n\nDEEPER CONTEXT FROM DISCOVERY:\n${discoveryContext}\n\nUse this additional context to create more targeted and personalized hooks.`
       : '';
 
@@ -610,7 +602,7 @@ Generate 6 text hooks with unique ranks (1-6, where 1 is best):`;
     });
 
     const parsed = JSON.parse(response.text || '');
-    
+
     if (!parsed.textHooks || !Array.isArray(parsed.textHooks)) {
       throw new Error('Invalid text hooks response');
     }
@@ -629,12 +621,12 @@ export async function generateVerbalHooks(
     const topic = (inputs.topic as string) || 'general content';
     const niche = `${topic} ${inputs.targetAudience || ''} ${inputs.goal || ''}`;
     const discoveryContext = (inputs.discoveryContext as string) || '';
-    
+
     const hookPatterns = getHookPatternSummary(niche);
     const relevantTemplates = getRelevantHookPatterns(niche, 8);
     const templateExamples = relevantTemplates.slice(0, 5).map(t => `- "${t.template}"`).join('\n');
 
-    const discoverySection = discoveryContext 
+    const discoverySection = discoveryContext
       ? `\n\nDEEPER CONTEXT FROM DISCOVERY:\n${discoveryContext}\n\nUse this additional context to create more targeted and personalized hooks.`
       : '';
 
@@ -663,7 +655,7 @@ Generate 6 verbal hooks with unique ranks (1-6, where 1 is best):`;
     });
 
     const parsed = JSON.parse(response.text || '');
-    
+
     if (!parsed.verbalHooks || !Array.isArray(parsed.verbalHooks)) {
       throw new Error('Invalid verbal hooks response');
     }
@@ -722,7 +714,7 @@ Generate 6 visual hooks optimized for the user's production setup. Each must inc
     });
 
     const parsed = JSON.parse(response.text || '');
-    
+
     if (!parsed.visualHooks || !Array.isArray(parsed.visualHooks)) {
       throw new Error('Invalid visual hooks response');
     }
@@ -739,10 +731,10 @@ function validateAndRankHooks<T extends { id?: string; rank?: number; isRecommen
   modality: string
 ): T[] {
   const usedRanks = new Set<number>();
-  
+
   const validated = hooks.map((hook, index) => {
     let rank = hook.rank;
-    
+
     if (typeof rank !== 'number' || rank < 1 || rank > 6 || usedRanks.has(rank)) {
       for (let r = 1; r <= 6; r++) {
         if (!usedRanks.has(r)) {
@@ -752,9 +744,9 @@ function validateAndRankHooks<T extends { id?: string; rank?: number; isRecommen
       }
       if (!rank) rank = index + 1;
     }
-    
+
     usedRanks.add(rank);
-    
+
     return {
       ...hook,
       id: hook.id || `${modality.charAt(0).toUpperCase()}${index + 1}`,
@@ -810,7 +802,7 @@ Generate a cohesive content package that integrates all three hook elements seam
     });
 
     const parsed = JSON.parse(response.text || '');
-    
+
     if (!parsed.output) {
       throw new Error('Invalid content response format');
     }
@@ -941,7 +933,7 @@ Generate the complete content package now, starting with this hook:`;
 
     const text = response.text || '';
     const parsed = JSON.parse(text);
-    
+
     if (!parsed.output) {
       throw new Error('Invalid content response format');
     }
@@ -992,7 +984,7 @@ export async function generateDiscoveryQuestions(
     const categories = getAllCategories()
       .map(c => `- ${c.id}: ${c.name} - ${c.description}`)
       .join('\n');
-    
+
     const questionDb = queryDatabase
       .map(cat => `## ${cat.name}\n${cat.questions.slice(0, 10).map((q, i) => `${i + 1}. ${q}`).join('\n')}`)
       .join('\n\n');
@@ -1033,14 +1025,14 @@ export function getQueryDatabaseCategories() {
 export function getQuestionsFromCategory(categoryId: string, count: number = 5) {
   const category = queryDatabase.find(c => c.id === categoryId);
   if (!category) return [];
-  
+
   const shuffled = [...category.questions].sort(() => 0.5 - Math.random());
   return shuffled.slice(0, count);
 }
 
 // Remix a text fragment based on an instruction
 export async function remixText(
-  selectedText: string, 
+  selectedText: string,
   instruction: string,
   context?: string
 ): Promise<{ remixedText: string }> {
@@ -1072,7 +1064,7 @@ OUTPUT ONLY THE REWRITTEN TEXT:`;
     });
 
     const remixedText = (response.text || selectedText).trim();
-    
+
     return { remixedText };
   } catch (error) {
     console.error('Remix text error:', error);

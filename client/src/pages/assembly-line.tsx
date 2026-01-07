@@ -9,6 +9,11 @@ import { ThinkingState } from '@/components/ThinkingState';
 import { DirectorView } from '@/components/DirectorView';
 import { SplitDashboard } from '@/components/SplitDashboard';
 import { StatusBar } from '@/components/StatusBar';
+import { AutoSaveIndicator } from '@/components/AutoSaveIndicator';
+import { UnsavedChangesPrompt } from '@/components/UnsavedChangesPrompt';
+import { LiveStatusIndicator } from '@/components/LiveStatusIndicator';
+import { useAutoSave } from '@/hooks/useAutoSave';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { ProjectStatus } from '@shared/schema';
 import type { TextHook, VerbalHook, VisualHook, ChatMessage, AgentStatus, UserInputs, VisualContext, Session } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -21,9 +26,9 @@ interface DiscoveryQuestion {
 }
 
 export default function AssemblyLine() {
-  const { 
-    project, 
-    initProject, 
+  const {
+    project,
+    initProject,
     addMessage,
     addEditMessage,
     editMessages,
@@ -41,7 +46,7 @@ export default function AssemblyLine() {
     goToStage,
     setAgents,
     updateAgent,
-    isLoading, 
+    isLoading,
     setLoading,
     setError,
     currentSessionId,
@@ -57,6 +62,26 @@ export default function AssemblyLine() {
   const [discoveryQuestions, setDiscoveryQuestions] = useState<DiscoveryQuestion[]>([]);
   const [discoveryComplete, setDiscoveryComplete] = useState(false);
   const [isLoadingDiscovery, setIsLoadingDiscovery] = useState(false);
+
+  // Phase 3: Unsaved changes protection
+  const { save, saveNow, saveStatus, lastSaved } = useAutoSave(currentSessionId?.toString() || null);
+  const { hasUnsavedChanges } = useUnsavedChanges(currentSessionId?.toString() || null);
+
+  // Manual save handler
+  const handleSaveNow = useCallback(() => {
+    if (project) {
+      console.log('🔄 MANUAL SAVE TRIGGERED:', new Date().toISOString());
+      saveNow(project);
+    }
+  }, [project, saveNow]);
+
+  // Auto-save when project changes
+  useEffect(() => {
+    if (project && currentSessionId) {
+      console.log('📝 Project changed, triggering auto-save:', new Date().toISOString());
+      save(project);
+    }
+  }, [project?.inputs?.topic, project?.inputs, project?.selectedHook, project?.status, currentSessionId, save]);
 
   useEffect(() => {
     if (!project) {
@@ -99,7 +124,7 @@ export default function AssemblyLine() {
 
     setLoading(true);
     setStatus(ProjectStatus.GENERATING);
-    
+
     const hookAgents: AgentStatus[] = [
       { name: 'Text Hook Engineer', status: 'working', task: 'Crafting scroll-stopping text hooks' }
     ];
@@ -113,12 +138,12 @@ export default function AssemblyLine() {
       });
 
       const data = await response.json();
-      
+
       updateAgent('Text Hook Engineer', 'complete', 'Generated text hook options');
-      
+
       if (data.textHooks && data.textHooks.length > 0) {
         setTextHooks(data.textHooks);
-        
+
         const hookMessage: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
@@ -141,7 +166,7 @@ export default function AssemblyLine() {
 
     setLoading(true);
     setStatus(ProjectStatus.GENERATING);
-    
+
     const hookAgents: AgentStatus[] = [
       { name: 'Verbal Hook Engineer', status: 'working', task: 'Crafting compelling script openers' }
     ];
@@ -153,9 +178,9 @@ export default function AssemblyLine() {
       });
 
       const data = await response.json();
-      
+
       updateAgent('Verbal Hook Engineer', 'complete', 'Generated verbal hook options');
-      
+
       if (data.verbalHooks && data.verbalHooks.length > 0) {
         setVerbalHooks(data.verbalHooks);
       }
@@ -173,7 +198,7 @@ export default function AssemblyLine() {
 
     setLoading(true);
     setVisualContext(context);
-    
+
     const hookAgents: AgentStatus[] = [
       { name: 'Visual Hook Director', status: 'working', task: 'Designing opening visuals' }
     ];
@@ -186,9 +211,9 @@ export default function AssemblyLine() {
       });
 
       const data = await response.json();
-      
+
       updateAgent('Visual Hook Director', 'complete', 'Generated visual hook options');
-      
+
       if (data.visualHooks && data.visualHooks.length > 0) {
         setVisualHooks(data.visualHooks);
         setShowVisualContextForm(false);
@@ -209,7 +234,7 @@ export default function AssemblyLine() {
         intent
       });
       const data = await response.json();
-      
+
       if (data.questions && data.questions.length > 0) {
         const questions: DiscoveryQuestion[] = data.questions.map((q: string, idx: number) => ({
           id: `dq-${idx}`,
@@ -217,7 +242,7 @@ export default function AssemblyLine() {
           answered: false
         }));
         setDiscoveryQuestions(questions);
-        
+
         const discoveryMessage: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
@@ -225,7 +250,7 @@ export default function AssemblyLine() {
           timestamp: Date.now()
         };
         addMessage(discoveryMessage);
-        
+
         return true;
       }
       return false;
@@ -255,7 +280,7 @@ export default function AssemblyLine() {
       content,
       timestamp: Date.now()
     };
-    
+
     addMessage(userMessage);
     setLoading(true);
     setError(null);
@@ -273,10 +298,10 @@ export default function AssemblyLine() {
 
       const data = await response.json();
 
-      const updatedInputs: Partial<UserInputs> = data.extractedInputs 
+      const updatedInputs: Partial<UserInputs> = data.extractedInputs
         ? { ...project.inputs, ...data.extractedInputs }
         : project.inputs;
-      
+
       if (data.extractedInputs) {
         updateInputs(data.extractedInputs);
         updateSessionData(sessionId, { inputs: updatedInputs });
@@ -311,7 +336,7 @@ export default function AssemblyLine() {
     } catch (error) {
       console.error('Chat error:', error);
       setError('Failed to send message. Please try again.');
-      
+
       const errorMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -327,16 +352,16 @@ export default function AssemblyLine() {
   const handleSelectTextHook = useCallback(async (hook: TextHook) => {
     if (!project) return;
     selectTextHook(hook);
-    
+
     if (currentSessionId) {
       const title = hook.content.split(/\s+/).slice(0, 6).join(' ') + (hook.content.split(/\s+/).length > 6 ? '...' : '');
-      updateSessionData(currentSessionId, { 
+      updateSessionData(currentSessionId, {
         title,
         selectedHooks: { text: hook },
         status: 'hook_text'
       });
     }
-    
+
     await generateVerbalHooks();
   }, [project, selectTextHook, generateVerbalHooks, currentSessionId, updateSessionData]);
 
@@ -345,9 +370,9 @@ export default function AssemblyLine() {
     selectVerbalHook(hook);
     setShowVisualContextForm(true);
     setStatus(ProjectStatus.HOOK_VISUAL);
-    
+
     if (currentSessionId && project.selectedHooks) {
-      updateSessionData(currentSessionId, { 
+      updateSessionData(currentSessionId, {
         selectedHooks: { ...project.selectedHooks, verbal: hook },
         status: 'hook_verbal'
       });
@@ -358,9 +383,9 @@ export default function AssemblyLine() {
     if (!project) return;
     selectVisualHook(hook);
     setStatus(ProjectStatus.HOOK_OVERVIEW);
-    
+
     if (currentSessionId && project.selectedHooks) {
-      updateSessionData(currentSessionId, { 
+      updateSessionData(currentSessionId, {
         selectedHooks: { ...project.selectedHooks, visual: hook },
         status: 'hook_overview'
       });
@@ -384,7 +409,7 @@ export default function AssemblyLine() {
 
     setLoading(true);
     setStatus(ProjectStatus.GENERATING);
-    
+
     const contentAgents: AgentStatus[] = [
       { name: 'Script Architect', status: 'working', task: 'Drafting narrative structure' },
       { name: 'Visual Director', status: 'idle', task: 'Planning shot compositions' },
@@ -414,7 +439,7 @@ export default function AssemblyLine() {
 
       if (data.output) {
         setOutput(data.output);
-        
+
         const completeMessage: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
@@ -422,9 +447,9 @@ export default function AssemblyLine() {
           timestamp: Date.now()
         };
         addMessage(completeMessage);
-        
+
         if (currentSessionId) {
-          updateSessionData(currentSessionId, { 
+          updateSessionData(currentSessionId, {
             output: data.output,
             status: 'complete'
           });
@@ -449,7 +474,7 @@ export default function AssemblyLine() {
       content,
       timestamp: Date.now()
     };
-    
+
     addEditMessage(userMessage);
     setLoading(true);
     setError(null);
@@ -469,7 +494,7 @@ export default function AssemblyLine() {
 
       if (data.updatedOutput) {
         setOutput(data.updatedOutput);
-        
+
         if (currentSessionId) {
           updateSessionData(currentSessionId, { output: data.updatedOutput });
         }
@@ -483,7 +508,7 @@ export default function AssemblyLine() {
           timestamp: Date.now()
         };
         addEditMessage(assistantMessage);
-        
+
         if (currentSessionId) {
           saveMessageToSession(currentSessionId, 'assistant', data.message, true);
         }
@@ -491,7 +516,7 @@ export default function AssemblyLine() {
     } catch (error) {
       console.error('Edit error:', error);
       setError('Failed to apply edit. Please try again.');
-      
+
       const errorMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -601,13 +626,13 @@ export default function AssemblyLine() {
         return (
           <div className="flex-1 flex items-center justify-center overflow-auto">
             {project.agents && project.agents.length > 2 ? (
-              <DirectorView 
+              <DirectorView
                 agents={project.agents}
                 title="Assembling Your Content"
                 partialOutput={project.output}
               />
             ) : project.agents && (
-              <ThinkingState 
+              <ThinkingState
                 agents={project.agents}
                 title="Generating Hooks"
               />
@@ -640,14 +665,35 @@ export default function AssemblyLine() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden" data-testid="assembly-line-page">
+      {/* Status bar */}
       {project.status !== ProjectStatus.COMPLETE && (
-        <StatusBar 
+        <StatusBar
           status={project.status}
           highestReachedStatus={project.highestReachedStatus}
           onNavigate={handleStageNavigate}
         />
       )}
+
+      {/* Main content */}
       {renderContent()}
+
+      {/* Phase 3: Auto-save indicator with unsaved changes warning */}
+      <AutoSaveIndicator
+        status={saveStatus}
+        lastSaved={lastSaved}
+        onSaveNow={handleSaveNow}
+        hasUnsavedChanges={hasUnsavedChanges}
+      />
+
+      {/* Phase 3: Browser close protection */}
+      <UnsavedChangesPrompt
+        when={hasUnsavedChanges}
+        onSave={handleSaveNow}
+        onDiscard={() => { }}
+      />
+
+      {/* Live server status indicator */}
+      <LiveStatusIndicator />
     </div>
   );
 }

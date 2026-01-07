@@ -1,11 +1,10 @@
 import { randomUUID } from "crypto";
-import { eq, desc } from "drizzle-orm";
-import { db } from "./db";
-import type { 
-  Project, 
-  ChatMessage, 
-  Hook, 
-  ContentOutput, 
+import * as firestoreUtils from "./lib/firestore";
+import type {
+  Project,
+  ChatMessage,
+  Hook,
+  ContentOutput,
   UserInputs,
   ProjectStatusType,
   Session,
@@ -17,7 +16,6 @@ import type {
   SelectedHooks,
   VisualContext
 } from "@shared/schema";
-import { contentSessions, sessionMessages } from "@shared/schema";
 
 export interface IStorage {
   createProject(): Promise<Project>;
@@ -68,7 +66,7 @@ export class MemStorage implements IStorage {
   async updateProject(id: string, updates: Partial<Project>): Promise<Project | undefined> {
     const project = this.projects.get(id);
     if (!project) return undefined;
-    
+
     const updated = {
       ...project,
       ...updates,
@@ -81,7 +79,7 @@ export class MemStorage implements IStorage {
   async addMessage(projectId: string, message: ChatMessage): Promise<Project | undefined> {
     const project = this.projects.get(projectId);
     if (!project) return undefined;
-    
+
     const updated = {
       ...project,
       messages: [...project.messages, message],
@@ -94,7 +92,7 @@ export class MemStorage implements IStorage {
   async updateInputs(projectId: string, inputs: Partial<UserInputs>): Promise<Project | undefined> {
     const project = this.projects.get(projectId);
     if (!project) return undefined;
-    
+
     const updated = {
       ...project,
       inputs: { ...project.inputs, ...inputs },
@@ -107,7 +105,7 @@ export class MemStorage implements IStorage {
   async setHooks(projectId: string, hooks: Hook[]): Promise<Project | undefined> {
     const project = this.projects.get(projectId);
     if (!project) return undefined;
-    
+
     const updated = {
       ...project,
       hooks,
@@ -121,7 +119,7 @@ export class MemStorage implements IStorage {
   async selectHook(projectId: string, hook: Hook): Promise<Project | undefined> {
     const project = this.projects.get(projectId);
     if (!project) return undefined;
-    
+
     const updated = {
       ...project,
       selectedHook: hook,
@@ -135,7 +133,7 @@ export class MemStorage implements IStorage {
   async setOutput(projectId: string, output: ContentOutput): Promise<Project | undefined> {
     const project = this.projects.get(projectId);
     if (!project) return undefined;
-    
+
     const updated = {
       ...project,
       output,
@@ -149,7 +147,7 @@ export class MemStorage implements IStorage {
   async setStatus(projectId: string, status: ProjectStatusType): Promise<Project | undefined> {
     const project = this.projects.get(projectId);
     if (!project) return undefined;
-    
+
     const updated = {
       ...project,
       status,
@@ -163,7 +161,7 @@ export class MemStorage implements IStorage {
 export const storage = new MemStorage();
 
 // ============================================
-// Database Session Storage
+// Firestore Session Storage
 // ============================================
 
 export interface SessionWithMessages {
@@ -174,51 +172,109 @@ export interface SessionWithMessages {
 
 export const sessionStorage = {
   async createSession(userId?: string): Promise<Session> {
-    const [session] = await db.insert(contentSessions)
-      .values({
-        title: "New Script",
-        status: "inputting",
-        inputs: {},
-        userId: userId || null
-      })
-      .returning();
+    const session = await firestoreUtils.createSession(userId);
     return session;
   },
 
   async getSession(id: number): Promise<Session | undefined> {
-    const [session] = await db.select()
-      .from(contentSessions)
-      .where(eq(contentSessions.id, id));
-    return session;
+    // Look up the actual Firestore ID from our mapping
+    const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
+    if (!firestoreId) return undefined;
+
+    const firestoreSession = await firestoreUtils.getSession(firestoreId);
+    if (!firestoreSession) return undefined;
+
+    return {
+      id,
+      userId: firestoreSession.userId || null,
+      title: firestoreSession.title,
+      status: firestoreSession.status,
+      inputs: firestoreSession.inputs,
+      visualContext: firestoreSession.visualContext || null,
+      textHooks: firestoreSession.textHooks || null,
+      verbalHooks: firestoreSession.verbalHooks || null,
+      visualHooks: firestoreSession.visualHooks || null,
+      selectedHooks: firestoreSession.selectedHooks || null,
+      selectedHook: firestoreSession.selectedHook || null,
+      output: firestoreSession.output || null,
+      createdAt: firestoreSession.createdAt.toDate(),
+      updatedAt: firestoreSession.updatedAt.toDate(),
+    };
   },
 
   async getSessionWithMessages(id: number): Promise<SessionWithMessages | undefined> {
     const session = await this.getSession(id);
     if (!session) return undefined;
 
-    const allMessages = await db.select()
-      .from(sessionMessages)
-      .where(eq(sessionMessages.sessionId, id))
-      .orderBy(sessionMessages.timestamp);
+    const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
+    if (!firestoreId) return undefined;
 
-    const messages = allMessages.filter(m => !m.isEditMessage);
-    const editMessages = allMessages.filter(m => m.isEditMessage);
+    const allMessages = await firestoreUtils.getMessages(firestoreId, true);
+    const messages = allMessages
+      .filter(m => !m.isEditMessage)
+      .map((m, index) => ({
+        id: index + 1,
+        sessionId: id,
+        role: m.role,
+        content: m.content,
+        isEditMessage: m.isEditMessage,
+        timestamp: m.timestamp.toDate(),
+      }));
 
-    return { session, messages, editMessages };
+    const editMessages = allMessages
+      .filter(m => m.isEditMessage)
+      .map((m, index) => ({
+        id: index + 1,
+        sessionId: id,
+        role: m.role,
+        content: m.content,
+        isEditMessage: m.isEditMessage,
+        timestamp: m.timestamp.toDate(),
+      }));
+
+    return {
+      session: { ...session, firestoreId },
+      messages,
+      editMessages
+    };
   },
 
-  async listSessions(): Promise<Session[]> {
-    return db.select()
-      .from(contentSessions)
-      .orderBy(desc(contentSessions.createdAt));
+  async listSessions(userId?: string): Promise<Session[]> {
+    const firestoreSessions = await firestoreUtils.listSessions(userId);
+    return firestoreSessions
+      .filter((fs) => fs.numericId !== undefined) // Skip sessions without numericId
+      .map((fs) => {
+        try {
+          return {
+            id: fs.numericId!,
+            userId: fs.userId || null,
+            title: fs.title || 'Untitled Session',
+            status: fs.status || 'inputting',
+            inputs: fs.inputs || {},
+            visualContext: fs.visualContext || null,
+            textHooks: fs.textHooks || null,
+            verbalHooks: fs.verbalHooks || null,
+            visualHooks: fs.visualHooks || null,
+            selectedHooks: fs.selectedHooks || null,
+            selectedHook: fs.selectedHook || null,
+            output: fs.output || null,
+            createdAt: fs.createdAt ? fs.createdAt.toDate() : new Date(),
+            updatedAt: fs.updatedAt ? fs.updatedAt.toDate() : new Date(),
+          };
+        } catch (e) {
+          console.warn('Skipping malformed session:', fs.id, e);
+          return null;
+        }
+      })
+      .filter((s): s is Session => s !== null);
   },
 
   async updateSession(id: number, updates: Record<string, unknown>): Promise<Session | undefined> {
-    const [session] = await db.update(contentSessions)
-      .set({ ...updates, updatedAt: new Date() } as Partial<typeof contentSessions.$inferInsert>)
-      .where(eq(contentSessions.id, id))
-      .returning();
-    return session;
+    const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
+    if (!firestoreId) return undefined;
+
+    await firestoreUtils.updateSession(firestoreId, updates as any);
+    return this.getSession(id);
   },
 
   async updateSessionTitle(id: number, title: string): Promise<Session | undefined> {
@@ -252,21 +308,43 @@ export const sessionStorage = {
   },
 
   async addMessage(sessionId: number, role: string, content: string, isEditMessage: boolean = false): Promise<SessionMessage> {
-    const [message] = await db.insert(sessionMessages)
-      .values({ sessionId, role, content, isEditMessage })
-      .returning();
-    return message;
+    const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(sessionId);
+    if (!firestoreId) throw new Error('Session not found');
+
+    const message = await firestoreUtils.addMessage(firestoreId, role, content, isEditMessage);
+
+    return {
+      id: Date.now(), // Use timestamp as ID for simplicity
+      sessionId,
+      role: message.role,
+      content: message.content,
+      isEditMessage: message.isEditMessage,
+      timestamp: message.timestamp.toDate(),
+    };
+  },
+
+  async addVersion(sessionId: number, versionData: any) {
+    const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(sessionId);
+    if (!firestoreId) throw new Error('Session not found');
+    return firestoreUtils.addVersion(firestoreId, versionData);
+  },
+
+  async getVersions(sessionId: number) {
+    const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(sessionId);
+    if (!firestoreId) return [];
+    return firestoreUtils.getVersions(firestoreId);
   },
 
   async deleteSession(id: number): Promise<boolean> {
-    const result = await db.delete(contentSessions)
-      .where(eq(contentSessions.id, id))
-      .returning();
-    return result.length > 0;
+    const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
+    if (!firestoreId) return false;
+
+    // Also delete the ID mapping
+    await firestoreUtils.deleteSessionIdMapping(id);
+    return firestoreUtils.deleteSession(firestoreId);
   },
 
   generateSessionTitle(hookContent: string): string {
-    const words = hookContent.trim().split(/\s+/).slice(0, 6);
-    return words.join(" ") + (hookContent.split(/\s+/).length > 6 ? "..." : "");
+    return firestoreUtils.generateSessionTitle(hookContent);
   }
 };

@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -10,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useLogin, useRegister } from "@/hooks/use-auth";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -28,7 +26,6 @@ type LoginFormData = z.infer<typeof loginSchema>;
 type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
-  const [, navigate] = useLocation();
   const { toast } = useToast();
   const [isLogin, setIsLogin] = useState(true);
 
@@ -42,42 +39,30 @@ export default function AuthPage() {
     defaultValues: { email: "", password: "", firstName: "", lastName: "" }
   });
 
-  const loginMutation = useMutation({
-    mutationFn: async (data: LoginFormData) => {
-      const response = await apiRequest("POST", "/api/login", data);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
-      toast({ title: "Welcome back!", description: `Logged in as ${data.email}` });
-      navigate("/app");
-    },
-    onError: (error: any) => {
-      toast({ title: "Login failed", description: error.message || "Invalid credentials", variant: "destructive" });
-    }
-  });
-
-  const registerMutation = useMutation({
-    mutationFn: async (data: RegisterFormData) => {
-      const response = await apiRequest("POST", "/api/register", data);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
-      toast({ title: "Account created!", description: `Welcome ${data.firstName || data.email}!` });
-      navigate("/app");
-    },
-    onError: (error: any) => {
-      toast({ title: "Registration failed", description: error.message || "Could not create account", variant: "destructive" });
-    }
-  });
+  // Use the proper auth hooks that handle Firebase signInWithCustomToken
+  const loginMutation = useLogin();
+  const registerMutation = useRegister();
 
   const onLoginSubmit = (data: LoginFormData) => {
-    loginMutation.mutate(data);
+    loginMutation.mutate(data, {
+      onSuccess: (user) => {
+        toast({ title: "Welcome back!", description: `Logged in as ${user.email}` });
+      },
+      onError: (error: any) => {
+        toast({ title: "Login failed", description: error.message || "Invalid credentials", variant: "destructive" });
+      }
+    });
   };
 
   const onRegisterSubmit = (data: RegisterFormData) => {
-    registerMutation.mutate(data);
+    registerMutation.mutate(data, {
+      onSuccess: (user) => {
+        toast({ title: "Account created!", description: `Welcome ${user.firstName || user.email}!` });
+      },
+      onError: (error: any) => {
+        toast({ title: "Registration failed", description: error.message || "Could not create account", variant: "destructive" });
+      }
+    });
   };
 
   return (
@@ -101,8 +86,8 @@ export default function AuthPage() {
               {isLogin ? "Welcome back" : "Create an account"}
             </CardTitle>
             <CardDescription>
-              {isLogin 
-                ? "Enter your credentials to access your account" 
+              {isLogin
+                ? "Enter your credentials to access your account"
                 : "Start creating amazing content today"
               }
             </CardDescription>
@@ -114,11 +99,11 @@ export default function AuthPage() {
                   <Label htmlFor="login-email">Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
+                    <Input
                       id="login-email"
                       type="email"
-                      placeholder="you@example.com" 
-                      className="pl-10" 
+                      placeholder="you@example.com"
+                      className="pl-10"
                       autoComplete="email"
                       data-testid="input-email"
                       {...loginForm.register("email")}
@@ -132,10 +117,10 @@ export default function AuthPage() {
                   <Label htmlFor="login-password">Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
+                    <Input
                       id="login-password"
-                      type="password" 
-                      placeholder="Enter your password" 
+                      type="password"
+                      placeholder="Enter your password"
                       className="pl-10"
                       autoComplete="current-password"
                       data-testid="input-password"
@@ -146,8 +131,8 @@ export default function AuthPage() {
                     <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>
                   )}
                 </div>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full gradient-primary"
                   disabled={loginMutation.isPending}
                   data-testid="button-login"
@@ -166,9 +151,9 @@ export default function AuthPage() {
                     <Label htmlFor="register-firstName">First Name</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input 
+                      <Input
                         id="register-firstName"
-                        placeholder="John" 
+                        placeholder="John"
                         className="pl-10"
                         autoComplete="given-name"
                         data-testid="input-first-name"
@@ -181,7 +166,7 @@ export default function AuthPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-lastName">Last Name</Label>
-                    <Input 
+                    <Input
                       id="register-lastName"
                       placeholder="Doe"
                       autoComplete="family-name"
@@ -194,10 +179,10 @@ export default function AuthPage() {
                   <Label htmlFor="register-email">Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
+                    <Input
                       id="register-email"
                       type="email"
-                      placeholder="you@example.com" 
+                      placeholder="you@example.com"
                       className="pl-10"
                       autoComplete="email"
                       data-testid="input-register-email"
@@ -212,10 +197,10 @@ export default function AuthPage() {
                   <Label htmlFor="register-password">Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
+                    <Input
                       id="register-password"
-                      type="password" 
-                      placeholder="At least 8 characters" 
+                      type="password"
+                      placeholder="At least 8 characters"
                       className="pl-10"
                       autoComplete="new-password"
                       data-testid="input-register-password"
@@ -226,8 +211,8 @@ export default function AuthPage() {
                     <p className="text-sm text-destructive">{registerForm.formState.errors.password.message}</p>
                   )}
                 </div>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full gradient-primary"
                   disabled={registerMutation.isPending}
                   data-testid="button-register"
