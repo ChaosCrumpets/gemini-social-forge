@@ -34,6 +34,32 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// Store the pending token promise to avoid concurrent refreshes
+let tokenRefreshPromise: Promise<string | null> | null = null;
+
+async function getAuthToken(): Promise<string | null> {
+  // If a refresh is already in progress, wait for it
+  if (tokenRefreshPromise) {
+    return tokenRefreshPromise;
+  }
+
+  const user = auth.currentUser;
+  if (!user) return null;
+
+  try {
+    // Create the promise and store it
+    tokenRefreshPromise = user.getIdToken(true);
+    const token = await tokenRefreshPromise;
+    return token;
+  } catch (error) {
+    console.error('Failed to get auth token:', error);
+    return null;
+  } finally {
+    // Clear the promise after completion
+    tokenRefreshPromise = null;
+  }
+}
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -51,11 +77,11 @@ export async function apiRequest(
       await waitForFirebaseReady();
 
       // Get Firebase ID token if user is authenticated
-      const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : null;
-      console.log('[apiRequest] User:', auth.currentUser?.email, 'Has token:', !!idToken);
+      const token = await getAuthToken();
+      console.log('[apiRequest] User:', auth.currentUser?.email, 'Has token:', !!token);
 
       const headers: Record<string, string> = {
-        ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(data ? { "Content-Type": "application/json" } : {}),
       };
       console.log('[apiRequest]', method, url, 'Headers:', Object.keys(headers));
@@ -66,6 +92,30 @@ export async function apiRequest(
         body: data ? JSON.stringify(data) : undefined,
         credentials: "include",
       });
+
+      // If 401, try refreshing token once
+      if (res.status === 401) {
+        const user = auth.currentUser;
+        if (user) {
+          try {
+            // Force refresh
+            const newToken = await user.getIdToken(true);
+            headers['Authorization'] = `Bearer ${newToken}`;
+
+            // Retry request
+            const retryResponse = await fetch(url, {
+              method,
+              headers,
+              body: data ? JSON.stringify(data) : undefined,
+              credentials: "include",
+            });
+
+            return retryResponse;
+          } catch (error) {
+            console.error('Token refresh failed:', error);
+          }
+        }
+      }
 
       // Don't retry on 4xx errors (client errors - bad request, auth, etc.)
       if (res.status >= 400 && res.status < 500) {
@@ -110,7 +160,7 @@ export const getQueryFn: <T>(options: {
       await waitForFirebaseReady();
 
       // Get Firebase ID token if user is authenticated
-      const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+      const idToken = await getAuthToken();
 
       const headers: Record<string, string> = {
         ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
@@ -136,7 +186,13 @@ export const queryClient = new QueryClient({
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,
-      retry: false,
+      retry: (failureCount, error: any) => {
+        // Don't retry on auth errors
+        if (error?.status === 401 || error?.status === 403) {
+          return false;
+        }
+        return failureCount < 3;
+      },
     },
     mutations: {
       retry: false,

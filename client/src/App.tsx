@@ -26,6 +26,7 @@ import { SessionSidebar, SidebarToggle } from "@/components/SessionSidebar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FullPageLoader } from "@/components/FullPageLoader";
 import { useLogout, type User as UserType } from "@/hooks/use-user";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 import { cn } from "@/lib/utils";
 
@@ -261,16 +262,17 @@ function AppContent() {
 
 function App() {
   return (
-    <ErrorBoundary>
+    <AuthProvider>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
+          <ErrorBoundary>
+            <AppContent />
+          </ErrorBoundary>
           <Toaster />
-          <AppContent />
         </TooltipProvider>
       </QueryClientProvider>
-    </ErrorBoundary>
+    </AuthProvider>
   );
 }
 
 export default App;
-
