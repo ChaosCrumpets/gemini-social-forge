@@ -215,7 +215,7 @@ export const sessionStorage = {
       .map((m, index) => ({
         id: index + 1,
         sessionId: id,
-        role: m.role,
+        role: (m.role === "user" || m.role === "assistant" ? m.role : "user") as "user" | "assistant",
         content: m.content,
         isEditMessage: m.isEditMessage,
         timestamp: m.timestamp.toDate(),
@@ -226,14 +226,14 @@ export const sessionStorage = {
       .map((m, index) => ({
         id: index + 1,
         sessionId: id,
-        role: m.role,
+        role: (m.role === "user" || m.role === "assistant" ? m.role : "user") as "user" | "assistant",
         content: m.content,
         isEditMessage: m.isEditMessage,
         timestamp: m.timestamp.toDate(),
       }));
 
     return {
-      session: { ...session, firestoreId },
+      session,
       messages,
       editMessages
     };
@@ -311,12 +311,18 @@ export const sessionStorage = {
     const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(sessionId);
     if (!firestoreId) throw new Error('Session not found');
 
-    const message = await firestoreUtils.addMessage(firestoreId, role, content, isEditMessage);
+    // Validate role to prevent crashes
+    const validRole: "user" | "assistant" = role === "user" || role === "assistant" ? role : "user";
+    if (role !== validRole) {
+      console.warn(`Invalid message role "${role}" normalized to "${validRole}"`);
+    }
+
+    const message = await firestoreUtils.addMessage(firestoreId, validRole, content, isEditMessage);
 
     return {
       id: Date.now(), // Use timestamp as ID for simplicity
       sessionId,
-      role: message.role,
+      role: validRole,
       content: message.content,
       isEditMessage: message.isEditMessage,
       timestamp: message.timestamp.toDate(),

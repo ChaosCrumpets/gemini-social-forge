@@ -370,19 +370,23 @@ export async function registerRoutes(
       if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
       const sessionId = req.params.id;
+      console.log(`[API] Updating session ${sessionId} for user ${user.uid}`);
+
       const docRef = firestore.collection('sessions').doc(sessionId);
       const doc = await docRef.get();
 
       if (!doc.exists) {
+        console.log(`[API] Session ${sessionId} not found`);
         return res.status(404).json({ error: 'Session not found' });
       }
 
       const session = doc.data();
       if (session?.userId !== user.uid) {
+        console.log(`[API] Session ${sessionId} forbidden for user ${user.uid}`);
         return res.status(403).json({ error: 'Forbidden' });
       }
 
-      // Filter valid update fields
+      // Filter valid update fields and sanitize
       const updates = {
         ...req.body,
         updatedAt: Timestamp.now()
@@ -391,10 +395,15 @@ export async function registerRoutes(
       delete updates.userId;
       delete updates.createdAt;
 
+      // Log the update for debugging
+      console.log(`[API] Session ${sessionId} update fields:`, Object.keys(updates).filter(k => k !== 'updatedAt'));
+
       await docRef.update(updates);
 
       const updated = await docRef.get();
       const updatedData = updated.data();
+
+      console.log(`[API] Session ${sessionId} updated successfully`);
 
       res.json({
         ...updatedData,
@@ -402,9 +411,23 @@ export async function registerRoutes(
         createdAt: updatedData?.createdAt?.toDate?.() || updatedData?.createdAt,
         updatedAt: updatedData?.updatedAt?.toDate?.() || updatedData?.updatedAt
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('[API] Update session error:', error);
-      res.status(500).json({ error: 'Failed to update session' });
+      console.error('[API] Error details:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack?.split('\n').slice(0, 3)
+      });
+
+      // More specific error messages
+      if (error.code === 'permission-denied') {
+        return res.status(403).json({ error: 'Permission denied' });
+      }
+      if (error.message?.includes('document size')) {
+        return res.status(413).json({ error: 'Update too large - try with smaller data' });
+      }
+
+      res.status(500).json({ error: 'Failed to update session', details: error.message });
     }
   });
 

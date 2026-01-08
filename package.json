@@ -57,7 +57,7 @@
     "express": "^4.21.2",
     "firebase": "^11.0.2",
     "firebase-admin": "^13.0.2",
-    "framer-motion": "^11.13.1",
+    "framer-motion": "^11.18.2",
     "input-otp": "^1.4.2",
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",

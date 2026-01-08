@@ -1,108 +1,55 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useLocation } from 'wouter';
+import React from 'react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 
-interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
-}
-
-interface State {
+interface ErrorBoundaryState {
   hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorInfo | null;
+  error?: Error;
 }
 
-/**
- * Error Boundary component to catch React errors and display a fallback UI
- * Prevents the entire app from crashing on component errors
- */
-export class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
+export class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  ErrorBoundaryState
+> {
+  constructor(props: { children: React.ReactNode }) {
     super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-      errorInfo: null,
-    };
+    this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return {
-      hasError: true,
-      error,
-      errorInfo: null,
-    };
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
-    this.setState({
-      error,
-      errorInfo,
-    });
   }
-
-  handleReset = () => {
-    this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null,
-    });
-  };
 
   render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-
-      return <ErrorFallback error={this.state.error} onReset={this.handleReset} />;
-    }
-
-    return this.props.children;
-  }
-}
-
-function ErrorFallback({ error, onReset }: { error: Error | null; onReset: () => void }) {
-  const [, navigate] = useLocation();
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4" data-testid="error-boundary">
-      <div className="max-w-md w-full space-y-4 text-center">
-        <div className="flex justify-center">
-          <AlertTriangle className="h-16 w-16 text-destructive" />
-        </div>
-        <h1 className="text-2xl font-bold">Something went wrong</h1>
-        <p className="text-muted-foreground">
-          We encountered an unexpected error. Don't worry, your data is safe.
-        </p>
-        {process.env.NODE_ENV === 'development' && error && (
-          <div className="mt-4 p-4 bg-muted rounded-lg text-left">
-            <p className="text-sm font-mono text-destructive break-all">{error.message}</p>
-            {error.stack && (
-              <details className="mt-2">
-                <summary className="text-xs text-muted-foreground cursor-pointer">Stack trace</summary>
-                <pre className="text-xs mt-2 overflow-auto max-h-40 text-muted-foreground">
-                  {error.stack}
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Something went wrong</h2>
+            <p className="text-gray-600 mb-4">Don't worry, your work is saved.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Reload App
+            </button>
+            {this.state.error && (
+              <details className="mt-4 text-left">
+                <summary className="text-sm text-gray-500 cursor-pointer">Error details</summary>
+                <pre className="mt-2 text-xs text-gray-700 bg-gray-100 p-2 rounded overflow-auto">
+                  {this.state.error.toString()}
                 </pre>
               </details>
             )}
           </div>
-        )}
-        <div className="flex gap-2 justify-center">
-          <Button onClick={onReset} variant="outline" data-testid="button-retry">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Try Again
-          </Button>
-          <Button onClick={() => navigate('/')} data-testid="button-go-home">
-            <Home className="mr-2 h-4 w-4" />
-            Go Home
-          </Button>
         </div>
-      </div>
-    </div>
-  );
+      );
+    }
+    return this.props.children;
+  }
 }
-

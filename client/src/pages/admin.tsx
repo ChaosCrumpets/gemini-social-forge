@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Users, Crown, Shield, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { SkeletonCard } from "@/components/LoadingStates";
 
 interface User {
   id: string;
@@ -57,7 +58,7 @@ export default function AdminDashboard() {
   if (error) {
     const errorMessage = error?.message || "";
     const isAccessDenied = errorMessage.includes("401") || errorMessage.includes("403") || errorMessage.includes("Forbidden") || errorMessage.includes("Unauthorized");
-    
+
     if (isAccessDenied) {
       return (
         <div className="flex flex-col items-center justify-center h-full gap-4" data-testid="admin-access-denied">
@@ -106,8 +107,10 @@ export default function AdminDashboard() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="space-y-4">
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
             </div>
           ) : users && users.length > 0 ? (
             <div className="space-y-4">

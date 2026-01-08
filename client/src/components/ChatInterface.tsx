@@ -15,6 +15,14 @@ interface ChatInterfaceProps {
   suggestedReplies?: string[];
 }
 
+const SMART_PLACEHOLDERS = [
+  "Tell me about your content idea...",
+  "What topic should we create content about?",
+  "Describe your target audience and message...",
+  "What's your main goal for this video?",
+  "Paste a link or text you want to remix..."
+];
+
 export function ChatInterface({
   messages,
   onSendMessage,
@@ -27,6 +35,26 @@ export function ChatInterface({
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [dynamicPlaceholder, setDynamicPlaceholder] = useState("");
+
+  // Computed state for send button - ensures reactivity
+  const canSend = input.trim().length > 0 && !isLoading && !disabled;
+
+  // Auto-focus on mount
+  useEffect(() => {
+    if (!disabled && !isLoading) {
+      // Small timeout to ensure DOM is ready and prevent layout shift focus jumps
+      const timer = setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [disabled, isLoading]);
+
+  // Set random smart placeholder on mount
+  useEffect(() => {
+    setDynamicPlaceholder(SMART_PLACEHOLDERS[Math.floor(Math.random() * SMART_PLACEHOLDERS.length)]);
+  }, []);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -75,13 +103,13 @@ export function ChatInterface({
         <div className="space-y-6">
           {messages.length === 0 && !compact && (
             <div className="text-center py-16">
-              <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+              <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
                 Content Assembly Line
               </h1>
-              <p className="text-muted-foreground text-lg mb-8">
+              <p className="text-muted-foreground text-lg mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
                 Ready to assemble content? Tell me your topic.
               </p>
-              <div className="flex flex-wrap justify-center gap-2">
+              <div className="flex flex-wrap justify-center gap-2 animate-in fade-in zoom-in duration-500 delay-300">
                 <StatusBadge text="SYSTEM READY" variant="success" />
               </div>
             </div>
@@ -92,8 +120,8 @@ export function ChatInterface({
           ))}
 
           {isLoading && (
-            <div className="flex items-center gap-3 text-muted-foreground">
-              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <div className="flex items-center gap-3 text-muted-foreground animate-pulse">
+              <div className="w-2 h-2 rounded-full bg-primary" />
               <span className="font-mono text-xs uppercase tracking-widest">
                 Processing...
               </span>
@@ -107,14 +135,14 @@ export function ChatInterface({
 
       {/* Quick Reply Buttons */}
       {quickReplies.length > 0 && !isLoading && !disabled && (
-        <div className="px-4 pb-2 flex flex-wrap gap-2">
+        <div className="px-4 pb-2 flex flex-wrap gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
           {quickReplies.map((reply, idx) => (
             <Button
               key={idx}
               variant="outline"
               size="sm"
               onClick={() => handleQuickReply(reply)}
-              className="rounded-full"
+              className="rounded-full hover:bg-primary hover:text-primary-foreground transition-all"
               data-testid={`quick-reply-${reply.toLowerCase().replace(/\s+/g, '-')}`}
             >
               {reply}
@@ -123,23 +151,23 @@ export function ChatInterface({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="p-4 border-t border-border">
-        <div className="relative">
+      <form onSubmit={handleSubmit} className="p-4 border-t border-border bg-background/50 backdrop-blur-sm">
+        <div className="relative group">
           <Textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={disabled ? "Select a hook to continue..." : (placeholder || "Type your message...")}
+            placeholder={disabled ? "Select a hook to continue..." : (placeholder || dynamicPlaceholder)}
             disabled={isLoading || disabled}
-            className={`resize-none pr-12 ${compact ? 'min-h-[80px]' : 'min-h-[120px]'} rounded-2xl`}
+            className={`resize-none pr-12 ${compact ? 'min-h-[80px]' : 'min-h-[120px]'} rounded-2xl transition-all duration-200 focus:ring-2 focus:ring-primary/20 focus:scale-[1.01]`}
             data-testid="input-chat-message"
           />
           <Button
             type="submit"
             size="icon"
-            disabled={!input.trim() || isLoading || disabled}
-            className="absolute bottom-3 right-3"
+            disabled={!canSend}
+            className="absolute bottom-3 right-3 transition-all duration-200 hover:scale-105 active:scale-95"
             data-testid="button-send-message"
           >
             {isLoading ? (
@@ -158,10 +186,10 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
       <div
         className={`
-          max-w-lg p-4 rounded-xl
+          max-w-lg p-4 rounded-xl shadow-sm
           ${isUser
             ? 'bg-primary text-primary-foreground ml-auto'
             : 'bg-card border border-card-border'
@@ -173,7 +201,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           {message.content}
         </p>
         <span className="text-xs opacity-50 mt-2 block font-mono">
-          {new Date(message.timestamp).toLocaleTimeString()}
+          {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
       </div>
     </div>
@@ -183,13 +211,13 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 function StatusBadge({ text, variant = 'default' }: { text: string; variant?: 'default' | 'success' | 'warning' }) {
   const variantClasses = {
     default: 'bg-muted text-muted-foreground',
-    success: 'bg-primary/10 text-primary border border-primary/20',
+    success: 'bg-green-500/10 text-green-600 border border-green-500/20',
     warning: 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
   };
 
   return (
     <span
-      className={`px-3 py-1 text-xs font-mono uppercase tracking-widest rounded-full ${variantClasses[variant]}`}
+      className={`px-3 py-1 text-xs font-mono uppercase tracking-widest rounded-full border ${variantClasses[variant]}`}
       data-testid={`status-badge-${text.toLowerCase().replace(/\s+/g, '-')}`}
     >
       {text}

@@ -284,7 +284,7 @@ export type Session = {
 export type SessionMessage = {
   id: number; // For backward compatibility
   sessionId: number;
-  role: string;
+  role: "user" | "assistant";
   content: string;
   isEditMessage: boolean;
   timestamp: Date;

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, FileText, Clock, CheckCircle, Loader2, Trash2 } from "lucide-react";
+import { SkeletonCard } from "@/components/LoadingStates";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -87,8 +88,12 @@ export default function ProjectsPage() {
 
   if (isLoading) {
     return (
-      <div className="container py-12 flex items-center justify-center" data-testid="projects-loading">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="container py-12" data-testid="projects-loading">
+        <div className="grid gap-4 max-w-5xl mx-auto">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
       </div>
     );
   }
