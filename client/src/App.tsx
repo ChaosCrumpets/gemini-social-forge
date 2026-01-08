@@ -26,7 +26,7 @@ import { SessionSidebar, SidebarToggle } from "@/components/SessionSidebar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FullPageLoader } from "@/components/FullPageLoader";
 import { useLogout, type User as UserType } from "@/hooks/use-user";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 import { cn } from "@/lib/utils";
 
@@ -223,16 +223,17 @@ function AppLayout() {
 
 function AppContent() {
   const [location] = useLocation();
+  const { loading: authLoading } = useAuth();
 
   // Fetch user to determine auth status
-  const { data: user, isLoading } = useQuery<UserType | null>({
+  const { data: user, isLoading: userLoading } = useQuery<UserType | null>({
     queryKey: ["/api/me"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false
   });
 
   // Show loading while checking auth
-  if (isLoading) {
+  if (authLoading || userLoading) {
     return <FullPageLoader message="Starting up..." />;
   }
 

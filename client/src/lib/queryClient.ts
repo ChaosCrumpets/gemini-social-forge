@@ -2,6 +2,14 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { auth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
+export class HttpError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+    this.name = 'HttpError';
+    Object.setPrototypeOf(this, HttpError.prototype);
+  }
+}
+
 // Promise that resolves when Firebase auth has initialized
 let firebaseReadyPromise: Promise<void> | null = null;
 
@@ -30,15 +38,14 @@ function waitForFirebaseReady(): Promise<void> {
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    throw new HttpError(res.status, `${res.status}: ${text}`);
   }
 }
 
 // Store the pending token promise to avoid concurrent refreshes
 let tokenRefreshPromise: Promise<string | null> | null = null;
 
-async function getAuthToken(): Promise<string | null> {
-  // If a refresh is already in progress, wait for it
+async function getAuthToken(forceRefresh = false): Promise<string | null> {
   if (tokenRefreshPromise) {
     return tokenRefreshPromise;
   }
@@ -47,15 +54,14 @@ async function getAuthToken(): Promise<string | null> {
   if (!user) return null;
 
   try {
-    // Create the promise and store it
-    tokenRefreshPromise = user.getIdToken(true);
+    // Only force refresh when explicitly requested
+    tokenRefreshPromise = user.getIdToken(forceRefresh);
     const token = await tokenRefreshPromise;
     return token;
   } catch (error) {
     console.error('Failed to get auth token:', error);
     return null;
   } finally {
-    // Clear the promise after completion
     tokenRefreshPromise = null;
   }
 }
@@ -77,7 +83,7 @@ export async function apiRequest(
       await waitForFirebaseReady();
 
       // Get Firebase ID token if user is authenticated
-      const token = await getAuthToken();
+      const token = await getAuthToken(false);
       console.log('[apiRequest] User:', auth.currentUser?.email, 'Has token:', !!token);
 
       const headers: Record<string, string> = {
@@ -110,11 +116,18 @@ export async function apiRequest(
               credentials: "include",
             });
 
+            // If retry also failed, throw error
+            if (!retryResponse.ok) {
+              await throwIfResNotOk(retryResponse);
+            }
             return retryResponse;
           } catch (error) {
             console.error('Token refresh failed:', error);
+            throw error;
           }
         }
+        // If no user, throw immediately
+        await throwIfResNotOk(res);
       }
 
       // Don't retry on 4xx errors (client errors - bad request, auth, etc.)
@@ -160,7 +173,7 @@ export const getQueryFn: <T>(options: {
       await waitForFirebaseReady();
 
       // Get Firebase ID token if user is authenticated
-      const idToken = await getAuthToken();
+      const idToken = await getAuthToken(false);
 
       const headers: Record<string, string> = {
         ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
@@ -186,10 +199,12 @@ export const queryClient = new QueryClient({
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,
-      retry: (failureCount, error: any) => {
+      retry: (failureCount, error: unknown) => {
         // Don't retry on auth errors
-        if (error?.status === 401 || error?.status === 403) {
-          return false;
+        if (error instanceof HttpError) {
+          if (error.status === 401 || error.status === 403) {
+            return false;
+          }
         }
         return failureCount < 3;
       },

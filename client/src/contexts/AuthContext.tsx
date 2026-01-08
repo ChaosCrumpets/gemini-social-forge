@@ -44,12 +44,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return () => clearInterval(interval);
     }, [user]);
 
-    const getAuthToken = async (): Promise<string | null> => {
+    const getAuthToken = async (forceRefresh = false): Promise<string | null> => {
         if (!user) return null;
 
         try {
-            // Force refresh if token is expired (Firebase handles caching)
-            const token = await user.getIdToken(true);
+            // Use cached token by default, force refresh only when requested
+            const token = await user.getIdToken(forceRefresh);
             return token;
         } catch (error) {
             console.error('Failed to get auth token:', error);
