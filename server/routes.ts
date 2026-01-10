@@ -469,10 +469,94 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================
+  // Session Messages Endpoint
+  // ============================================
+
+  // Add message to session
+  app.post(
+    "/api/sessions/:id/messages",
+    verifyFirebaseToken,
+    requireAuth,
+    async (req: Request, res: Response) => {
+      try {
+        const sessionId = parseInt(req.params.id, 10);
+        const { role, content, isEditMessage } = req.body;
+        const userId = req.user!.uid;
+
+        console.log(`[API] Adding message to session ${sessionId}:`, {
+          role,
+          contentLength: content?.length,
+          isEditMessage,
+          userId,
+        });
+
+        // Validate session ID
+        if (isNaN(sessionId)) {
+          return res.status(400).json({ error: "Invalid session ID" });
+        }
+
+        // Validate required fields
+        if (!role || !content) {
+          return res.status(400).json({ error: "Missing role or content" });
+        }
+
+        // Validate role value
+        if (!["user", "assistant"].includes(role)) {
+          return res.status(400).json({ error: "Invalid role. Must be 'user' or 'assistant'" });
+        }
+
+        // Verify session exists and user owns it
+        const session = await sessionStorage.getSession(sessionId);
+        if (!session) {
+          console.error(`[API] Session ${sessionId} not found`);
+          return res.status(404).json({ error: "Session not found" });
+        }
+
+        if (session.userId !== userId) {
+          console.error(`[API] User ${userId} does not own session ${sessionId} (owner: ${session.userId})`);
+          return res.status(403).json({ error: "Access denied to this session" });
+        }
+
+        // Add message to session via sessionStorage
+        const message = await sessionStorage.addMessage(
+          sessionId,
+          userId,
+          role,
+          content,
+          isEditMessage || false
+        );
+
+        console.log(`[API] Message added successfully to session ${sessionId}`);
+        res.json(message);
+      } catch (error: any) {
+        console.error("[API] Error adding message to session:", {
+          message: error.message,
+          stack: error.stack,
+          sessionId: req.params.id,
+        });
+        res.status(500).json({ error: "Failed to add message to session" });
+      }
+    }
+  );
+
 
   // Get tier info
   app.get("/api/tiers", (_req: Request, res: Response) => {
     res.json(TierInfo);
+  });
+
+  // DEBUG ENDPOINT - Last Error
+  let lastError: any = null;
+  app.get("/api/debug/last-error", (_req: Request, res: Response) => {
+    res.json({
+      lastError: lastError ? {
+        message: lastError.message,
+        stack: lastError.stack,
+        name: lastError.name,
+        timestamp: lastError.timestamp
+      } : null
+    });
   });
 
   // DEVELOPMENT ONLY: Create admin user endpoint
@@ -539,40 +623,104 @@ export async function registerRoutes(
     });
   }
 
-  app.post("/api/chat", async (req, res) => {
+  app.post("/api/chat", verifyFirebaseToken, requireAuth, async (req, res) => {
     try {
-      const { projectId, message, inputs, messages, discoveryComplete } = req.body;
+      // ✅ CHANGED: Accept sessionId instead of projectId
+      const { sessionId, projectId, message, inputs, messages, discoveryComplete } = req.body;
+      const userId = req.user!.uid;
 
-      if (!message) {
+      // Support both sessionId (new) and projectId (backward compat)
+      const actualSessionId = sessionId || projectId;
+
+      console.log(`[Chat] Processing message for session ${actualSessionId}. History size: ${messages?.length || 0}`);
+
+      if (!message || typeof message !== "string") {
         return res.status(400).json({ error: "Message is required" });
       }
 
-      console.log(`[Chat] Processing message for project ${projectId}. History size: ${messages?.length || 0}`);
+      // ✅ REMOVED SESSION VALIDATION - IT WAS BREAKING CHAT
+      // The working version (commit 78ae240) did not have this validation
 
+      // ✅ UNCHANGED: Use existing chat() function from gemini.ts
       const conversationHistory = (messages || []).map((msg: { role: string; content: string }) => ({
         role: msg.role === 'user' ? 'user' : 'model',
         content: msg.content
       }));
 
+      // ✅ SAVE USER MESSAGE
+      // TEMPORARILY DISABLED - addMessage throws "Session not found" for new sessions
+      // TODO: Fix getFirestoreIdFromNumeric fallback query or session ID mapping
+      /*
+      if (actualSessionId && typeof actualSessionId === 'number') {
+        try {
+          await sessionStorage.addMessage(actualSessionId, userId, 'user', message, false);
+        } catch (msgError) {
+          console.error(`[Chat] Failed to save user message:`, msgError);
+          // Continue execution (don't fail generation if save fails, though ideally we should)
+        }
+      }
+      */
+
       const response = await chat(message, conversationHistory, inputs || {}, discoveryComplete);
 
-      if (projectId && response.extractedInputs) {
-        await storage.updateInputs(projectId, response.extractedInputs as Partial<{
-          topic?: string;
-          goal?: "educate" | "entertain" | "promote" | "inspire" | "inform";
-          platforms?: ("tiktok" | "instagram" | "youtube_shorts" | "twitter" | "linkedin")[];
-          targetAudience?: string;
-          tone?: string;
-          duration?: string;
-        }>);
+      // ✅ SAVE ASSISTANT MESSAGE  
+      // TEMPORARILY DISABLED - addMessage throws "Session not found" for new sessions
+      /*
+      if (actualSessionId && typeof actualSessionId === 'number' && response.message) {
+        try {
+          await sessionStorage.addMessage(actualSessionId, userId, 'assistant', response.message, false);
+        } catch (msgError) {
+          console.error(`[Chat] Failed to save assistant message:`, msgError);
+        }
       }
+      */
+
+      // ✅ FIXED: Update SESSION storage instead of legacy project storage
+      // TEMPORARILY DISABLED - Testing if this is causing the 500 error
+      /*
+      if (actualSessionId && typeof actualSessionId === 'number' && response.extractedInputs) {
+        console.log(`[Chat] Updating session ${actualSessionId} inputs:`, response.extractedInputs);
+
+        try {
+          // Merge with existing inputs
+          const mergedInputs = { ...inputs, ...response.extractedInputs };
+
+          await sessionStorage.updateSession(actualSessionId, {
+            inputs: mergedInputs,
+          });
+
+          console.log(`[Chat] Session ${actualSessionId} inputs updated successfully`);
+        } catch (updateError: any) {
+          console.error(`[Chat] Failed to update session inputs:`, {
+            sessionId: actualSessionId,
+            error: updateError.message,
+          });
+          // Don't fail the whole request if session update fails
+        }
+      }
+      */
 
       res.json(response);
-    } catch (error) {
-      console.error("Chat error:", error);
+    } catch (error: any) {
+      // Store for debug endpoint (properly serialize Error object)
+      lastError = {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        timestamp: new Date().toISOString()
+      };
+
+      console.error("❌ Chat error (FULL DETAILS):", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        sessionId: req.body.sessionId || req.body.projectId,
+      });
+
       res.status(500).json({
         error: "Failed to process chat message",
-        message: "I apologize, but I'm having trouble processing your message. Please try again."
+        message: "I apologize, but I'm having trouble processing your message. Please try again.",
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   });

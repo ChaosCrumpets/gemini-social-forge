@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   Project, ChatMessage, Hook, ContentOutput, AgentStatus, UserInputs, ProjectStatusType,
   TextHook, VerbalHook, VisualHook, SelectedHooks, VisualContext,
@@ -12,7 +13,7 @@ interface ProjectStore {
   error: string | null;
   editMessages: ChatMessage[];
   currentSessionId: number | null;
-  incognitoMode: boolean;
+
 
   initProject: () => void;
   addMessage: (message: ChatMessage) => void;
@@ -38,7 +39,6 @@ interface ProjectStore {
   reset: () => void;
   setCurrentSessionId: (id: number | null) => void;
   loadSession: (session: Session, messages: SessionMessage[], editMessages: SessionMessage[]) => void;
-  setIncognitoMode: (enabled: boolean) => void;
 }
 
 const statusOrder: ProjectStatusType[] = [
@@ -76,325 +76,336 @@ const createInitialProject = (): Project => ({
   updatedAt: Date.now()
 });
 
-export const useProjectStore = create<ProjectStore>((set, get) => ({
-  project: null,
-  isLoading: false,
-  error: null,
-  editMessages: [],
-  currentSessionId: null,
-  incognitoMode: false,
-
-  initProject: () => {
-    set({
-      project: createInitialProject(),
+export const useProjectStore = create<ProjectStore>()(
+  persist(
+    (set, get) => ({
+      project: null,
       isLoading: false,
       error: null,
       editMessages: [],
-      currentSessionId: null
-    });
-  },
+      currentSessionId: null,
 
-  addMessage: (message: ChatMessage) => {
-    const { project } = get();
-    if (!project) return;
+      initProject: () => {
+        set({
+          project: createInitialProject(),
+          isLoading: false,
+          error: null,
+          editMessages: [],
+          currentSessionId: null
+        });
+      },
 
-    set({
-      project: {
-        ...project,
-        messages: [...project.messages, message],
-        updatedAt: Date.now()
+      addMessage: (message: ChatMessage) => {
+        const { project } = get();
+        if (!project) return;
+
+        set({
+          project: {
+            ...project,
+            messages: [...project.messages, message],
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      updateInputs: (inputs: Partial<UserInputs>) => {
+        const { project } = get();
+        if (!project) return;
+
+        set({
+          project: {
+            ...project,
+            inputs: { ...project.inputs, ...inputs },
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      setVisualContext: (context: VisualContext) => {
+        const { project } = get();
+        if (!project) return;
+
+        set({
+          project: {
+            ...project,
+            visualContext: context,
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      setTextHooks: (hooks: TextHook[]) => {
+        const { project } = get();
+        if (!project) return;
+
+        set({
+          project: {
+            ...project,
+            textHooks: hooks,
+            status: ProjectStatus.HOOK_TEXT,
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      setVerbalHooks: (hooks: VerbalHook[]) => {
+        const { project } = get();
+        if (!project) return;
+
+        set({
+          project: {
+            ...project,
+            verbalHooks: hooks,
+            status: ProjectStatus.HOOK_VERBAL,
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      setVisualHooks: (hooks: VisualHook[]) => {
+        const { project } = get();
+        if (!project) return;
+
+        set({
+          project: {
+            ...project,
+            visualHooks: hooks,
+            status: ProjectStatus.HOOK_VISUAL,
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      selectTextHook: (hook: TextHook) => {
+        const { project } = get();
+        if (!project) return;
+
+        set({
+          project: {
+            ...project,
+            selectedHooks: {
+              ...project.selectedHooks,
+              text: hook
+            },
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      selectVerbalHook: (hook: VerbalHook) => {
+        const { project } = get();
+        if (!project) return;
+
+        set({
+          project: {
+            ...project,
+            selectedHooks: {
+              ...project.selectedHooks,
+              verbal: hook
+            },
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      selectVisualHook: (hook: VisualHook) => {
+        const { project } = get();
+        if (!project) return;
+
+        set({
+          project: {
+            ...project,
+            selectedHooks: {
+              ...project.selectedHooks,
+              visual: hook
+            },
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      setHooks: (hooks: Hook[]) => {
+        const { project } = get();
+        if (!project) return;
+
+        set({
+          project: {
+            ...project,
+            hooks,
+            status: ProjectStatus.HOOK_TEXT,
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      selectHook: (hook: Hook) => {
+        const { project } = get();
+        if (!project) return;
+
+        set({
+          project: {
+            ...project,
+            selectedHook: hook,
+            status: ProjectStatus.GENERATING,
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      setOutput: (output: ContentOutput) => {
+        const { project } = get();
+        if (!project) return;
+
+        const currentHighest = project.highestReachedStatus || ProjectStatus.INPUTTING;
+        const newHighest = getHigherStatus(ProjectStatus.COMPLETE, currentHighest);
+
+        set({
+          project: {
+            ...project,
+            output,
+            status: ProjectStatus.COMPLETE,
+            highestReachedStatus: newHighest,
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      setStatus: (status: ProjectStatusType) => {
+        const { project } = get();
+        if (!project) return;
+
+        const currentHighest = project.highestReachedStatus || ProjectStatus.INPUTTING;
+        const newHighest = getHigherStatus(status, currentHighest);
+
+        set({
+          project: {
+            ...project,
+            status,
+            highestReachedStatus: newHighest,
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      setAgents: (agents: AgentStatus[]) => {
+        const { project } = get();
+        if (!project) return;
+
+        set({
+          project: {
+            ...project,
+            agents,
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      updateAgent: (name: string, status: AgentStatus['status'], task?: string) => {
+        const { project } = get();
+        if (!project || !project.agents) return;
+
+        const agents = project.agents.map(agent =>
+          agent.name === name ? { ...agent, status, task } : agent
+        );
+
+        set({
+          project: {
+            ...project,
+            agents,
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      goToStage: (stage: ProjectStatusType) => {
+        const { project } = get();
+        if (!project) return;
+
+        set({
+          project: {
+            ...project,
+            status: stage,
+            updatedAt: Date.now()
+          }
+        });
+      },
+
+      setLoading: (loading: boolean) => set({ isLoading: loading }),
+
+      setError: (error: string | null) => set({ error }),
+
+      addEditMessage: (message: ChatMessage) => {
+        set(state => ({
+          editMessages: [...state.editMessages, message]
+        }));
+      },
+
+      clearEditMessages: () => {
+        set({ editMessages: [] });
+      },
+
+      reset: () => set({
+        project: createInitialProject(),
+        isLoading: false,
+        error: null,
+        editMessages: [],
+        currentSessionId: null
+      }),
+
+      setCurrentSessionId: (id: number | null) => set({ currentSessionId: id }),
+
+
+
+      loadSession: (session: Session, messages: SessionMessage[], editMsgs: SessionMessage[]) => {
+        const chatMessages: ChatMessage[] = messages.map(m => ({
+          id: m.id.toString(),
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          timestamp: new Date(m.timestamp).getTime()
+        }));
+
+        const editMessages: ChatMessage[] = editMsgs.map(m => ({
+          id: m.id.toString(),
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          timestamp: new Date(m.timestamp).getTime()
+        }));
+
+        const project: Project = {
+          id: session.id.toString(),
+          status: (session.status as ProjectStatusType) || ProjectStatus.INPUTTING,
+          inputs: session.inputs || {},
+          visualContext: session.visualContext || undefined,
+          messages: chatMessages,
+          textHooks: session.textHooks || undefined,
+          verbalHooks: session.verbalHooks || undefined,
+          visualHooks: session.visualHooks || undefined,
+          selectedHooks: session.selectedHooks || undefined,
+          hooks: undefined,
+          selectedHook: session.selectedHook || undefined,
+          output: session.output || undefined,
+          agents: undefined,
+          createdAt: new Date(session.createdAt).getTime(),
+          updatedAt: new Date(session.updatedAt).getTime()
+        };
+
+        set({
+          project,
+          editMessages,
+          currentSessionId: session.id,
+          isLoading: false,
+          error: null
+        });
       }
-    });
-  },
+    }),
+    {
+      name: 'cal-session-storage',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        currentSessionId: state.currentSessionId,
+      }),
+      version: 1,
+    }
+  )
+);
 
-  updateInputs: (inputs: Partial<UserInputs>) => {
-    const { project } = get();
-    if (!project) return;
-
-    set({
-      project: {
-        ...project,
-        inputs: { ...project.inputs, ...inputs },
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  setVisualContext: (context: VisualContext) => {
-    const { project } = get();
-    if (!project) return;
-
-    set({
-      project: {
-        ...project,
-        visualContext: context,
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  setTextHooks: (hooks: TextHook[]) => {
-    const { project } = get();
-    if (!project) return;
-
-    set({
-      project: {
-        ...project,
-        textHooks: hooks,
-        status: ProjectStatus.HOOK_TEXT,
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  setVerbalHooks: (hooks: VerbalHook[]) => {
-    const { project } = get();
-    if (!project) return;
-
-    set({
-      project: {
-        ...project,
-        verbalHooks: hooks,
-        status: ProjectStatus.HOOK_VERBAL,
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  setVisualHooks: (hooks: VisualHook[]) => {
-    const { project } = get();
-    if (!project) return;
-
-    set({
-      project: {
-        ...project,
-        visualHooks: hooks,
-        status: ProjectStatus.HOOK_VISUAL,
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  selectTextHook: (hook: TextHook) => {
-    const { project } = get();
-    if (!project) return;
-
-    set({
-      project: {
-        ...project,
-        selectedHooks: {
-          ...project.selectedHooks,
-          text: hook
-        },
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  selectVerbalHook: (hook: VerbalHook) => {
-    const { project } = get();
-    if (!project) return;
-
-    set({
-      project: {
-        ...project,
-        selectedHooks: {
-          ...project.selectedHooks,
-          verbal: hook
-        },
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  selectVisualHook: (hook: VisualHook) => {
-    const { project } = get();
-    if (!project) return;
-
-    set({
-      project: {
-        ...project,
-        selectedHooks: {
-          ...project.selectedHooks,
-          visual: hook
-        },
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  setHooks: (hooks: Hook[]) => {
-    const { project } = get();
-    if (!project) return;
-
-    set({
-      project: {
-        ...project,
-        hooks,
-        status: ProjectStatus.HOOK_TEXT,
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  selectHook: (hook: Hook) => {
-    const { project } = get();
-    if (!project) return;
-
-    set({
-      project: {
-        ...project,
-        selectedHook: hook,
-        status: ProjectStatus.GENERATING,
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  setOutput: (output: ContentOutput) => {
-    const { project } = get();
-    if (!project) return;
-
-    const currentHighest = project.highestReachedStatus || ProjectStatus.INPUTTING;
-    const newHighest = getHigherStatus(ProjectStatus.COMPLETE, currentHighest);
-
-    set({
-      project: {
-        ...project,
-        output,
-        status: ProjectStatus.COMPLETE,
-        highestReachedStatus: newHighest,
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  setStatus: (status: ProjectStatusType) => {
-    const { project } = get();
-    if (!project) return;
-
-    const currentHighest = project.highestReachedStatus || ProjectStatus.INPUTTING;
-    const newHighest = getHigherStatus(status, currentHighest);
-
-    set({
-      project: {
-        ...project,
-        status,
-        highestReachedStatus: newHighest,
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  setAgents: (agents: AgentStatus[]) => {
-    const { project } = get();
-    if (!project) return;
-
-    set({
-      project: {
-        ...project,
-        agents,
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  updateAgent: (name: string, status: AgentStatus['status'], task?: string) => {
-    const { project } = get();
-    if (!project || !project.agents) return;
-
-    const agents = project.agents.map(agent =>
-      agent.name === name ? { ...agent, status, task } : agent
-    );
-
-    set({
-      project: {
-        ...project,
-        agents,
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  goToStage: (stage: ProjectStatusType) => {
-    const { project } = get();
-    if (!project) return;
-
-    set({
-      project: {
-        ...project,
-        status: stage,
-        updatedAt: Date.now()
-      }
-    });
-  },
-
-  setLoading: (loading: boolean) => set({ isLoading: loading }),
-
-  setError: (error: string | null) => set({ error }),
-
-  addEditMessage: (message: ChatMessage) => {
-    set(state => ({
-      editMessages: [...state.editMessages, message]
-    }));
-  },
-
-  clearEditMessages: () => {
-    set({ editMessages: [] });
-  },
-
-  reset: () => set({
-    project: createInitialProject(),
-    isLoading: false,
-    error: null,
-    editMessages: [],
-    currentSessionId: null,
-    incognitoMode: false
-  }),
-
-  setCurrentSessionId: (id: number | null) => set({ currentSessionId: id }),
-
-  setIncognitoMode: (enabled: boolean) => set({ incognitoMode: enabled }),
-
-  loadSession: (session: Session, messages: SessionMessage[], editMsgs: SessionMessage[]) => {
-    const chatMessages: ChatMessage[] = messages.map(m => ({
-      id: m.id.toString(),
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-      timestamp: new Date(m.timestamp).getTime()
-    }));
-
-    const editMessages: ChatMessage[] = editMsgs.map(m => ({
-      id: m.id.toString(),
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-      timestamp: new Date(m.timestamp).getTime()
-    }));
-
-    const project: Project = {
-      id: session.id.toString(),
-      status: (session.status as ProjectStatusType) || ProjectStatus.INPUTTING,
-      inputs: session.inputs || {},
-      visualContext: session.visualContext || undefined,
-      messages: chatMessages,
-      textHooks: session.textHooks || undefined,
-      verbalHooks: session.verbalHooks || undefined,
-      visualHooks: session.visualHooks || undefined,
-      selectedHooks: session.selectedHooks || undefined,
-      hooks: undefined,
-      selectedHook: session.selectedHook || undefined,
-      output: session.output || undefined,
-      agents: undefined,
-      createdAt: new Date(session.createdAt).getTime(),
-      updatedAt: new Date(session.updatedAt).getTime()
-    };
-
-    set({
-      project,
-      editMessages,
-      currentSessionId: session.id,
-      isLoading: false,
-      error: null
-    });
-  }
-}));

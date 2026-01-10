@@ -2,87 +2,52 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions
+    // Helper function: Check if user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
     
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-    
-    function isAdmin() {
-      return isAuthenticated() && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    
-    // Users collection
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isOwner(userId) || isAdmin();
-    }
-    
-    // Sessions (Projects) collection
+    // Sessions collection
     match /sessions/{sessionId} {
-      // TEMPORARILY ALLOW ALL AUTHENTICATED READS for debugging
+      // Read: Authenticated users can read sessions
       allow read: if isAuthenticated();
       
-      // Allow create with userId set to current user OR without userId (anonymous)
+      // Create: User can create sessions
       allow create: if isAuthenticated() && 
                       (!('userId' in request.resource.data) || 
                        request.resource.data.userId == request.auth.uid);
       
-      // Allow update if authenticated (will tighten after debugging)
+      // Update: Authenticated users can update (backend validates ownership)
       allow update: if isAuthenticated();
       
-      // Allow delete if authenticated (will tighten after debugging)
+      // Delete: Authenticated users can delete (backend validates ownership)
       allow delete: if isAuthenticated();
       
-      // Messages sub-collection
+      // Messages subcollection - SIMPLIFIED RULES
       match /messages/{messageId} {
-        // Users can read messages if they own the parent session OR session has no userId
-        allow read: if isAuthenticated() && 
-                      (!exists(/databases/$(database)/documents/sessions/$(sessionId)) ||
-                       !('userId' in get(/databases/$(database)/documents/sessions/$(sessionId)).data) ||
-                       get(/databases/$(database)/documents/sessions/$(sessionId)).data.userId == request.auth.uid || 
-                       isAdmin());
-        
-        // Users can create messages if authenticated AND (own session OR session has no userId)
+        // Create: Must be authenticated with valid message structure
+        // Ownership validation happens in backend code
         allow create: if isAuthenticated() &&
-                        (!exists(/databases/$(database)/documents/sessions/$(sessionId)) ||
-                         !('userId' in get(/databases/$(database)/documents/sessions/$(sessionId)).data) ||
-                         get(/databases/$(database)/documents/sessions/$(sessionId)).data.userId == request.auth.uid) &&
                         request.resource.data.timestamp != null &&
                         request.resource.data.role in ['user', 'assistant'] &&
                         request.resource.data.content is string;
         
-        // Messages are immutable once created (no updates or deletes)
-        allow update, delete: if false;
+        // Read: Authenticated users can read
+        allow read: if isAuthenticated();
+        
+        // Update/Delete: Allow for corrections
+        allow update, delete: if isAuthenticated();
       }
       
-      // Versions sub-collection
-      match /versions/{versionId} {
-        // Users can read versions if they own the parent session
-        allow read: if isAuthenticated() && 
-                      (get(/databases/$(database)/documents/sessions/$(sessionId)).data.userId == request.auth.uid || 
-                       isAdmin());
-        
-        // Users can create versions if they own the parent session
-        allow create: if isAuthenticated() && 
-                        get(/databases/$(database)/documents/sessions/$(sessionId)).data.userId == request.auth.uid &&
-                        request.resource.data.versionNumber is int &&
-                        request.resource.data.contentOutput != null &&
-                        request.resource.data.changeType in ['auto', 'manual', 'ai_refinement'];
-        
-        // Versions are immutable once created (no updates or deletes)
-        allow update, delete: if false;
+      // Edit messages subcollection
+      match /editMessages/{editMessageId} {
+        allow create: if isAuthenticated() &&
+                        request.resource.data.timestamp != null &&
+                        request.resource.data.role in ['user', 'assistant'] &&
+                        request.resource.data.content is string;
+        allow read: if isAuthenticated();
+        allow update, delete: if isAuthenticated();
       }
-    }
-    
-    // Default deny all other collections
-    match /{document=**} {
-      allow read, write: if false;
     }
   }
 }

@@ -23,6 +23,7 @@ import ProjectsPage from "@/pages/projects";
 import AuthPage from "@/pages/auth";
 import MembershipPage from "@/pages/membership";
 import { SessionSidebar, SidebarToggle } from "@/components/SessionSidebar";
+import { useInactivityTimeout } from "@/hooks/useInactivityTimeout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FullPageLoader } from "@/components/FullPageLoader";
 import { useLogout, type User as UserType } from "@/hooks/use-user";
@@ -180,6 +181,9 @@ function AppRouter() {
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Initialize inactivity tracker
+  useInactivityTimeout();
   const { data: user } = useQuery<UserType | null>({
     queryKey: ["/api/me"],
     queryFn: getQueryFn({ on401: "returnNull" }),

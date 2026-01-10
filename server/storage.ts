@@ -307,9 +307,29 @@ export const sessionStorage = {
     return this.updateSession(id, { output, status: "complete" });
   },
 
-  async addMessage(sessionId: number, role: string, content: string, isEditMessage: boolean = false): Promise<SessionMessage> {
+  async addMessage(sessionId: number, userId: string, role: string, content: string, isEditMessage: boolean = false): Promise<SessionMessage> {
+    console.log(`[Storage] addMessage called for sessionId ${sessionId}, userId ${userId}`);
+
     const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(sessionId);
-    if (!firestoreId) throw new Error('Session not found');
+    console.log(`[Storage] Resolved firestoreId: ${firestoreId}`);
+
+    if (!firestoreId) {
+      console.error(`[Storage] Session ${sessionId} not found (no firestoreId mapping)`);
+      throw new Error('Session not found');
+    }
+
+    // Verify session ownership before adding message
+    const session = await firestoreUtils.getSession(firestoreId);
+    if (!session) {
+      console.error(`[Storage] Firestore session ${firestoreId} does not exist`);
+      throw new Error('Session not found');
+    }
+
+    // Only check ownership if session has a userId (anonymous sessions might exist but usually have userId)
+    if (session.userId && session.userId !== userId) {
+      console.error(`[Storage] Ownership mismatch: Session owner ${session.userId} vs Request user ${userId}`);
+      throw new Error(`Unauthorized: User ${userId} does not own session ${sessionId}`);
+    }
 
     // Validate role to prevent crashes
     const validRole: "user" | "assistant" = role === "user" || role === "assistant" ? role : "user";
@@ -317,7 +337,9 @@ export const sessionStorage = {
       console.warn(`Invalid message role "${role}" normalized to "${validRole}"`);
     }
 
+    console.log(`[Storage] Adding message to Firestore session ${firestoreId}`);
     const message = await firestoreUtils.addMessage(firestoreId, validRole, content, isEditMessage);
+    console.log(`[Storage] Message added with ID: ${message.id}`);
 
     return {
       id: Date.now(), // Use timestamp as ID for simplicity

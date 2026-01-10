@@ -1,0 +1,4 @@
+✅ PASS: Server health check - Status: 200
+✅ PASS: Admin user creation - Status: 200
+❌ FAIL: User login - Status: 200
+CRASH: Cannot proceed without token

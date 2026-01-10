@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 import { SkeletonCard } from '@/components/LoadingStates';
 import { useProjectStore } from '@/lib/store';
 import { Button } from "@/components/ui/button";
@@ -22,8 +23,22 @@ import { StageFooter } from '@/components/StageFooter';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { ProjectStatus } from '@shared/schema';
-import type { TextHook, VerbalHook, VisualHook, ChatMessage, AgentStatus, UserInputs, VisualContext, Session } from '@shared/schema';
+import type { TextHook, VerbalHook, VisualHook, ChatMessage, AgentStatus, UserInputs, VisualContext, Session, SessionMessage } from '@shared/schema';
 import { safeApiCall } from '@/lib/api-wrapper';
+import { getSessionIdFromUrl, setSessionIdInUrl, clearSessionFromUrl } from '@/lib/url-utils';
+
+const withTimeout = <T,>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutError: string
+): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(timeoutError)), timeoutMs)
+    ),
+  ]);
+};
 
 interface DiscoveryQuestion {
   id: string;
@@ -57,7 +72,8 @@ export default function AssemblyLine() {
     setLoading,
     setError,
     currentSessionId,
-    setCurrentSessionId
+    setCurrentSessionId,
+    loadSession
   } = useProjectStore();
 
   const [showVisualContextForm, setShowVisualContextForm] = useState(false);
@@ -72,6 +88,9 @@ export default function AssemblyLine() {
   const [discoveryQuestions, setDiscoveryQuestions] = useState<DiscoveryQuestion[]>([]);
   const [discoveryComplete, setDiscoveryComplete] = useState(false);
   const [isLoadingDiscovery, setIsLoadingDiscovery] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(true);
+  const [hydrationAttempted, setHydrationAttempted] = useState(false);
+  const [sessionCreationInProgress, setSessionCreationInProgress] = useState(false);
 
   // Phase 3: Unsaved changes protection
   const { save, saveNow, saveStatus, lastSaved } = useAutoSave(currentSessionId?.toString() || null);
@@ -94,10 +113,105 @@ export default function AssemblyLine() {
   }, [project?.inputs?.topic, project?.inputs, project?.selectedHook, project?.status, currentSessionId, save]);
 
   useEffect(() => {
-    if (!project) {
-      initProject();
+    const hydrateFromUrl = async () => {
+      if (hydrationAttempted) return;
+      setHydrationAttempted(true);
+
+      const urlSessionId = getSessionIdFromUrl();
+
+      if (!urlSessionId) {
+        console.log('📝 No session in URL - initializing fresh project');
+        if (!project) {
+          initProject();
+        }
+        setIsHydrating(false);
+        return;
+      }
+
+      console.log('🔄 Attempting to restore session:', urlSessionId);
+      const sessionIdNum = parseInt(urlSessionId, 10);
+
+      if (isNaN(sessionIdNum)) {
+        console.error('❌ Invalid session ID format in URL:', urlSessionId);
+        clearSessionFromUrl();
+        initProject();
+        setIsHydrating(false);
+        toast({
+          title: "Invalid Session Link",
+          description: "Starting a new project instead.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      try {
+        setLoading(true);
+        console.log('📡 Fetching session data from server...');
+
+        const response = await apiRequest('GET', `/api/sessions/${sessionIdNum}`);
+
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}`);
+        }
+
+        const data: {
+          session: Session;
+          messages: SessionMessage[];
+          editMessages: SessionMessage[];
+        } = await response.json();
+
+        console.log('✅ Session data loaded:', {
+          id: data.session.id,
+          title: data.session.title,
+          messageCount: data.messages.length
+        });
+
+        loadSession(data.session, data.messages, data.editMessages);
+
+        toast({
+          title: "Session Restored",
+          description: data.session.title || 'Untitled Project',
+        });
+
+      } catch (error: any) {
+        console.error('❌ Failed to hydrate session:', error);
+
+        clearSessionFromUrl();
+
+        const errorMessage = error?.status === 404
+          ? "Session not found"
+          : error?.status === 401
+            ? "Please log in to access this session"
+            : "Could not load session";
+
+        toast({
+          title: "Restoration Failed",
+          description: `${errorMessage}. Starting new project.`,
+          variant: "destructive"
+        });
+
+        initProject();
+
+      } finally {
+        setLoading(false);
+        setIsHydrating(false);
+      }
+    };
+
+    hydrateFromUrl();
+  }, [hydrationAttempted]);
+
+  useEffect(() => {
+    if (isHydrating) return;
+
+    if (currentSessionId) {
+      console.log('🔗 Syncing URL with session:', currentSessionId);
+      setSessionIdInUrl(currentSessionId, false);
+    } else {
+      console.log('🔗 Clearing session from URL');
+      clearSessionFromUrl();
     }
-  }, [project, initProject]);
+  }, [currentSessionId, isHydrating]);
 
   const saveMessageToSession = useCallback(async (sessionId: number, role: string, content: string, isEditMessage = false) => {
     try {
@@ -109,18 +223,56 @@ export default function AssemblyLine() {
 
   const updateSessionData = useCallback(async (sessionId: number, data: Record<string, unknown>) => {
     try {
+      const dataString = JSON.stringify(data);
+      const sizeInBytes = new Blob([dataString]).size;
+      const sizeInMB = sizeInBytes / (1024 * 1024);
+
+      if (sizeInMB > 4) {
+        console.warn(`Session data too large (${sizeInMB.toFixed(2)}MB) - skipping update`);
+        return;
+      }
+
       await apiRequest('PATCH', `/api/sessions/${sessionId}`, data);
       queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
-      // Successfully updated - no toast needed for background saves
     } catch (error: any) {
-      // Log but don't show toasts for session updates to avoid spam
       console.warn('Session update warning:', error?.message || error);
-      // Only show critical errors
+
       if (error?.status === 413) {
         console.error('Session data too large - skipping this update');
+        toast({
+          title: "Save Warning",
+          description: "Some data too large to save. Core progress preserved.",
+          variant: "default"
+        });
       }
     }
   }, []);
+
+  const ensureSession = useCallback(async (): Promise<number | null> => {
+    if (currentSessionId) return currentSessionId;
+    if (sessionCreationInProgress) {
+      return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (!sessionCreationInProgress) {
+            clearInterval(checkInterval);
+            resolve(currentSessionId);
+          }
+        }, 100);
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          resolve(null);
+        }, 5000);
+      });
+    }
+
+    setSessionCreationInProgress(true);
+    try {
+      const sessionId = await createSession();
+      return sessionId;
+    } finally {
+      setSessionCreationInProgress(false);
+    }
+  }, [currentSessionId, sessionCreationInProgress]);
 
   const createSession = useCallback(async (): Promise<number | null> => {
     try {
@@ -128,23 +280,25 @@ export default function AssemblyLine() {
       const session: Session = await response.json();
       setCurrentSessionId(session.id);
       queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+
+      console.log('✅ Session created:', session.id);
+
       return session.id;
     } catch (error) {
       console.error('Failed to create session:', error);
+
+      toast({
+        title: "Save Failed",
+        description: "Could not create session. Working in temporary mode.",
+        variant: "destructive"
+      });
+
       return null;
     }
   }, [setCurrentSessionId]);
 
   const generateTextHooks = useCallback(async (inputsOverride?: Partial<UserInputs>) => {
     if (!project) return;
-
-    setLoading(true);
-    setStatus(ProjectStatus.GENERATING);
-
-    const hookAgents: AgentStatus[] = [
-      { name: 'Text Hook Engineer', status: 'working', task: 'Crafting scroll-stopping text hooks' }
-    ];
-    setAgents(hookAgents);
 
     const inputsToUse = inputsOverride || project.inputs;
 
@@ -289,11 +443,12 @@ export default function AssemblyLine() {
 
     let sessionId = currentSessionId;
     if (!sessionId) {
-      sessionId = await createSession();
-      if (!sessionId) {
+      const createdId = await ensureSession();
+      if (!createdId) {
         setError('Failed to create session. Please try again.');
         return;
       }
+      if (createdId) sessionId = createdId;
     }
 
     const userMessage: ChatMessage = {
@@ -307,11 +462,12 @@ export default function AssemblyLine() {
     setLoading(true);
     setError(null);
 
-    saveMessageToSession(sessionId, 'user', content);
+    // Backend now handles message persistence in /api/chat
+    // Client-side save removed to prevent double-writes and race conditions
 
     try {
       const response = await apiRequest('POST', '/api/chat', {
-        projectId: project.id,
+        sessionId: sessionId,  // ✅ CHANGED: was projectId: project.id
         message: content,
         inputs: project.inputs,
         messages: [...project.messages, userMessage],
@@ -326,7 +482,9 @@ export default function AssemblyLine() {
 
       if (data.extractedInputs) {
         updateInputs(data.extractedInputs);
-        updateSessionData(sessionId, { inputs: updatedInputs });
+        if (sessionId) {
+          updateSessionData(sessionId, { inputs: updatedInputs });
+        }
       }
 
       if (data.message) {
@@ -337,23 +495,33 @@ export default function AssemblyLine() {
           timestamp: Date.now()
         };
         addMessage(assistantMessage);
-        saveMessageToSession(sessionId, 'assistant', data.message);
+        // Backend handles message persistence
+        // if (sessionId) {
+        //   saveMessageToSession(sessionId, 'assistant', data.message);
+        // }
       }
 
-      if (data.readyForDiscovery && !discoveryComplete && discoveryQuestions.length === 0) {
+
+      // Simplified discovery flow - avoid complex conditionals
+      if (data.readyForHooks && !discoveryComplete) {
+        // If we have discovery questions pending, answer them first
+        if (discoveryQuestions.length > 0) {
+          setDiscoveryComplete(true);
+          const enrichedInputs = {
+            ...updatedInputs,
+            discoveryContext: content
+          };
+          updateInputs({ discoveryContext: content } as Partial<UserInputs>);
+          await generateTextHooks(enrichedInputs);
+        } else {
+          // No discovery questions - proceed directly
+          await generateTextHooks(updatedInputs);
+        }
+      } else if (data.readyForDiscovery && discoveryQuestions.length === 0) {
+        // Fetch discovery questions
         const topic = updatedInputs.topic || (project.inputs as UserInputs).topic || '';
         const intent = updatedInputs.goal || (project.inputs as UserInputs).goal;
         await fetchDiscoveryQuestions(topic, intent);
-      } else if (discoveryQuestions.length > 0 && !discoveryComplete) {
-        setDiscoveryComplete(true);
-        const enrichedInputs = {
-          ...updatedInputs,
-          discoveryContext: content
-        };
-        updateInputs({ discoveryContext: content } as Partial<UserInputs>);
-        await generateTextHooks(enrichedInputs);
-      } else if (data.readyForHooks) {
-        await generateTextHooks(updatedInputs);
       }
     } catch (error) {
       console.error('Chat error:', error);
@@ -440,10 +608,14 @@ export default function AssemblyLine() {
     setAgents(contentAgents);
 
     try {
-      const response = await apiRequest('POST', '/api/generate-content-multi', {
-        inputs: project.inputs,
-        selectedHooks: project.selectedHooks
-      });
+      const response = await withTimeout(
+        apiRequest('POST', '/api/generate-content-multi', {
+          inputs: project.inputs,
+          selectedHooks: project.selectedHooks
+        }),
+        120000,
+        'Generation timed out'
+      );
 
       const data = await response.json();
 
@@ -479,25 +651,16 @@ export default function AssemblyLine() {
     } catch (error: unknown) {
       console.error('Content generation error:', error);
 
+      setStatus(ProjectStatus.HOOK_OVERVIEW);
+      setLoading(false);
+
       if (error instanceof HttpError) {
-        if (error.status === 401) {
-          toast({
-            title: "Authentication Required",
-            description: "Please log in to generate content.",
-            variant: "destructive",
-            action: (
-              <ToastAction altText="Log In" onClick={() => window.location.href = '/auth'}>
-                Log In
-              </ToastAction>
-            )
-          });
-          return;
-        }
+        // 401 handled globally by queryClient
 
         if (error.status === 403) {
           toast({
             title: "Premium Required",
-            description: "Upgrade to Premium to generate content.",
+            description: "This feature requires a Premium subscription.",
             variant: "destructive",
             action: (
               <ToastAction altText="Upgrade" onClick={() => window.location.href = '/membership'}>
@@ -507,17 +670,24 @@ export default function AssemblyLine() {
           });
           return;
         }
+
+        if (error.status === 429) {
+          toast({
+            title: "Rate Limit Exceeded",
+            description: "Please wait a moment before trying again.",
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
-      // Generic error
       toast({
         title: "Generation Failed",
-        description: "Please try again or contact support if the issue persists.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
 
       setError('Failed to generate content. Please try again.');
-      setStatus(ProjectStatus.HOOK_OVERVIEW);
     } finally {
       setLoading(false);
     }
@@ -587,9 +757,22 @@ export default function AssemblyLine() {
     }
   }, [project, editMessages, addEditMessage, setOutput, setLoading, setError, currentSessionId, saveMessageToSession, updateSessionData]);
 
+  useEffect(() => {
+    if (project?.status === ProjectStatus.GENERATING && !isLoading) {
+      console.warn('⚠️ Detected stuck generating state - recovering');
+      setStatus(ProjectStatus.HOOK_OVERVIEW);
+      toast({
+        title: "Generation Reset",
+        description: "The process appeared stuck and was reset.",
+        variant: "default"
+      });
+    }
+  }, [project?.status, isLoading]);
+
   const handleCreateNew = useCallback(() => {
     reset();
     setCurrentSessionId(null);
+    clearSessionFromUrl();
     setShowVisualContextForm(true);
     setLocalVisualContext({
       location: undefined,
@@ -612,6 +795,17 @@ export default function AssemblyLine() {
   }
 
   const renderContent = () => {
+    if (isHydrating) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+            <p className="text-muted-foreground">Loading session...</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <AnimatePresence mode="wait">
         <motion.div

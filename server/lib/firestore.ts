@@ -200,9 +200,27 @@ export async function createSession(userId?: string): Promise<Session & { firest
 
 // Helper to convert numeric ID back to Firestore ID
 export async function getFirestoreIdFromNumeric(numericId: number): Promise<string | null> {
+    // First, try the mapping collection (fast lookup)
     const doc = await firestore.collection("sessionIdMap").doc(numericId.toString()).get();
-    if (!doc.exists) return null;
-    return (doc.data() as { firestoreId: string }).firestoreId;
+    if (doc.exists) {
+        return (doc.data() as { firestoreId: string }).firestoreId;
+    }
+
+    // Fallback: Query sessions collection by numericId (handles race condition)
+    console.log(`[Firestore] ID mapping not found for ${numericId}, querying sessions collection...`);
+    const sessionsQuery = await firestore.collection("sessions")
+        .where("numericId", "==", numericId)
+        .limit(1)
+        .get();
+
+    if (!sessionsQuery.empty) {
+        const sessionDoc = sessionsQuery.docs[0];
+        console.log(`[Firestore] Found session ${sessionDoc.id} for numericId ${numericId}`);
+        return sessionDoc.id;
+    }
+
+    console.error(`[Firestore] No session found for numericId ${numericId}`);
+    return null;
 }
 
 // Simple hash function to create stable numeric IDs

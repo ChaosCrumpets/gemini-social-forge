@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Plus, MessageSquare, Trash2, FileText, PanelLeftClose, PanelLeft, Zap, FolderOpen, EyeOff } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, FileText, PanelLeftClose, PanelLeft, Zap, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
@@ -25,7 +25,7 @@ interface SessionSidebarProps {
 
 export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProps) {
   const [, setLocation] = useLocation();
-  const { currentSessionId, loadSession, reset, setLoading, setCurrentSessionId, incognitoMode, setIncognitoMode } = useProjectStore();
+  const { currentSessionId, loadSession, reset, setLoading, setCurrentSessionId } = useProjectStore();
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -84,13 +84,11 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
       if (isMobile) onClose();
       return;
     }
-    setLoading(true);
-    try {
-      await loadSessionMutation.mutateAsync(sessionId);
-      if (isMobile) onClose();
-    } finally {
-      setLoading(false);
-    }
+
+    console.log('🔀 Navigating to session via URL:', sessionId);
+    setLocation(`/app?session=${sessionId}`, { replace: false });
+
+    if (isMobile) onClose();
   };
 
   const handleDeleteSession = (e: React.MouseEvent, sessionId: number) => {
@@ -202,27 +200,8 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
         )}
       </ScrollArea>
 
-      {/* Footer with incognito toggle and collapse button */}
+      {/* Footer with collapse button */}
       <div className="p-2 border-t border-sidebar-border space-y-2">
-        <div className="flex items-center justify-between px-2">
-          <div className="flex items-center gap-2">
-            <EyeOff className="h-4 w-4 text-sidebar-foreground/60" />
-            <Label htmlFor="incognito-mode" className="text-xs text-sidebar-foreground/80">
-              Incognito
-            </Label>
-          </div>
-          <Switch
-            id="incognito-mode"
-            checked={incognitoMode}
-            onCheckedChange={setIncognitoMode}
-            data-testid="switch-incognito-mode"
-          />
-        </div>
-        {incognitoMode && (
-          <p className="text-xs text-amber-500/80 px-2">
-            Sessions won't be saved
-          </p>
-        )}
         <Button
           size="icon"
           variant="ghost"

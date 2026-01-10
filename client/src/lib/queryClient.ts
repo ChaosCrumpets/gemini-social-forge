@@ -37,6 +37,16 @@ function waitForFirebaseReady(): Promise<void> {
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
+    if (res.status === 401) {
+      if (typeof window !== 'undefined') {
+        const returnUrl = window.location.pathname + window.location.search;
+        // Don't overwrite if we're already on auth page to prevent loop
+        if (!returnUrl.includes('/auth')) {
+          sessionStorage.setItem('returnTo', returnUrl);
+          window.location.href = '/auth';
+        }
+      }
+    }
     const text = (await res.text()) || res.statusText;
     throw new HttpError(res.status, `${res.status}: ${text}`);
   }
