@@ -21,6 +21,7 @@ import { UnsavedChangesPrompt } from '@/components/UnsavedChangesPrompt';
 import { LiveStatusIndicator } from '@/components/LiveStatusIndicator';
 import { StageFooter } from '@/components/StageFooter';
 import { useAutoSave } from '@/hooks/useAutoSave';
+import { ErrorBoundary, StageErrorFallback } from '@/components/ErrorBoundary';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { ProjectStatus } from '@shared/schema';
 import type { TextHook, VerbalHook, VisualHook, ChatMessage, AgentStatus, UserInputs, VisualContext, Session, SessionMessage } from '@shared/schema';
@@ -120,10 +121,42 @@ export default function AssemblyLine() {
       const urlSessionId = getSessionIdFromUrl();
 
       if (!urlSessionId) {
-        console.log('📝 No session in URL - initializing fresh project');
-        if (!project) {
+        console.log('📝 No session in URL - creating new session...');
+
+        try {
+          // Create new session via API
+          const response = await apiRequest('POST', '/api/sessions', {});
+
+          if (!response.ok) {
+            throw new Error(`Failed to create session: ${response.status}`);
+          }
+
+          const newSession: Session = await response.json();
+          console.log('✅ New session created:', newSession.id);
+
+          // Set session ID in URL
+          setSessionIdInUrl(newSession.id);
+
+          // Load the new session
+          loadSession(newSession, [], []);
+
+          toast({
+            title: "New Project Started",
+            description: "Ready to create amazing content!",
+          });
+        } catch (error: any) {
+          console.error('❌ Failed to create session:', error);
+
+          // Fallback to local-only project
           initProject();
+
+          toast({
+            title: "Offline Mode",
+            description: "Working locally. Session won't be saved.",
+            variant: "destructive"
+          });
         }
+
         setIsHydrating(false);
         return;
       }
@@ -820,104 +853,195 @@ export default function AssemblyLine() {
             switch (project.status) {
               case ProjectStatus.INPUTTING:
                 return (
-                  <div className="flex-1 overflow-hidden">
-                    <ChatInterface
-                      messages={project.messages}
-                      onSendMessage={handleSendMessage}
-                      isLoading={isLoading || isLoadingDiscovery}
-                    />
-                  </div>
+                  <ErrorBoundary
+                    fallback={(error, reset) => (
+                      <StageErrorFallback
+                        error={error}
+                        stageName="Chat"
+                        onRetry={() => {
+                          reset();
+                          setStatus(ProjectStatus.INPUTTING);
+                        }}
+                      />
+                    )}
+                  >
+                    <div className="flex-1 overflow-hidden">
+                      <ChatInterface
+                        messages={project.messages}
+                        onSendMessage={handleSendMessage}
+                        isLoading={isLoading || isLoadingDiscovery}
+                      />
+                    </div>
+                  </ErrorBoundary>
                 );
 
               case ProjectStatus.HOOK_TEXT:
                 return (
-                  <div className="flex-1 overflow-auto">
-                    {project.textHooks && project.textHooks.length > 0 && (
-                      <TextHookStage
-                        hooks={project.textHooks}
-                        onSelectHook={handleSelectTextHook}
-                        selectedHookId={project.selectedHooks?.text?.id}
-                        disabled={isLoading}
+                  <ErrorBoundary
+                    fallback={(error, reset) => (
+                      <StageErrorFallback
+                        error={error}
+                        stageName="Text Hooks"
+                        onRetry={() => {
+                          reset();
+                          setStatus(ProjectStatus.HOOK_TEXT);
+                        }}
                       />
                     )}
-                  </div>
+                  >
+                    <div className="flex-1 overflow-auto">
+                      {project.textHooks && project.textHooks.length > 0 && (
+                        <TextHookStage
+                          hooks={project.textHooks}
+                          onSelectHook={handleSelectTextHook}
+                          selectedHookId={project.selectedHooks?.text?.id}
+                          disabled={isLoading}
+                        />
+                      )}
+                    </div>
+                  </ErrorBoundary>
                 );
 
               case ProjectStatus.HOOK_VERBAL:
                 return (
-                  <div className="flex-1 overflow-auto">
-                    {project.verbalHooks && project.verbalHooks.length > 0 && (
-                      <VerbalHookStage
-                        hooks={project.verbalHooks}
-                        onSelectHook={handleSelectVerbalHook}
-                        selectedHookId={project.selectedHooks?.verbal?.id}
-                        disabled={isLoading}
+                  <ErrorBoundary
+                    fallback={(error, reset) => (
+                      <StageErrorFallback
+                        error={error}
+                        stageName="Verbal Hooks"
+                        onRetry={() => {
+                          reset();
+                          setStatus(ProjectStatus.HOOK_VERBAL);
+                        }}
                       />
                     )}
-                  </div>
+                  >
+                    <div className="flex-1 overflow-auto">
+                      {project.verbalHooks && project.verbalHooks.length > 0 && (
+                        <VerbalHookStage
+                          hooks={project.verbalHooks}
+                          onSelectHook={handleSelectVerbalHook}
+                          selectedHookId={project.selectedHooks?.verbal?.id}
+                          disabled={isLoading}
+                        />
+                      )}
+                    </div>
+                  </ErrorBoundary>
                 );
 
               case ProjectStatus.HOOK_VISUAL:
                 return (
-                  <div className="flex-1 overflow-auto">
-                    <VisualHookStage
-                      hooks={project.visualHooks || []}
-                      onSelectHook={handleSelectVisualHook}
-                      selectedHookId={project.selectedHooks?.visual?.id}
-                      disabled={isLoading}
-                      visualContext={localVisualContext}
-                      onVisualContextChange={setLocalVisualContext}
-                      showContextForm={showVisualContextForm}
-                      onContextSubmit={() => generateVisualHooks(localVisualContext)}
-                      isLoadingHooks={isLoading}
-                    />
-                  </div>
+                  <ErrorBoundary
+                    fallback={(error, reset) => (
+                      <StageErrorFallback
+                        error={error}
+                        stageName="Visual Hooks"
+                        onRetry={() => {
+                          reset();
+                          setStatus(ProjectStatus.HOOK_VISUAL);
+                        }}
+                      />
+                    )}
+                  >
+                    <div className="flex-1 overflow-auto">
+                      <VisualHookStage
+                        hooks={project.visualHooks || []}
+                        onSelectHook={handleSelectVisualHook}
+                        selectedHookId={project.selectedHooks?.visual?.id}
+                        disabled={isLoading}
+                        visualContext={localVisualContext}
+                        onVisualContextChange={setLocalVisualContext}
+                        showContextForm={showVisualContextForm}
+                        onContextSubmit={() => generateVisualHooks(localVisualContext)}
+                        isLoadingHooks={isLoading}
+                      />
+                    </div>
+                  </ErrorBoundary>
                 );
 
               case ProjectStatus.HOOK_OVERVIEW:
                 return (
-                  <div className="flex-1 overflow-auto">
-                    <HookOverviewStage
-                      textHook={project.selectedHooks?.text}
-                      verbalHook={project.selectedHooks?.verbal}
-                      visualHook={project.selectedHooks?.visual}
-                      onEdit={handleEditFromOverview}
-                      onConfirm={handleConfirmAndGenerate}
-                      disabled={isLoading}
-                    />
-                  </div>
+                  <ErrorBoundary
+                    fallback={(error, reset) => (
+                      <StageErrorFallback
+                        error={error}
+                        stageName="Hook Overview"
+                        onRetry={() => {
+                          reset();
+                          setStatus(ProjectStatus.HOOK_OVERVIEW);
+                        }}
+                      />
+                    )}
+                  >
+                    <div className="flex-1 overflow-auto">
+                      <HookOverviewStage
+                        textHook={project.selectedHooks?.text}
+                        verbalHook={project.selectedHooks?.verbal}
+                        visualHook={project.selectedHooks?.visual}
+                        onEdit={handleEditFromOverview}
+                        onConfirm={handleConfirmAndGenerate}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </ErrorBoundary>
                 );
 
               case ProjectStatus.GENERATING:
                 return (
-                  <div className="flex-1 flex items-center justify-center overflow-auto">
-                    {project.agents && project.agents.length > 2 ? (
-                      <DirectorView
-                        agents={project.agents}
-                        title="Assembling Your Content"
-                        partialOutput={project.output}
-                      />
-                    ) : project.agents && (
-                      <ThinkingState
-                        agents={project.agents}
-                        title="Generating Hooks"
+                  <ErrorBoundary
+                    fallback={(error, reset) => (
+                      <StageErrorFallback
+                        error={error}
+                        stageName="Content Generation"
+                        onRetry={() => {
+                          reset();
+                          setStatus(ProjectStatus.GENERATING);
+                        }}
                       />
                     )}
-                  </div>
+                  >
+                    <div className="flex-1 flex items-center justify-center overflow-auto">
+                      {project.agents && project.agents.length > 2 ? (
+                        <DirectorView
+                          agents={project.agents}
+                          title="Assembling Your Content"
+                          partialOutput={project.output}
+                        />
+                      ) : project.agents && (
+                        <ThinkingState
+                          agents={project.agents}
+                          title="Generating Hooks"
+                        />
+                      )}
+                    </div>
+                  </ErrorBoundary>
                 );
 
               case ProjectStatus.COMPLETE:
                 return (
-                  <SplitDashboard
-                    messages={project.messages}
-                    editMessages={editMessages}
-                    output={project.output!}
-                    selectedHook={project.selectedHook}
-                    onSendMessage={handleSendMessage}
-                    onSendEditMessage={handleEditMessage}
-                    onCreateNew={handleCreateNew}
-                    isLoading={isLoading}
-                  />
+                  <ErrorBoundary
+                    fallback={(error, reset) => (
+                      <StageErrorFallback
+                        error={error}
+                        stageName="Content Dashboard"
+                        onRetry={() => {
+                          reset();
+                          setStatus(ProjectStatus.COMPLETE);
+                        }}
+                      />
+                    )}
+                  >
+                    <SplitDashboard
+                      messages={project.messages}
+                      editMessages={editMessages}
+                      output={project.output!}
+                      selectedHook={project.selectedHook}
+                      onSendMessage={handleSendMessage}
+                      onSendEditMessage={handleEditMessage}
+                      onCreateNew={handleCreateNew}
+                      isLoading={isLoading}
+                    />
+                  </ErrorBoundary>
                 );
 
               default:

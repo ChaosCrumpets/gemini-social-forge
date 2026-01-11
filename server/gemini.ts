@@ -1,9 +1,108 @@
-import { GoogleGenAI } from "@google/genai";
+import { llmRouter } from "./lib/llm-router";
+// import { GoogleGenAI } from "@google/genai"; // Replaced by router
 import { getHookPatternSummary, getRelevantHookPatterns } from "./hookDatabase";
 import { queryDatabase, getAllCategories } from "./queryDatabase";
 import type { ContentOutput } from "@shared/schema";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+// const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" }); // Replaced by router
+
+// ============================================
+// Retry Logic & Error Handling
+// ============================================
+
+interface RetryOptions {
+  maxRetries?: number;
+  timeoutMs?: number;
+  onRetry?: (attempt: number, error: any) => void;
+}
+
+/**
+ * Categorizes Gemini API errors into user-friendly messages
+ */
+function categorizeGeminiError(error: any): string {
+  const errorMessage = error?.message || error?.toString() || 'Unknown error';
+
+  // Rate limit errors
+  if (errorMessage.includes('429') || errorMessage.includes('rate limit') || errorMessage.includes('quota')) {
+    return 'API rate limit reached. Please try again in a moment.';
+  }
+
+  // Quota/billing errors
+  if (errorMessage.includes('403') || errorMessage.includes('quota exceeded') || errorMessage.includes('billing')) {
+    return 'API quota exceeded. Please check your API key and billing status.';
+  }
+
+  // Network/timeout errors
+  if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT') || errorMessage.includes('ECONNREFUSED')) {
+    return 'Network timeout. Please check your connection and try again.';
+  }
+
+  // Invalid API key
+  if (errorMessage.includes('401') || errorMessage.includes('invalid') || errorMessage.includes('unauthorized')) {
+    return 'Invalid API key. Please check your configuration.';
+  }
+
+  // Bad request (likely a code bug)
+  if (errorMessage.includes('400') || errorMessage.includes('bad request')) {
+    return 'Invalid request format. Please contact support.';
+  }
+
+  // Generic error
+  return `API error: ${errorMessage.substring(0, 100)}`;
+}
+
+/**
+ * Retry wrapper with exponential backoff and timeout
+ */
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  options: RetryOptions = {}
+): Promise<T> {
+  const {
+    maxRetries = 3,
+    timeoutMs = 30000,
+    onRetry
+  } = options;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Race between the function and timeout
+      const result = await Promise.race([
+        fn(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+        )
+      ]);
+
+      return result;
+    } catch (error: any) {
+      const isLastAttempt = attempt === maxRetries;
+
+      // Log the error
+      console.error(`[Gemini API] Attempt ${attempt}/${maxRetries} failed:`, error.message);
+
+      // If last attempt, throw with categorized error
+      if (isLastAttempt) {
+        const userMessage = categorizeGeminiError(error);
+        const enhancedError = new Error(userMessage);
+        (enhancedError as any).originalError = error;
+        throw enhancedError;
+      }
+
+      // Exponential backoff: 1s, 2s, 4s
+      const delay = Math.pow(2, attempt - 1) * 1000;
+      console.log(`[Gemini API] Retrying in ${delay}ms...`);
+
+      if (onRetry) {
+        onRetry(attempt, error);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw new Error('Max retries exceeded');
+}
 
 const CAL_SYSTEM_INSTRUCTION = `You are the Content Assembly Line (C.A.L.) AI, a specialized content generation system for social media creators.
 
@@ -268,22 +367,22 @@ User message: ${userMessage}`;
 
     const messages = [
       ...conversationHistory.map(msg => ({
-        role: msg.role as 'user' | 'model',
-        parts: [{ text: msg.content }]
+        role: (msg.role === 'model' ? 'assistant' : msg.role) as 'user' | 'assistant',
+        content: msg.content
       })),
       {
         role: 'user' as const,
-        parts: [{ text: contextMessage }]
+        content: contextMessage
       }
     ];
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: {
-        systemInstruction: CAL_SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json"
-      },
-      contents: messages
+    console.log('[chat] Sending request to LLM Router with', messages.length, 'messages');
+
+    const response = await llmRouter.generate({
+      messages,
+      systemInstruction: CAL_SYSTEM_INSTRUCTION,
+      category: 'logic', // Use logic model for chat/intent understanding
+      responseFormat: 'json'
     });
 
     const text = response.text || '';
@@ -342,12 +441,10 @@ Content Details:
 
 Generate 6 hooks with unique ranks (1-6, where 1 is best). The rank=1 hook should have isRecommended=true:`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: {
-        responseMimeType: "application/json"
-      },
-      contents: prompt
+    const response = await llmRouter.generate({
+      messages: [{ role: 'user', content: prompt }],
+      category: 'content',
+      responseFormat: 'json'
     });
 
     const text = response.text || '';
@@ -595,10 +692,10 @@ Content Details:
 
 Generate 6 text hooks with unique ranks (1-6, where 1 is best):`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: { responseMimeType: "application/json" },
-      contents: prompt
+    const response = await llmRouter.generate({
+      messages: [{ role: 'user', content: prompt }],
+      category: 'content',
+      responseFormat: 'json'
     });
 
     const parsed = JSON.parse(response.text || '');
@@ -648,10 +745,10 @@ Content Details:
 
 Generate 6 verbal hooks with unique ranks (1-6, where 1 is best):`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: { responseMimeType: "application/json" },
-      contents: prompt
+    const response = await llmRouter.generate({
+      messages: [{ role: 'user', content: prompt }],
+      category: 'content',
+      responseFormat: 'json'
     });
 
     const parsed = JSON.parse(response.text || '');
@@ -707,10 +804,10 @@ Content Details:
 
 Generate 6 visual hooks optimized for the user's production setup. Each must include both FIY filming instructions AND a GenAI prompt for AI-generated alternatives:`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: { responseMimeType: "application/json" },
-      contents: prompt
+    const response = await llmRouter.generate({
+      messages: [{ role: 'user', content: prompt }],
+      category: 'content',
+      responseFormat: 'json'
     });
 
     const parsed = JSON.parse(response.text || '');
@@ -795,10 +892,10 @@ VISUAL HOOK (Opening Shot):
 
 Generate a cohesive content package that integrates all three hook elements seamlessly:`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: { responseMimeType: "application/json" },
-      contents: prompt
+    const response = await llmRouter.generate({
+      messages: [{ role: 'user', content: prompt }],
+      category: 'content',
+      responseFormat: 'json'
     });
 
     const parsed = JSON.parse(response.text || '');
@@ -866,22 +963,20 @@ ${JSON.stringify(currentOutput, null, 2)}`;
 
     const contents = [
       ...conversationHistory.map(msg => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content }]
+        role: (msg.role === 'model' ? 'assistant' : 'user') as 'user' | 'assistant',
+        content: msg.content
       })),
       {
         role: 'user' as const,
-        parts: [{ text: userMessage }]
+        content: userMessage
       }
     ];
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: {
-        responseMimeType: "application/json",
-        systemInstruction: systemContext
-      },
-      contents
+    const response = await llmRouter.generate({
+      messages: contents,
+      systemInstruction: systemContext,
+      category: 'logic',
+      responseFormat: 'json'
     });
 
     const text = response.text || '';
@@ -923,12 +1018,10 @@ Selected Hook:
 
 Generate the complete content package now, starting with this hook:`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: {
-        responseMimeType: "application/json"
-      },
-      contents: prompt
+    const response = await llmRouter.generate({
+      messages: [{ role: 'user', content: prompt }],
+      category: 'content',
+      responseFormat: 'json'
     });
 
     const text = response.text || '';
@@ -995,12 +1088,10 @@ export async function generateDiscoveryQuestions(
       .replace('{{topic}}', topic)
       .replace('{{intent}}', intent || 'general content creation');
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      config: {
-        responseMimeType: "application/json"
-      },
-      contents: prompt
+    const response = await llmRouter.generate({
+      messages: [{ role: 'user', content: prompt }],
+      category: 'logic', // Logic model for analyzing topic/intent
+      responseFormat: 'json'
     });
 
     const text = response.text || '';
@@ -1058,9 +1149,10 @@ RULES:
 
 OUTPUT ONLY THE REWRITTEN TEXT:`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt
+    const response = await llmRouter.generate({
+      messages: [{ role: 'user', content: prompt }],
+      category: 'content',
+      responseFormat: 'text' // Remixing returns text, not JSON
     });
 
     const remixedText = (response.text || selectedText).trim();

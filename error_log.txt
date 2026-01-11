@@ -1,0 +1,30 @@
+server/middleware/auth-helpers.ts(119,40): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'Timestamp' is not assignable to parameter of type 'string | number | Date'.
+      Type 'Timestamp' is missing the following properties from type 'Date': toDateString, toTimeString, toLocaleDateString, toLocaleTimeString, and 37 more.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'Timestamp' is not assignable to parameter of type 'string | number'.
+server/middleware/auth-helpers.ts(126,21): error TS2739: Type 'Date' is missing the following properties from type 'Timestamp': seconds, nanoseconds, toDate, toMillis, isEqual
+server/middleware/auth.ts(2,10): error TS2614: Module '"../db"' has no exported member 'db'. Did you mean to use 'import db from "../db"' instead?
+server/middleware/auth.ts(4,20): error TS2307: Cannot find module 'drizzle-orm' or its corresponding type declarations.
+server/middleware/auth.ts(37,14): error TS2339: Property 'isAuthenticated' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+server/middleware/auth.ts(58,14): error TS2339: Property 'isAuthenticated' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+server/middleware/firebase-auth.ts(51,13): error TS2783: 'uid' is specified more than once, so this usage will be overwritten.
+server/middleware/firebase-auth.ts(93,17): error TS2783: 'uid' is specified more than once, so this usage will be overwritten.
+server/middleware/native-auth.ts(2,10): error TS2614: Module '"../db"' has no exported member 'db'. Did you mean to use 'import db from "../db"' instead?
+server/middleware/native-auth.ts(4,25): error TS2307: Cannot find module 'drizzle-orm' or its corresponding type declarations.
+server/middleware/native-auth.ts(7,30): error TS2339: Property 'session' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+server/replit_integrations/auth/replitAuth.ts(4,22): error TS2307: Cannot find module 'passport' or its corresponding type declarations.
+server/replit_integrations/auth/replitAuth.ts(5,21): error TS2307: Cannot find module 'express-session' or its corresponding type declarations.
+server/replit_integrations/auth/replitAuth.ts(8,23): error TS2307: Cannot find module 'connect-pg-simple' or its corresponding type declarations.
+server/replit_integrations/auth/replitAuth.ts(102,47): error TS7006: Parameter 'cb' implicitly has an 'any' type.
+server/replit_integrations/auth/replitAuth.ts(103,49): error TS7006: Parameter 'cb' implicitly has an 'any' type.
+server/replit_integrations/auth/replitAuth.ts(122,9): error TS2339: Property 'logout' does not exist on type 'Request<{}, any, any, ParsedQs, Record<string, any>>'.
+server/replit_integrations/auth/replitAuth.ts(136,12): error TS2339: Property 'isAuthenticated' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+server/replit_integrations/auth/storage.ts(2,10): error TS2614: Module '"../../db"' has no exported member 'db'. Did you mean to use 'import db from "../../db"' instead?
+server/replit_integrations/auth/storage.ts(3,20): error TS2307: Cannot find module 'drizzle-orm' or its corresponding type declarations.
+server/start.ts(11,5): error TS1378: Top-level 'await' expressions are only allowed when the 'module' option is set to 'es2022', 'esnext', 'system', 'node16', 'nodenext', or 'preserve', and the 'target' option is set to 'es2017' or higher.
+shared/models/auth.ts(1,21): error TS2307: Cannot find module 'drizzle-orm' or its corresponding type declarations.
+shared/models/auth.ts(2,77): error TS2307: Cannot find module 'drizzle-orm/pg-core' or its corresponding type declarations.
+shared/models/auth.ts(3,36): error TS2307: Cannot find module 'drizzle-zod' or its corresponding type declarations.
+shared/models/auth.ts(15,4): error TS7006: Parameter 'table' implicitly has an 'any' type.

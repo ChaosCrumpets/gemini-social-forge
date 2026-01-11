@@ -1,6 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage, sessionStorage } from "./storage";
+import { llmRouter } from "./lib/llm-router";
+import { providers } from "./lib/llm-providers";
 import {
   chat,
   generateHooks,
@@ -332,6 +334,30 @@ export async function registerRoutes(
     }
   });
 
+  // Create new session
+  app.post('/api/sessions', verifyFirebaseToken, requireAuth, async (req: Request, res: Response) => {
+    try {
+      const user = await getUserFromRequest(req);
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      console.log(`[API] Creating new session for user ${user.uid}`);
+
+      const session = await sessionStorage.createSession(user.uid);
+
+      console.log(`[API] Session created successfully: ${session.id}`);
+
+      res.json({
+        ...session,
+        createdAt: session.createdAt instanceof Date ? session.createdAt : new Date(session.createdAt),
+        updatedAt: session.updatedAt instanceof Date ? session.updatedAt : new Date(session.updatedAt)
+      });
+    } catch (error) {
+      console.error('[API] Create session error:', error);
+      res.status(500).json({ error: 'Failed to create session' });
+    }
+  });
+
+
   // Get single session by ID
   app.get('/api/sessions/:id', verifyFirebaseToken, requireAuth, async (req: Request, res: Response) => {
     try {
@@ -648,9 +674,6 @@ export async function registerRoutes(
       }));
 
       // ✅ SAVE USER MESSAGE
-      // TEMPORARILY DISABLED - addMessage throws "Session not found" for new sessions
-      // TODO: Fix getFirestoreIdFromNumeric fallback query or session ID mapping
-      /*
       if (actualSessionId && typeof actualSessionId === 'number') {
         try {
           await sessionStorage.addMessage(actualSessionId, userId, 'user', message, false);
@@ -659,13 +682,10 @@ export async function registerRoutes(
           // Continue execution (don't fail generation if save fails, though ideally we should)
         }
       }
-      */
 
       const response = await chat(message, conversationHistory, inputs || {}, discoveryComplete);
 
-      // ✅ SAVE ASSISTANT MESSAGE  
-      // TEMPORARILY DISABLED - addMessage throws "Session not found" for new sessions
-      /*
+      // ✅ SAVE ASSISTANT MESSAGE
       if (actualSessionId && typeof actualSessionId === 'number' && response.message) {
         try {
           await sessionStorage.addMessage(actualSessionId, userId, 'assistant', response.message, false);
@@ -673,11 +693,8 @@ export async function registerRoutes(
           console.error(`[Chat] Failed to save assistant message:`, msgError);
         }
       }
-      */
 
       // ✅ FIXED: Update SESSION storage instead of legacy project storage
-      // TEMPORARILY DISABLED - Testing if this is causing the 500 error
-      /*
       if (actualSessionId && typeof actualSessionId === 'number' && response.extractedInputs) {
         console.log(`[Chat] Updating session ${actualSessionId} inputs:`, response.extractedInputs);
 
@@ -698,17 +715,11 @@ export async function registerRoutes(
           // Don't fail the whole request if session update fails
         }
       }
-      */
 
       res.json(response);
     } catch (error: any) {
-      // Store for debug endpoint (properly serialize Error object)
-      lastError = {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-        timestamp: new Date().toISOString()
-      };
+      // Store for debug endpoint
+      lastError = { ...error, timestamp: new Date().toISOString() };
 
       console.error("❌ Chat error (FULL DETAILS):", {
         message: error.message,
@@ -1064,7 +1075,8 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Role and content required" });
       }
 
-      const message = await sessionStorage.addMessage(id, role, content, false);
+      const userId = req.user?.uid || "anonymous";
+      const message = await sessionStorage.addMessage(id, userId, role, content, false);
       res.json(message);
     } catch (error) {
       console.error("Message creation error:", error);
@@ -1396,6 +1408,11 @@ export async function registerRoutes(
       console.error("Upgrade success error:", error);
       res.redirect("/");
     }
+  });
+
+  // Debug: Get LLM Router stats
+  app.get("/api/debug/llm-stats", (_req, res) => {
+    res.json(llmRouter.getStats());
   });
 
   return httpServer;
