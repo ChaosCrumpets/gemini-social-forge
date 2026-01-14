@@ -1,6 +1,13 @@
 import { llmRouter } from "./lib/llm-router";
 // import { GoogleGenAI } from "@google/genai"; // Replaced by router
-import { getHookPatternSummary, getRelevantHookPatterns } from "./hookDatabase";
+import {
+  getHookPatternSummary,
+  getRelevantHookPatterns,
+  adaptHookTemplate,
+  generateEnhancedHooks,
+  type HookAdaptationContext,
+  type EnhancedHookTemplate
+} from "./hookDatabase";
 import { queryDatabase, getAllCategories } from "./queryDatabase";
 import type { ContentOutput } from "@shared/schema";
 import { FEATURES } from "./lib/features";
@@ -1295,4 +1302,94 @@ OUTPUT ONLY THE REWRITTEN TEXT:`;
     console.error('Remix text error:', error);
     throw new Error('Failed to remix text');
   }
+}
+/**
+ * Helper function to build HookAdaptationContext from user inputs
+ * Extracts UAV/SPCL markers from discovery answers
+ */
+function buildHookAdaptationContext(inputs: Record<string, unknown>): HookAdaptationContext {
+    const context: HookAdaptationContext = {
+        topic: (inputs.topic as string) || '',
+        targetAudience: inputs.targetAudience as string,
+        goal: inputs.goal as string,
+        platforms: Array.isArray(inputs.platforms) ? inputs.platforms as string[] : undefined
+    };
+
+    // Extract UAV markers from discovery answers or inputs
+    const discoveryAnswers = inputs.discoveryAnswers as Record<string, string> | undefined;
+
+    if (discoveryAnswers) {
+        // Look for UAV indicators in discovery answers
+        const uavIndicators = {
+            uniqueIntersection: null as string | null,
+            contrarianView: null as string | null,
+            proprietaryMethod: null as string | null
+        };
+
+        for (const [_, answer] of Object.entries(discoveryAnswers)) {
+            const lowerAnswer = answer.toLowerCase();
+
+            // Detect unique intersection (e.g., "developer AND marketer")
+            if (lowerAnswer.includes('and') && (lowerAnswer.includes('also') || lowerAnswer.includes('both'))) {
+                uavIndicators.uniqueIntersection = answer;
+            }
+
+            // Detect contrarian view
+            if (lowerAnswer.includes('but') || lowerAnswer.includes('however') || lowerAnswer.includes('actually')) {
+                uavIndicators.contrarianView = answer;
+            }
+
+            // Detect proprietary method/system
+            if (lowerAnswer.includes('system') || lowerAnswer.includes('method') || lowerAnswer.includes('framework')) {
+                uavIndicators.proprietaryMethod = answer;
+            }
+        }
+
+        if (Object.values(uavIndicators).some(v => v !== null)) {
+            context.uav = {
+                description: uavIndicators.uniqueIntersection || uavIndicators.contrarianView || '',
+                uniqueIntersection: uavIndicators.uniqueIntersection || undefined,
+                contrarianView: uavIndicators.contrarianView || undefined,
+                proprietaryMethod: uavIndicators.proprietaryMethod || undefined
+            };
+        }
+
+        // Extract SPCL markers
+        const spclMarkers = {
+            status: [] as string[],
+            power: [] as string[],
+            credibility: [] as string[],
+            likeness: [] as string[]
+        };
+
+        for (const [_, answer] of Object.entries(discoveryAnswers)) {
+            const lowerAnswer = answer.toLowerCase();
+
+            // Status markers
+            if (lowerAnswer.includes('former') || lowerAnswer.includes('worked at') || lowerAnswer.includes('position')) {
+                spclMarkers.status.push(answer);
+            }
+
+            // Power markers
+            if (lowerAnswer.includes('spent $') || lowerAnswer.includes('invested') || lowerAnswer.includes('tested')) {
+                spclMarkers.power.push(answer);
+            }
+
+            // Credibility markers
+            if (lowerAnswer.match(/\d+/) && (lowerAnswer.includes('generated') || lowerAnswer.includes('result') || lowerAnswer.includes('clients'))) {
+                spclMarkers.credibility.push(answer);
+            }
+
+            // Likeness markers
+            if (lowerAnswer.includes('failed') || lowerAnswer.includes('struggled') || lowerAnswer.includes('bombed')) {
+                spclMarkers.likeness.push(answer);
+            }
+        }
+
+        if (Object.values(spclMarkers).some(arr => arr.length > 0)) {
+            context.spcl = spclMarkers;
+        }
+    }
+
+    return context;
 }
