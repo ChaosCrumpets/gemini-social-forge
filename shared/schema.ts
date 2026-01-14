@@ -142,7 +142,6 @@ export const storyboardFrameSchema = z.object({
 
 export type StoryboardFrame = z.infer<typeof storyboardFrameSchema>;
 
-// Tech specs schema
 export const techSpecsSchema = z.object({
   aspectRatio: z.string(),
   resolution: z.string(),
@@ -154,6 +153,39 @@ export const techSpecsSchema = z.object({
 });
 
 export type TechSpecs = z.infer<typeof techSpecsSchema>;
+
+// Cinematography schema (enhanced TechSpecs with dual-mode guidance)
+export const cinematographySchema = z.object({
+  // Technical specs (preserved from TechSpecs)
+  aspectRatio: z.string().optional(),
+  resolution: z.string().optional(),
+  frameRate: z.string().optional(),
+  duration: z.string().optional(),
+  audioFormat: z.string().optional(),
+  exportFormat: z.string().optional(),
+  platforms: z.array(z.string()).optional(),
+
+  // Amateur mode guidance
+  amateurMode: z.object({
+    equipment: z.array(z.string()),
+    tips: z.array(z.string()),
+    warnings: z.array(z.string()).optional()
+  }).optional(),
+
+  // Professional mode guidance
+  professionalMode: z.object({
+    cameraSettings: z.object({
+      aperture: z.string().optional(),
+      shutterSpeed: z.string().optional(),
+      iso: z.string().optional(),
+      whiteBalance: z.string().optional()
+    }).optional(),
+    lighting: z.array(z.string()).optional(),
+    lensRecommendations: z.array(z.string()).optional()
+  }).optional()
+});
+
+export type Cinematography = z.infer<typeof cinematographySchema>;
 
 // B-Roll suggestion schema with AI generation prompts
 export const bRollItemSchema = z.object({
@@ -178,13 +210,35 @@ export const captionSchema = z.object({
 
 export type Caption = z.infer<typeof captionSchema>;
 
-// Full content output schema (the 5-panel output)
+// Deployment strategy schema (6th panel)
+export const deploymentSchema = z.object({
+  strategy: z.string(),
+  platforms: z.array(z.object({
+    name: z.string(),
+    priority: z.number(),
+    postingTime: z.string(),
+    caption: z.string(),
+    hashtags: z.array(z.string()),
+    thumbnail: z.string().optional()
+  })),
+  crossPromotion: z.string().optional(),
+  timing: z.object({
+    interval: z.string().optional(),
+    schedule: z.array(z.string()).optional()
+  }).optional()
+});
+
+export type Deployment = z.infer<typeof deploymentSchema>;
+
+// Full content output schema (now 6 panels: Script, Storyboard, Cinematography, B-Roll, Captions, Deployment)
 export const contentOutputSchema = z.object({
   script: z.array(scriptLineSchema),
   storyboard: z.array(storyboardFrameSchema),
-  techSpecs: techSpecsSchema,
+  techSpecs: techSpecsSchema.optional(), // Deprecated: use cinematography instead
+  cinematography: cinematographySchema.optional(),
   bRoll: z.array(bRollItemSchema),
-  captions: z.array(captionSchema)
+  captions: z.array(captionSchema),
+  deployment: deploymentSchema.optional()
 });
 
 export type ContentOutput = z.infer<typeof contentOutputSchema>;
