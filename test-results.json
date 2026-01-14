@@ -1,31 +1,77 @@
-[
-  {
-    "name": "Health check",
-    "status": "PASS",
-    "result": "<!DOCTYPE html>\n<html lang=\"en\">\n  <head>\n    <script type=\"module\">\nimport { createHotContext } from \"/@vite/client\";\nconst hot = createHotContext(\"/__dummy__runtime-error-plugin\");\n\nfunction sendError(error) {\n  if (!(error instanceof Error)) {\n    error = new Error(\"(unknown runtime error)\");\n  }\n  const serialized = {\n    message: error.message,\n    stack: error.stack,\n  };\n  hot.send(\"runtime-error-plugin:error\", serialized);\n}\n\nwindow.addEventListener(\"error\", (evt) => {\n  sendError(evt.error);\n});\n\nwindow.addEventListener(\"unhandledrejection\", (evt) => {\n  sendError(evt.reason);\n});\n</script>\n\n    <script type=\"module\">import { injectIntoGlobalHook } from \"/@react-refresh\";\ninjectIntoGlobalHook(window);\nwindow.$RefreshReg$ = () => {};\nwindow.$RefreshSig$ = () => (type) => type;</script>\n\n    <script type=\"module\" src=\"/@vite/client\"></script>\n\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1\" />\n    <link rel=\"icon\" type=\"image/png\" href=\"/favicon.png\" />\n    <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n    <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n    <link href=\"https://fonts.googleapis.com/css2?family=Architects+Daughter&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fira+Code:wght@300..700&family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Outfit:wght@100..900&family=Oxanium:wght@200..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Roboto+Mono:ital,wght@0,100..700;1,100..700&family=Roboto:ital,wght@0,100..900;1,100..900&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=Space+Grotesk:wght@300..700&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap\" rel=\"stylesheet\">\n  </head>\n  <body class=\"dark\">\n    <div id=\"root\"></div>\n    <script type=\"module\" src=\"/src/main.tsx?v=T2tnkq-L9ls_een8hZsH-\"></script>\n  </body>\n</html>"
-  },
-  {
-    "name": "Create admin",
-    "status": "PASS",
-    "result": {
-      "success": true,
-      "message": "Admin user created successfully!",
-      "credentials": {
-        "email": "admin@test.com",
-        "password": "admin123"
-      },
-      "user": {
-        "uid": "xjEnVUC0QyUgXFDmTBXQMYsKV082",
-        "email": "admin@test.com",
-        "role": "admin",
-        "tier": "diamond"
-      }
+{
+  "total": 17,
+  "passed": 17,
+  "failed": 0,
+  "successRate": "100.0%",
+  "allPassed": true,
+  "results": [
+    {
+      "name": "Enhanced prompt file exists",
+      "status": "PASS"
+    },
+    {
+      "name": "Enhanced prompt has export",
+      "status": "PASS"
+    },
+    {
+      "name": "Enhanced prompt is substantial",
+      "status": "PASS"
+    },
+    {
+      "name": "Backticks properly escaped",
+      "status": "PASS"
+    },
+    {
+      "name": "Enhanced prompt has subsystems",
+      "status": "PASS"
+    },
+    {
+      "name": "gemini.ts imports enhanced prompt",
+      "status": "PASS"
+    },
+    {
+      "name": "gemini.ts imports features",
+      "status": "PASS"
+    },
+    {
+      "name": "Legacy prompt renamed",
+      "status": "PASS"
+    },
+    {
+      "name": "Selector function exists",
+      "status": "PASS"
+    },
+    {
+      "name": "Selector has both branches",
+      "status": "PASS"
+    },
+    {
+      "name": "Prompt references updated",
+      "status": "PASS"
+    },
+    {
+      "name": "Feature flag configured",
+      "status": "PASS"
+    },
+    {
+      "name": "Feature flag defaults false",
+      "status": "PASS"
+    },
+    {
+      "name": "Valid TypeScript syntax",
+      "status": "PASS"
+    },
+    {
+      "name": "Selector has correct signature",
+      "status": "PASS"
+    },
+    {
+      "name": "Legacy prompt preserved",
+      "status": "PASS"
+    },
+    {
+      "name": "Legacy has word count formula",
+      "status": "PASS"
     }
-  },
-  {
-    "name": "Login",
-    "status": "FAIL",
-    "error": "No token in response",
-    "stack": "Error: No token in response\n    at <anonymous> (C:\\Users\\tobis\\OneDrive\\Documents\\Information and Knowledge\\AI\\Gemini-Social-Forge_4 - Copy\\Gemini-Social-Forge\\scripts\\test-detailed.ts:66:40)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async test (C:\\Users\\tobis\\OneDrive\\Documents\\Information and Knowledge\\AI\\Gemini-Social-Forge_4 - Copy\\Gemini-Social-Forge\\scripts\\test-detailed.ts:30:24)\n    at async runTests (C:\\Users\\tobis\\OneDrive\\Documents\\Information and Knowledge\\AI\\Gemini-Social-Forge_4 - Copy\\Gemini-Social-Forge\\scripts\\test-detailed.ts:60:23)"
-  }
-]
+  ]
+}
