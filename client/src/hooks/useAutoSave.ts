@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { apiRequest } from '@/lib/queryClient';
 import type { Project } from '@shared/schema';
 
 export function useAutoSave(firestoreId: string | null) {
@@ -62,18 +63,17 @@ export function useAutoSave(firestoreId: string | null) {
             });
             // updateData.updatedAt = serverTimestamp(); // Backend handles timestamps
 
-            // Use backend API
-            const response = await fetch(`/api/sessions/${id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(updateData),
-            });
+            // Use backend API with authentication via apiRequest helper
+            console.log('🔄 [AUTO-SAVE] Saving session:', id);
+            const response = await apiRequest('PATCH', `/api/sessions/${id}`, updateData);
 
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ [AUTO-SAVE] PATCH failed:', response.status, errorText);
                 throw new Error('Failed to save session');
             }
+
+            console.log('✅ [AUTO-SAVE] Session saved successfully');
 
             if (isMountedRef.current) {
                 setSaveStatus('saved');

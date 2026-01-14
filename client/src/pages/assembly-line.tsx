@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
+import { useLocation, useSearch } from 'wouter';
 import { SkeletonCard } from '@/components/LoadingStates';
 import { useProjectStore } from '@/lib/store';
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,10 @@ interface DiscoveryQuestion {
 }
 
 export default function AssemblyLine() {
+  // Get location and search params from wouter to track URL changes
+  const [location] = useLocation();
+  const searchString = useSearch(); // This is reactive to query param changes!
+
   const {
     project,
     initProject,
@@ -76,6 +81,18 @@ export default function AssemblyLine() {
     setCurrentSessionId,
     loadSession
   } = useProjectStore();
+
+  // Component render logging (after hooks so currentSessionId is available)
+  // Extract session ID from reactive search string
+  const sessionIdFromUrl = new URLSearchParams(searchString).get('session');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('🏁 [ASSEMBLY LINE] Component render');
+  console.log('🏁 [ASSEMBLY LINE] Session ID from URL:', sessionIdFromUrl);
+  console.log('🏁 [ASSEMBLY LINE] Current session ID:', currentSessionId);
+  console.log('🏁 [ASSEMBLY LINE] URL:', window.location.href);
+  console.log('🏁 [ASSEMBLY LINE] Location (wouter):', location);
+  console.log('🏁 [ASSEMBLY LINE] Timestamp:', new Date().toISOString());
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   const [showVisualContextForm, setShowVisualContextForm] = useState(false);
   const [localVisualContext, setLocalVisualContext] = useState<VisualContext>({
@@ -113,12 +130,21 @@ export default function AssemblyLine() {
     }
   }, [project?.inputs?.topic, project?.inputs, project?.selectedHook, project?.status, currentSessionId, save]);
 
+  // 🔍 DEBUG: Watch for output changes
+  useEffect(() => {
+    console.log(' PROJECT OUTPUT CHANGED:', {
+      hasOutput: !!project?.output,
+      scriptLength: project?.output?.script?.length,
+      lastScriptLine: project?.output?.script?.[project.output.script.length - 1],
+      storyboardLength: project?.output?.storyboard?.length,
+      timestamp: new Date().toISOString()
+    });
+  }, [project?.output]);
+
   useEffect(() => {
     const hydrateFromUrl = async () => {
-      if (hydrationAttempted) return;
-      setHydrationAttempted(true);
-
-      const urlSessionId = getSessionIdFromUrl();
+      // Use sessionIdFromUrl from dependency, not re-fetch
+      const urlSessionId = sessionIdFromUrl;
 
       if (!urlSessionId) {
         console.log('📝 No session in URL - creating new session...');
@@ -179,25 +205,90 @@ export default function AssemblyLine() {
 
       try {
         setLoading(true);
-        console.log('📡 Fetching session data from server...');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('📡 [HYDRATION] Fetching session data from server...');
+        console.log('📡 [HYDRATION] Session ID:', sessionIdNum);
+        console.log('📡 [HYDRATION] URL:', `/api/sessions/${sessionIdNum}`);
 
         const response = await apiRequest('GET', `/api/sessions/${sessionIdNum}`);
 
+        console.log('📡 [HYDRATION] Response status:', response.status);
+        console.log('📡 [HYDRATION] Response ok:', response.ok);
+
         if (!response.ok) {
-          throw new Error(`Server returned ${response.status}`);
+          const errorText = await response.text();
+          console.error('❌ [HYDRATION] API error response:', errorText);
+          throw new Error(`Server returned ${response.status}: ${errorText}`);
+        }
+
+        // Get raw text first for debugging
+        const responseText = await response.text();
+        console.log('📡 [HYDRATION] Raw response (first 500 chars):', responseText.substring(0, 500));
+
+        // Parse JSON
+        let rawData;
+        try {
+          rawData = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('❌ [HYDRATION] JSON parse failed:', parseError);
+          throw new Error('Server returned invalid JSON');
+        }
+
+        console.log('📡 [HYDRATION] Parsed response:', rawData);
+        console.log('📡 [HYDRATION] Response type:', typeof rawData);
+        console.log('📡 [HYDRATION] Response keys:', Object.keys(rawData || {}));
+        console.log('📡 [HYDRATION] Has "session" property:', 'session' in (rawData || {}));
+        console.log('📡 [HYDRATION] Has "messages" property:', 'messages' in (rawData || {}));
+        console.log('📡 [HYDRATION] Has "editMessages" property:', 'editMessages' in (rawData || {}));
+
+        // Validate structure
+        if (!rawData) {
+          console.error('❌ [HYDRATION] Response is null or undefined');
+          throw new Error('Response is null or undefined');
+        }
+
+        // Check if response has expected structure
+        if (!rawData.session) {
+          console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+          console.error('❌ [HYDRATION] CRITICAL: Response missing "session" property!');
+          console.error('❌ [HYDRATION] Expected: {session: {...}, messages: [], editMessages: []}');
+          console.error('❌ [HYDRATION] Actual structure:', rawData);
+          console.error('❌ [HYDRATION] All keys found:', Object.keys(rawData));
+          console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+          // Try to recover if data looks like a session object
+          if (rawData.id && rawData.title) {
+            console.warn('⚠️ [HYDRATION] Response looks like unwrapped session, attempting recovery');
+            rawData = {
+              session: rawData,
+              messages: rawData.messages || [],
+              editMessages: rawData.editMessages || []
+            };
+            console.log('⚠️ [HYDRATION] Wrapped response:', rawData);
+          } else {
+            throw new Error('Invalid response format - no session property and cannot recover');
+          }
+        }
+
+        // Validate session has id
+        if (!rawData.session.id) {
+          console.error('❌ [HYDRATION] Session object is missing id property');
+          console.error('❌ [HYDRATION] Session object:', rawData.session);
+          throw new Error('Session data is incomplete - missing id');
         }
 
         const data: {
           session: Session;
           messages: SessionMessage[];
           editMessages: SessionMessage[];
-        } = await response.json();
+        } = rawData;
 
-        console.log('✅ Session data loaded:', {
-          id: data.session.id,
-          title: data.session.title,
-          messageCount: data.messages.length
-        });
+        console.log('✅ [HYDRATION] Session data validated successfully!');
+        console.log('✅ [HYDRATION] Session ID:', data.session.id);
+        console.log('✅ [HYDRATION] Session title:', data.session.title);
+        console.log('✅ [HYDRATION] Message count:', data.messages.length);
+        console.log('✅ [HYDRATION] Edit message count:', data.editMessages.length);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         loadSession(data.session, data.messages, data.editMessages);
 
@@ -231,8 +322,13 @@ export default function AssemblyLine() {
       }
     };
 
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔄 [HYDRATION EFFECT] Effect triggered');
+    console.log('🔄 [HYDRATION EFFECT] Dependencies: [sessionIdFromUrl]');
+    console.log('🔄 [HYDRATION EFFECT] Session ID from URL:', sessionIdFromUrl);
+
     hydrateFromUrl();
-  }, [hydrationAttempted]);
+  }, [sessionIdFromUrl]); // ✅ CRITICAL FIX: Watch sessionIdFromUrl which CHANGES, not location which stays "/app"!
 
   useEffect(() => {
     if (isHydrating) return;
@@ -626,7 +722,19 @@ export default function AssemblyLine() {
   }, [goToStage]);
 
   const handleConfirmAndGenerate = useCallback(async () => {
-    if (!project || !project.selectedHooks) return;
+    console.log('🟦 FRONTEND: handleConfirmAndGenerate - START', {
+      timestamp: new Date().toISOString()
+    });
+
+    if (!project || !project.selectedHooks) {
+      console.warn('🟨 FRONTEND: Project or selected hooks missing, aborting generation.');
+      return;
+    }
+
+    if (isLoading) {
+      console.warn('🟨 FRONTEND: Already loading, ignoring duplicate request');
+      return;
+    }
 
     setLoading(true);
     setStatus(ProjectStatus.GENERATING);
@@ -640,7 +748,20 @@ export default function AssemblyLine() {
     ];
     setAgents(contentAgents);
 
+    console.log('🟦 FRONTEND: Preparing request', {
+      hasInputs: !!project.inputs,
+      hasSelectedHooks: !!project.selectedHooks,
+      topic: project.inputs?.topic,
+      platforms: project.inputs?.platforms,
+      selectedHooksKeys: project.selectedHooks ? Object.keys(project.selectedHooks) : []
+    });
+
     try {
+      console.log('🟦 FRONTEND: Calling API', {
+        endpoint: '/api/generate-content-multi',
+        method: 'POST'
+      });
+
       const response = await withTimeout(
         apiRequest('POST', '/api/generate-content-multi', {
           inputs: project.inputs,
@@ -650,7 +771,21 @@ export default function AssemblyLine() {
         'Generation timed out'
       );
 
+      console.log('🟦 FRONTEND: Response received', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(Array.from(response.headers.entries()))
+      });
+
       const data = await response.json();
+
+      console.log('🟦 FRONTEND: Data parsed', {
+        hasOutput: !!data.output,
+        scriptsRemaining: data.scriptsRemaining,
+        outputKeys: data.output ? Object.keys(data.output) : [],
+        dataKeys: Object.keys(data)
+      });
 
       for (const agent of contentAgents) {
         await new Promise(resolve => setTimeout(resolve, 300));
@@ -663,6 +798,11 @@ export default function AssemblyLine() {
       }
 
       if (data.output) {
+        console.log('🟦 FRONTEND: Setting output', {
+          scriptLength: data.output.script?.length,
+          storyboardLength: data.output.storyboard?.length
+        });
+
         setOutput(data.output);
 
         const completeMessage: ChatMessage = {
@@ -680,9 +820,15 @@ export default function AssemblyLine() {
           });
           saveMessageToSession(currentSessionId, 'assistant', completeMessage.content);
         }
+      } else {
+        console.error('🔴 FRONTEND: No output in response', { data });
       }
     } catch (error: unknown) {
-      console.error('Content generation error:', error);
+      console.error('🔴 FRONTEND: Exception in handleConfirmAndGenerate', {
+        name: error instanceof Error ? error.name : 'unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
 
       setStatus(ProjectStatus.HOOK_OVERVIEW);
       setLoading(false);
@@ -723,11 +869,11 @@ export default function AssemblyLine() {
       setError('Failed to generate content. Please try again.');
     } finally {
       setLoading(false);
+      console.log('🟦 FRONTEND: handleConfirmAndGenerate - END');
     }
   }, [project, setLoading, setStatus, setAgents, updateAgent, setOutput, addMessage, setError, currentSessionId, updateSessionData, saveMessageToSession]);
 
   const handleEditMessage = useCallback(async (content: string) => {
-    if (!project || !project.output) return;
 
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -745,20 +891,42 @@ export default function AssemblyLine() {
     }
 
     try {
+      console.log('🟦 FRONTEND [Edit]: Sending edit request:', content);
+      console.log('🟦 FRONTEND [Edit]: Current output:', {
+        hasScript: !!project.output?.script,
+        scriptLength: project.output?.script?.length,
+        lastScriptLine: project.output?.script?.[project.output.script.length - 1]
+      });
+
       const response = await apiRequest('POST', '/api/edit-content', {
         message: content,
         currentOutput: project.output,
         messages: [...editMessages, userMessage]
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🔴 FRONTEND [Edit]: Response not OK:', response.status, errorText);
+        throw new Error(`Edit failed with status ${response.status}`);
+      }
+
       const data = await response.json();
+      console.log('🟦 FRONTEND [Edit]: Received response:', {
+        hasUpdatedOutput: !!data.updatedOutput,
+        updatedScriptLength: data.updatedOutput?.script?.length,
+        lastUpdatedLine: data.updatedOutput?.script?.[data.updatedOutput?.script?.length - 1]
+      });
 
       if (data.updatedOutput) {
+        console.log('✅ FRONTEND [Edit]: Calling setOutput with updated content');
         setOutput(data.updatedOutput);
+        console.log('✅ FRONTEND [Edit]: setOutput completed');
 
         if (currentSessionId) {
           updateSessionData(currentSessionId, { output: data.updatedOutput });
         }
+      } else {
+        console.error('❌ FRONTEND [Edit]: No updatedOutput in response');
       }
 
       if (data.message) {
@@ -774,8 +942,9 @@ export default function AssemblyLine() {
           saveMessageToSession(currentSessionId, 'assistant', data.message, true);
         }
       }
-    } catch (error) {
-      console.error('Edit error:', error);
+    } catch (error: any) {
+      console.error('🔴 FRONTEND [Edit]: Error:', error);
+      console.error('🔴 FRONTEND [Edit]: Error stack:', error.stack);
       setError('Failed to apply edit. Please try again.');
 
       const errorMessage: ChatMessage = {

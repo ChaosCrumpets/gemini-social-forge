@@ -203,11 +203,25 @@ export const sessionStorage = {
   },
 
   async getSessionWithMessages(id: number): Promise<SessionWithMessages | undefined> {
+    console.log('[getSessionWithMessages] Called for session:', id);
+
     const session = await this.getSession(id);
-    if (!session) return undefined;
+    if (!session) {
+      console.log('[getSessionWithMessages] Session not found');
+      return undefined;
+    }
+
+    console.log('[getSessionWithMessages] Session found:', {
+      id: session.id,
+      title: session.title,
+      hasMessages: 'messages' in session
+    });
 
     const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
-    if (!firestoreId) return undefined;
+    if (!firestoreId) {
+      console.log('[getSessionWithMessages] No Firestore ID found');
+      return undefined;
+    }
 
     const allMessages = await firestoreUtils.getMessages(firestoreId, true);
     const messages = allMessages
@@ -232,11 +246,22 @@ export const sessionStorage = {
         timestamp: m.timestamp.toDate(),
       }));
 
-    return {
+    const result = {
       session,
       messages,
       editMessages
     };
+
+    console.log('[getSessionWithMessages] Returning wrapped format:', {
+      hasSession: 'session' in result,
+      hasMessages: 'messages' in result,
+      hasEditMessages: 'editMessages' in result,
+      sessionId: result.session?.id,
+      messageCount: result.messages?.length,
+      editMessageCount: result.editMessages?.length
+    });
+
+    return result;
   },
 
   async listSessions(userId?: string): Promise<Session[]> {

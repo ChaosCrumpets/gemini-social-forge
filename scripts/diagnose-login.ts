@@ -88,10 +88,10 @@ async function diagnoseLogin() {
 
             const data = await response.json();
 
-            if (response.ok && data.token) {
+            if (response.ok && (data as any).token) {
                 console.log('✅ Login endpoint working');
                 console.log(`   Status: ${response.status}`);
-                console.log(`   Token received: ${data.token.substring(0, 20)}...`);
+                console.log(`   Token received: ${(data as any).token.substring(0, 20)}...`);
             } else {
                 console.log('❌ Login endpoint failed');
                 console.log(`   Status: ${response.status}`);

@@ -19,7 +19,9 @@ import {
 } from "./gemini";
 import { queryDatabase } from "./queryDatabase";
 import { verifyFirebaseToken, optionalFirebaseAuth } from "./middleware/firebase-auth";
-import { requireAuth, requirePremium, requireAdmin, getUserFromRequest, incrementScriptCount, incrementUsageCount, checkUsageLimit } from "./middleware/auth-helpers";
+import { requireAuth, requirePremium, requireAdmin, getUserFromRequest, incrementScriptCount, incrementUsageCount, checkUsageLimit, requireScriptQuota, canGenerateScript } from "./middleware/auth-helpers";
+import { ensureUserExists, requireDbUser } from "./middleware/user-provisioning";
+import { debugLog, debugError } from "./lib/debug-logger";
 import { auth, firestore } from "./db";
 import { registerSchema, loginSchema, upgradeSchema, SubscriptionTier, TierInfo } from "@shared/schema";
 import * as firestoreUtils from "./lib/firestore";
@@ -49,6 +51,42 @@ export async function registerRoutes(
       timestamp
     });
   });
+
+  // ============================================
+  // DIAGNOSTIC MIDDLEWARE - TRACK ALL REQUESTS
+  // ============================================
+
+  // Log every incoming request
+  app.use((req, res, next) => {
+    debugLog('INCOMING REQUEST', {
+      method: req.method,
+      path: req.path,
+      headers: {
+        authorization: req.headers.authorization?.substring(0, 50) + '...',
+        contentType: req.headers['content-type']
+      },
+      bodyPreview: req.body ? Object.keys(req.body) : 'no body'
+    });
+    next();
+  });
+
+  // Track middleware execution
+  app.use((req, res, next) => {
+    const startTime = Date.now();
+    res.on('finish', () => {
+      debugLog('REQUEST COMPLETE', {
+        path: req.path,
+        status: res.statusCode,
+        duration: `${Date.now() - startTime}ms`
+      });
+    });
+    next();
+  });
+
+  // ============================================
+  // END DIAGNOSTIC MIDDLEWARE
+  // ============================================
+
 
 
   // ============================================
@@ -206,6 +244,25 @@ export async function registerRoutes(
     }
   });
 
+  // Get user quota information
+  app.get("/api/user/quota", requireAuth, ensureUserExists, requireDbUser, async (req: Request, res: Response) => {
+    try {
+      const dbUser = (req as any).dbUser;
+      const quota = await canGenerateScript(dbUser);
+
+      res.json({
+        currentTier: dbUser.subscriptionTier,
+        scriptsGenerated: dbUser.scriptsGenerated,
+        scriptsRemaining: quota.scriptsRemaining || 0,
+        resetDate: quota.resetDate?.toISOString(),
+        allowed: quota.allowed
+      });
+    } catch (error) {
+      console.error("[QuotaCheck] Error:", error);
+      res.status(500).json({ error: "Failed to fetch quota" });
+    }
+  });
+
   // Upgrade subscription tier (requires Firebase Auth)
   app.post("/api/upgrade", verifyFirebaseToken, async (req: Request, res: Response) => {
     try {
@@ -265,10 +322,10 @@ export async function registerRoutes(
   // ============================================
 
   // Create new session
-  app.post('/api/sessions', verifyFirebaseToken, requireAuth, async (req: Request, res: Response) => {
+  app.post('/api/sessions', verifyFirebaseToken, requireAuth, ensureUserExists, async (req: Request, res: Response) => {
     try {
-      const user = await getUserFromRequest(req);
-      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+      // Use req.user directly - ensureUserExists guarantees user exists
+      if (!req.user?.uid) return res.status(401).json({ error: 'Unauthorized' });
 
       const { title = 'New Project', ...otherData } = req.body;
 
@@ -277,7 +334,7 @@ export async function registerRoutes(
 
       const newSession = {
         id: sessionId,
-        userId: user.uid,
+        userId: req.user.uid,
         title,
         status: otherData.status || 'inputting',
         inputs: otherData.inputs || {},
@@ -294,7 +351,7 @@ export async function registerRoutes(
 
       await firestore.collection('sessions').doc(sessionId.toString()).set(newSession);
 
-      console.log(`[API] Created session ${sessionId} for user ${user.uid}`);
+      console.log(`[API] Created session ${sessionId} for user ${req.user.uid}`);
       res.json(newSession);
     } catch (error) {
       console.error('[API] Create session error:', error);
@@ -303,14 +360,14 @@ export async function registerRoutes(
   });
 
   // List all sessions for current user
-  app.get('/api/sessions', verifyFirebaseToken, requireAuth, async (req: Request, res: Response) => {
+  app.get('/api/sessions', verifyFirebaseToken, requireAuth, ensureUserExists, async (req: Request, res: Response) => {
     try {
-      const user = await getUserFromRequest(req);
-      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+      // Use req.user directly - ensureUserExists guarantees user exists
+      if (!req.user?.uid) return res.status(401).json({ error: 'Unauthorized' });
 
       const snapshot = await firestore
         .collection('sessions')
-        .where('userId', '==', user.uid)
+        .where('userId', '==', req.user.uid)
         .limit(50)
         .get();
 
@@ -335,14 +392,14 @@ export async function registerRoutes(
   });
 
   // Create new session
-  app.post('/api/sessions', verifyFirebaseToken, requireAuth, async (req: Request, res: Response) => {
+  app.post('/api/sessions', verifyFirebaseToken, requireAuth, ensureUserExists, async (req: Request, res: Response) => {
     try {
-      const user = await getUserFromRequest(req);
-      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+      // Use req.user directly - ensureUserExists guarantees user exists
+      if (!req.user?.uid) return res.status(401).json({ error: 'Unauthorized' });
 
-      console.log(`[API] Creating new session for user ${user.uid}`);
+      console.log(`[API] Creating new session for user ${req.user.uid}`);
 
-      const session = await sessionStorage.createSession(user.uid);
+      const session = await sessionStorage.createSession(req.user.uid);
 
       console.log(`[API] Session created successfully: ${session.id}`);
 
@@ -359,10 +416,10 @@ export async function registerRoutes(
 
 
   // Get single session by ID
-  app.get('/api/sessions/:id', verifyFirebaseToken, requireAuth, async (req: Request, res: Response) => {
+  app.get('/api/sessions/:id', verifyFirebaseToken, requireAuth, ensureUserExists, async (req: Request, res: Response) => {
     try {
-      const user = await getUserFromRequest(req);
-      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+      // Use req.user directly - ensureUserExists guarantees user exists
+      if (!req.user?.uid) return res.status(401).json({ error: 'Unauthorized' });
 
       const sessionId = req.params.id;
       const docRef = firestore.collection('sessions').doc(sessionId);
@@ -373,7 +430,7 @@ export async function registerRoutes(
       }
 
       const session = doc.data();
-      if (session?.userId !== user.uid) {
+      if (session?.userId !== req.user.uid) {
         return res.status(403).json({ error: 'Forbidden' });
       }
 
@@ -389,14 +446,14 @@ export async function registerRoutes(
     }
   });
 
-  // Update session
-  app.patch('/api/sessions/:id', verifyFirebaseToken, requireAuth, async (req: Request, res: Response) => {
+  // Update session data
+  app.patch('/api/sessions/:id', verifyFirebaseToken, requireAuth, ensureUserExists, async (req: Request, res: Response) => {
     try {
-      const user = await getUserFromRequest(req);
-      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+      // Use req.user directly - ensureUserExists guarantees user exists in Firestore
+      if (!req.user?.uid) return res.status(401).json({ error: 'Unauthorized' });
 
       const sessionId = req.params.id;
-      console.log(`[API] Updating session ${sessionId} for user ${user.uid}`);
+      console.log(`[API] Updating session ${sessionId} for user ${req.user.uid}`);
 
       const docRef = firestore.collection('sessions').doc(sessionId);
       const doc = await docRef.get();
@@ -407,8 +464,8 @@ export async function registerRoutes(
       }
 
       const session = doc.data();
-      if (session?.userId !== user.uid) {
-        console.log(`[API] Session ${sessionId} forbidden for user ${user.uid}`);
+      if (session?.userId !== req.user.uid) {
+        console.log(`[API] Session ${sessionId} forbidden for user ${req.user.uid}`);
         return res.status(403).json({ error: 'Forbidden' });
       }
 
@@ -458,10 +515,10 @@ export async function registerRoutes(
   });
 
   // Delete session
-  app.delete('/api/sessions/:id', verifyFirebaseToken, requireAuth, async (req: Request, res: Response) => {
+  app.delete('/api/sessions/:id', verifyFirebaseToken, requireAuth, ensureUserExists, async (req: Request, res: Response) => {
     try {
-      const user = await getUserFromRequest(req);
-      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+      // Use req.user directly - ensureUserExists guarantees user exists
+      if (!req.user?.uid) return res.status(401).json({ error: 'Unauthorized' });
 
       const sessionId = req.params.id;
       const docRef = firestore.collection('sessions').doc(sessionId);
@@ -472,7 +529,7 @@ export async function registerRoutes(
       }
 
       const session = doc.data();
-      if (session?.userId !== user.uid) {
+      if (session?.userId !== req.user.uid) {
         return res.status(403).json({ error: 'Forbidden' });
       }
 
@@ -487,7 +544,7 @@ export async function registerRoutes(
 
       await batch.commit();
 
-      console.log(`[API] Deleted session ${sessionId} for user ${user.uid}`);
+      console.log(`[API] Deleted session ${sessionId} for user ${req.user.uid}`);
       res.json({ success: true });
     } catch (error) {
       console.error('[API] Delete session error:', error);
@@ -823,31 +880,76 @@ export async function registerRoutes(
     }
   });
 
-  // New multi-hook content generation endpoint (Premium required)
-  app.post("/api/generate-content-multi", requireAuth, requirePremium, async (req, res) => {
+  // New multi-hook content generation endpoint (Quota-based)
+  app.post("/api/generate-content-multi", verifyFirebaseToken, requireAuth, ensureUserExists, requireDbUser, requireScriptQuota, async (req, res) => {
+    debugLog('ENDPOINT: generate-content-multi - START', {
+      hasUser: !!req.user,
+      userId: req.user?.uid,
+      hasDbUser: !!(req as any).dbUser,
+      hasQuota: !!(req as any).quota,
+      bodyKeys: req.body ? Object.keys(req.body) : []
+    });
+
     try {
       const { inputs, selectedHooks } = req.body;
 
+      // Validation
       if (!inputs) {
+        debugError('ENDPOINT: Missing inputs', { bodyKeys: Object.keys(req.body) });
         return res.status(400).json({ error: "Inputs are required" });
       }
 
       if (!selectedHooks || (!selectedHooks.text && !selectedHooks.verbal && !selectedHooks.visual)) {
+        debugError('ENDPOINT: Missing selectedHooks', {
+          hasSelectedHooks: !!selectedHooks,
+          selectedHooksKeys: selectedHooks ? Object.keys(selectedHooks) : []
+        });
         return res.status(400).json({ error: "At least one selected hook is required" });
       }
 
+      debugLog('ENDPOINT: Validated request body', {
+        topic: inputs.topic,
+        platforms: inputs.platforms,
+        targetAudience: inputs.targetAudience,
+        selectedHooksKeys: Object.keys(selectedHooks)
+      });
+
+      debugLog('ENDPOINT: Calling generateContentFromMultiHooks', {
+        functionExists: typeof generateContentFromMultiHooks === 'function'
+      });
+
       const response = await generateContentFromMultiHooks(inputs, selectedHooks);
 
-      // Increment script count for Bronze users using their free script
-      if ((req as any).isFreeScript && (req as any).dbUser?.id) {
-        await incrementScriptCount((req as any).dbUser.id);
+      debugLog('ENDPOINT: Content generated successfully', {
+        hasResponse: !!response,
+        responseKeys: response ? Object.keys(response) : []
+      });
+
+      // Increment script count (requireAuth guarantees req.user exists)
+      if (req.user?.uid) {
+        await incrementScriptCount(req.user.uid);
+        debugLog('ENDPOINT: Script count incremented', { uid: req.user.uid });
       }
 
-      res.json(response);
-    } catch (error) {
-      console.error("Multi-hook content generation error:", error);
+      const quota = (req as any).quota;
+
+      // response already has { output: ContentOutput }, just add scriptsRemaining
+      const finalResponse = {
+        ...response,
+        scriptsRemaining: Math.max(0, (quota?.scriptsRemaining || 1) - 1)
+      };
+
+      debugLog('ENDPOINT: Sending success response', {
+        hasOutput: !!finalResponse.output,
+        scriptsRemaining: finalResponse.scriptsRemaining
+      });
+
+      res.json(finalResponse);
+    } catch (error: any) {
+      debugError('ENDPOINT: generate-content-multi - EXCEPTION', error);
       res.status(500).json({
-        error: "Failed to generate content"
+        error: error.message || "Content generation failed",
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
   });
@@ -882,9 +984,17 @@ export async function registerRoutes(
   });
 
   // Edit content output via chat
-  app.post("/api/edit-content", requireAuth, requirePremium, async (req, res) => {
+  app.post("/api/edit-content", verifyFirebaseToken, requireAuth, ensureUserExists, async (req, res) => {
     try {
       const { message, currentOutput, messages } = req.body;
+
+      console.log('[EditContent] Request received:', {
+        hasMessage: !!message,
+        hasCurrentOutput: !!currentOutput,
+        messageLength: messages?.length || 0
+      });
+      console.log('[EDIT] Edit instruction:', message);
+      console.log('[EDIT] Current script last line:', currentOutput?.script?.[currentOutput?.script?.length - 1]);
 
       if (!message) {
         return res.status(400).json({ error: "Message is required" });
@@ -899,14 +1009,20 @@ export async function registerRoutes(
         content: msg.content
       }));
 
+      console.log('[EditContent] Calling editContent function');
       const response = await editContent(message, currentOutput, conversationHistory);
 
+      console.log('[EditContent] Success:', { hasUpdatedOutput: !!response.updatedOutput });
+      console.log('[EDIT] Updated script last line:', response.updatedOutput?.script?.[response.updatedOutput?.script?.length - 1]);
       res.json(response);
-    } catch (error) {
-      console.error("Edit content error:", error);
+
+    } catch (error: any) {
+      console.error("[EditContent] Error:", error);
+      console.error("[EditContent] Stack:", error.stack);
       res.status(500).json({
         error: "Failed to edit content",
-        message: "I apologize, but I'm having trouble processing your edit request. Please try again."
+        message: error.message || "I apologize, but I'm having trouble processing your edit request. Please try again.",
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
   });
@@ -1048,16 +1164,52 @@ export async function registerRoutes(
   app.get("/api/sessions/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('[GET /api/sessions/:id] Request received for session:', id);
+
       if (isNaN(id)) {
+        console.log('[GET /api/sessions/:id] Invalid session ID:', req.params.id);
         return res.status(400).json({ error: "Invalid session ID" });
       }
+
+      console.log('[GET /api/sessions/:id] Calling getSessionWithMessages...');
       const sessionData = await sessionStorage.getSessionWithMessages(id);
+
       if (!sessionData) {
+        console.log('[GET /api/sessions/:id] Session not found');
         return res.status(404).json({ error: "Session not found" });
       }
+
+      // CRITICAL: Log exactly what we got from storage
+      console.log('[GET /api/sessions/:id] Raw data from storage:', {
+        type: typeof sessionData,
+        isArray: Array.isArray(sessionData),
+        keys: Object.keys(sessionData || {}),
+        hasSession: 'session' in (sessionData || {}),
+        hasMessages: 'messages' in (sessionData || {}),
+        hasEditMessages: 'editMessages' in (sessionData || {})
+      });
+
+      console.log('[GET /api/sessions/:id] Session property type:', typeof sessionData?.session);
+      console.log('[GET /api/sessions/:id] Messages property type:', typeof sessionData?.messages);
+
+      // Log the structure
+      if (sessionData.session) {
+        console.log('[GET /api/sessions/:id] ✅ Has session wrapper');
+        console.log('[GET /api/sessions/:id] Session ID:', sessionData.session?.id);
+        console.log('[GET /api/sessions/:id] Messages count:', sessionData.messages?.length);
+        console.log('[GET /api/sessions/:id] Edit messages count:', sessionData.editMessages?.length);
+      } else {
+        console.log('[GET /api/sessions/:id] ❌ NO session wrapper - data is flat!');
+        console.log('[GET /api/sessions/:id] Direct ID:', (sessionData as any)?.id);
+      }
+
+      console.log('[GET /api/sessions/:id] Sending response...');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
       res.json(sessionData);
     } catch (error) {
-      console.error("Session fetch error:", error);
+      console.error("[GET /api/sessions/:id] Error:", error);
       res.status(500).json({ error: "Failed to fetch session" });
     }
   });
@@ -1143,7 +1295,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/sessions/:id", async (req, res) => {
+  app.patch("/api/sessions/:id", verifyFirebaseToken, requireAuth, ensureUserExists, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {

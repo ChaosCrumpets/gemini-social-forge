@@ -28,35 +28,37 @@ export async function verifyFirebaseToken(
         console.log(`[Auth] Verifying token. Header present: ${!!authHeader}`);
 
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            console.log("[Auth] No Bearer token found in header");
-            res.status(401).json({ message: "Unauthorized: No token provided" });
+            console.log("[Auth] No Bearer token found in header - continuing without user");
+            // Don't block the request - let requireAuth handle if auth is needed
+            next();
             return;
         }
 
         const token = authHeader.split("Bearer ")[1];
 
         if (!token) {
-            console.log("[Auth] Token is empty");
-            res.status(401).json({ message: "Unauthorized: Invalid token format" });
+            console.log("[Auth] Token is empty - continuing without user");
+            // Don't block the request - let requireAuth handle if auth is needed
+            next();
             return;
         }
 
         // Verify the Firebase ID token
-        // console.log(`[Auth] Verifying token: ${token.substring(0, 10)}...`);
         const decodedToken = await auth.verifyIdToken(token);
         console.log(`[Auth] Token verified for UID: ${decodedToken.uid}`);
 
         // Attach user information to request
         req.user = {
             uid: decodedToken.uid,
-            email: decodedToken.email,
-            ...decodedToken,
+            email: decodedToken.email
         };
 
         next();
     } catch (error) {
         console.error("Firebase token verification error:", error);
-        res.status(401).json({ message: "Unauthorized: Invalid token" });
+        // Don't block the request with 401 - let requireAuth middleware handle it
+        // This allows routes to decide if authentication is required
+        next();
     }
 }
 
@@ -91,8 +93,7 @@ export async function optionalFirebaseAuth(
             const decodedToken = await auth.verifyIdToken(token);
             req.user = {
                 uid: decodedToken.uid,
-                email: decodedToken.email,
-                ...decodedToken,
+                email: decodedToken.email
             };
         } catch {
             // Invalid token, but continue anyway

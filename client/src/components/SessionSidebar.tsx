@@ -80,15 +80,27 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
   };
 
   const handleSelectSession = async (sessionId: number) => {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🖱️ [SIDEBAR] Session clicked:', sessionId);
+    console.log('🖱️ [SIDEBAR] Current URL:', window.location.href);
+    console.log('🖱️ [SIDEBAR] Current search:', window.location.search);
+    console.log('🖱️ [SIDEBAR] Current session ID:', currentSessionId);
+    console.log('🖱️ [SIDEBAR] Timestamp:', new Date().toISOString());
+
     if (sessionId === currentSessionId) {
+      console.log('🖱️ [SIDEBAR] Same session selected, skipping');
       if (isMobile) onClose();
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       return;
     }
 
-    console.log('🔀 Navigating to session via URL:', sessionId);
+    console.log('🖱️ [SIDEBAR] Calling setLocation with:', `/app?session=${sessionId}`);
     setLocation(`/app?session=${sessionId}`, { replace: false });
+    console.log('🖱️ [SIDEBAR] After setLocation, URL:', window.location.href);
+    console.log('🖱️ [SIDEBAR] After setLocation, search:', window.location.search);
 
     if (isMobile) onClose();
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   };
 
   const handleDeleteSession = (e: React.MouseEvent, sessionId: number) => {

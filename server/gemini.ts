@@ -7,6 +7,21 @@ import type { ContentOutput } from "@shared/schema";
 // const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" }); // Replaced by router
 
 // ============================================
+// Utility Functions
+// ============================================
+
+/**
+ * Parses duration string to seconds
+ * Examples: "90s" -> 90, "60 seconds" -> 60, "1 minute" -> 60
+ */
+function parseDuration(duration: string | undefined): number {
+  if (!duration) return 60; // Default to 60 seconds
+
+  const match = duration.match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : 60;
+}
+
+// ============================================
 // Retry Logic & Error Handling
 // ============================================
 
@@ -198,8 +213,28 @@ STEP 4: OUTPUT (Return ONLY this JSON, no additional text):
 
 const CONTENT_GENERATION_PROMPT = `Generate a complete content package for short-form video using CHAIN-OF-THOUGHT reasoning.
 
+🎯 DURATION & LENGTH REQUIREMENTS (CRITICAL):
+You MUST generate scripts that match the specified duration EXACTLY.
+
+Duration-to-Word-Count Formula:
+- 15 seconds = 38 words (minimum)
+- 30 seconds = 75 words (minimum)
+- 60 seconds = 150 words (minimum)
+- 90 seconds = 225 words (minimum)
+- 120 seconds = 300 words (minimum)
+
+Speaking rate: 2.5 words per second (conversational pace)
+
+⚠️ CRITICAL RULES:
+1. Count the words in your script as you generate
+2. Do NOT stop writing until you reach the target word count
+3. If the user specifies "90 seconds", your script MUST be 200-250 words
+4. Short scripts that don't fill the duration are considered FAILURES
+
 STEP 1: CONTENT ARCHITECTURE ANALYSIS
 Before generating, reason through:
+- Duration constraints and pacing requirements (HOW MANY WORDS NEEDED)
+- Target word count calculation (duration × 2.5)
 - What is the core transformation or insight this content delivers?
 - What retention strategy will keep viewers watching? (Tension-release, escalation, surprise)
 - What call-to-action naturally flows from this content?
@@ -865,6 +900,13 @@ export async function generateContentFromMultiHooks(
   }
 ): Promise<ContentResponse> {
   try {
+    // CHANGE #3: Calculate target word count based on duration
+    const durationSeconds = parseDuration(inputs.duration as string);
+    const targetWordCount = Math.ceil(durationSeconds * 2.5); // 2.5 words/second
+    const minWordCount = Math.ceil(targetWordCount * 0.9);   // 90% of target
+    const maxWordCount = Math.ceil(targetWordCount * 1.1);   // 110% of target
+
+    // CHANGE #3: Enhanced prompt with duration emphasis
     const prompt = `${CONTENT_GENERATION_PROMPT}
 
 Content Details:
@@ -874,6 +916,18 @@ Content Details:
 - Target Audience: ${inputs.targetAudience || 'General audience'}
 - Tone: ${inputs.tone || 'Engaging and professional'}
 - Duration: ${inputs.duration || '30-60 seconds'}
+
+⏱️ CRITICAL DURATION REQUIREMENT:
+- Video duration: ${inputs.duration} (${durationSeconds} seconds)
+- Target script length: ${targetWordCount} words (${minWordCount}-${maxWordCount} words)
+- Speaking rate: 2.5 words per second
+- YOU MUST generate a script that fills the ENTIRE ${durationSeconds} seconds
+
+📊 WORD COUNT VALIDATION:
+- Count every word in your script
+- Your script MUST contain AT LEAST ${minWordCount} words
+- Your script SHOULD contain APPROXIMATELY ${targetWordCount} words
+- Do NOT generate a script shorter than ${minWordCount} words
 
 SELECTED HOOKS (Integrate all three into the content):
 
@@ -890,19 +944,81 @@ VISUAL HOOK (Opening Shot):
 - FIY Guide: ${selectedHooks.visual?.fiyGuide || 'Not selected'}
 - GenAI Prompt: ${selectedHooks.visual?.genAiPrompt || 'Not selected'}
 
-Generate a cohesive content package that integrates all three hook elements seamlessly:`;
+Remember: This is a ${inputs.duration} video requiring ${targetWordCount} words of script content.
+The script array must have enough lines to total ${targetWordCount} words for the full ${inputs.duration}.
 
-    const response = await llmRouter.generate({
-      messages: [{ role: 'user', content: prompt }],
-      category: 'content',
-      responseFormat: 'json'
+Generate a cohesive content package that integrates all three hook elements seamlessly.`;
+
+    // CHANGE #5: Build conversation history from inputs
+    const conversationHistory = [];
+
+    // Add topic context
+    if (inputs.topic) {
+      conversationHistory.push({
+        role: 'user' as const,
+        content: `I want to create content about: ${inputs.topic}`
+      });
+    }
+
+    // Add discovery answers if available
+    if (inputs.discoveryAnswers && typeof inputs.discoveryAnswers === 'object') {
+      Object.entries(inputs.discoveryAnswers as Record<string, string>).forEach(([question, answer]) => {
+        conversationHistory.push({
+          role: 'user' as const,
+          content: `${question}\nAnswer: ${answer}`
+        });
+      });
+    }
+
+    // Add selected hooks context
+    conversationHistory.push({
+      role: 'user' as const,
+      content: `I've selected these hooks:\n- Text: ${selectedHooks.text?.content || 'None'}\n- Verbal: ${selectedHooks.verbal?.content || 'None'}\n- Visual: ${selectedHooks.visual?.type || 'None'}`
     });
+
+    // Add final generation request
+    conversationHistory.push({
+      role: 'user' as const,
+      content: prompt
+    });
+
+    // LOGGING: Pre-generation diagnostics
+    console.log('📊 [CONTENT GENERATION] Starting...');
+    console.log('📊 [CONTENT GENERATION] Duration:', inputs.duration);
+    console.log('📊 [CONTENT GENERATION] Duration (seconds):', durationSeconds);
+    console.log('📊 [CONTENT GENERATION] Target word count:', targetWordCount);
+    console.log('📊 [CONTENT GENERATION] Min words:', minWordCount);
+    console.log('📊 [CONTENT GENERATION] Max words:', maxWordCount);
+
+    // CHANGES #1 & #2: Configure LLM with maxTokens: 8000, temperature: 0.8
+    const response = await llmRouter.generate({
+      messages: conversationHistory, // CHANGE #5: Use conversation history
+      category: 'content',
+      responseFormat: 'json',
+      maxTokens: 8000,      // CHANGE #1: Increased from default (2048)
+      temperature: 0.8       // CHANGE #2: Balanced creativity + consistency
+    });
+
+    console.log('📊 [CONTENT GENERATION] Temperature: 0.8');
+    console.log('📊 [CONTENT GENERATION] Max tokens: 8000');
 
     const parsed = JSON.parse(response.text || '');
 
     if (!parsed.output) {
       throw new Error('Invalid content response format');
     }
+
+    // LOGGING: Post-generation validation
+    const scriptWordCount = parsed.output.script
+      .map((line: { text: string }) => line.text.split(/\s+/).length)
+      .reduce((a: number, b: number) => a + b, 0);
+
+    console.log('✅ [CONTENT GENERATION] Complete');
+    console.log('✅ [CONTENT GENERATION] Generated word count:', scriptWordCount);
+    console.log('✅ [CONTENT GENERATION] Target was:', targetWordCount);
+    console.log('✅ [CONTENT GENERATION] Within range:',
+      scriptWordCount >= minWordCount && scriptWordCount <= maxWordCount ? 'YES ✅' : 'NO ❌'
+    );
 
     return parsed as ContentResponse;
   } catch (error) {

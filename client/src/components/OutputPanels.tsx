@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
@@ -22,7 +22,13 @@ export function OutputPanels({ output, onOutputUpdate, projectTitle = 'Script' }
   const [localOutput, setLocalOutput] = useState(output);
   const scriptRef = useRef<HTMLDivElement>(null);
   const { user, isLoading: isUserLoading } = useUser();
-  
+
+  // 🔥 CRITICAL FIX: Update localOutput when output prop changes
+  useEffect(() => {
+    console.log('🔄 OutputPanels: output prop changed, updating localOutput');
+    setLocalOutput(output);
+  }, [output]);
+
   const canExport = !isUserLoading && user?.subscriptionTier && user.subscriptionTier !== 'bronze';
 
   const handleScriptRemix = (originalText: string, remixedText: string) => {
@@ -30,7 +36,7 @@ export function OutputPanels({ output, onOutputUpdate, projectTitle = 'Script' }
       ...line,
       text: line.text.replace(originalText, remixedText)
     }));
-    
+
     const newOutput = { ...localOutput, script: updatedScript };
     setLocalOutput(newOutput);
     onOutputUpdate?.(newOutput);
@@ -38,7 +44,7 @@ export function OutputPanels({ output, onOutputUpdate, projectTitle = 'Script' }
 
   const handleExport = (type: 'csv' | 'srt' | 'pdf') => {
     if (!canExport) return;
-    
+
     switch (type) {
       case 'csv':
         exportToCSV(localOutput, projectTitle);
@@ -62,7 +68,7 @@ export function OutputPanels({ output, onOutputUpdate, projectTitle = 'Script' }
           <TabButton value="broll" icon={Video} label="B-Roll" />
           <TabButton value="captions" icon={MessageSquare} label="Captions" />
         </TabsList>
-        
+
         {isUserLoading ? (
           <Button variant="outline" size="sm" className="gap-2 opacity-50" disabled data-testid="button-export-loading">
             <Download className="w-4 h-4" />
@@ -107,33 +113,33 @@ export function OutputPanels({ output, onOutputUpdate, projectTitle = 'Script' }
           </Tooltip>
         )}
       </div>
-      
+
       <div className="flex-1 overflow-hidden">
         <ScrollArea className="h-full">
           <div className="p-8">
             <TabsContent value="script" className="mt-0">
               <div ref={scriptRef} className="relative">
                 <ScriptPanel lines={localOutput.script} />
-                <FloatingRemixMenu 
+                <FloatingRemixMenu
                   containerRef={scriptRef as React.RefObject<HTMLElement>}
                   onRemix={handleScriptRemix}
                   context={localOutput.script.map(l => l.text).join('\n')}
                 />
               </div>
             </TabsContent>
-            
+
             <TabsContent value="storyboard" className="mt-0">
               <StoryboardPanel frames={localOutput.storyboard} />
             </TabsContent>
-            
+
             <TabsContent value="tech" className="mt-0">
               <TechSpecsPanel specs={localOutput.techSpecs} />
             </TabsContent>
-            
+
             <TabsContent value="broll" className="mt-0">
               <BRollPanel items={localOutput.bRoll} />
             </TabsContent>
-            
+
             <TabsContent value="captions" className="mt-0">
               <CaptionsPanel captions={localOutput.captions} />
             </TabsContent>
@@ -152,7 +158,7 @@ interface TabButtonProps {
 
 function TabButton({ value, icon: Icon, label }: TabButtonProps) {
   return (
-    <TabsTrigger 
+    <TabsTrigger
       value={value}
       className="px-6 py-3 text-sm font-medium uppercase tracking-wide rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
       data-testid={`tab-${value}`}
@@ -167,7 +173,7 @@ function ScriptPanel({ lines }: { lines: ScriptLine[] }) {
   return (
     <div className="space-y-1" data-testid="panel-script">
       <PanelHeader title="Script" count={lines.length} unit="lines" />
-      
+
       <div className="font-mono text-sm space-y-2 mt-6">
         {lines.map((line) => (
           <div key={line.lineNumber} className="flex gap-4 group">
@@ -203,7 +209,7 @@ function StoryboardPanel({ frames }: { frames: StoryboardFrame[] }) {
   return (
     <div data-testid="panel-storyboard">
       <PanelHeader title="Storyboard" count={frames.length} unit="frames" />
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
         {frames.map((frame) => (
           <Card key={frame.frameNumber} className="p-4 border-card-border">
@@ -220,11 +226,11 @@ function StoryboardPanel({ frames }: { frames: StoryboardFrame[] }) {
                 </span>
               )}
             </div>
-            
+
             <p className="text-sm leading-relaxed mb-2">
               {frame.description}
             </p>
-            
+
             {frame.visualNotes && (
               <p className="text-xs text-muted-foreground italic mt-2">
                 {frame.visualNotes}
@@ -250,7 +256,7 @@ function TechSpecsPanel({ specs }: { specs: TechSpecs }) {
   return (
     <div data-testid="panel-tech-specs">
       <PanelHeader title="Technical Specifications" />
-      
+
       <div className="space-y-4 mt-6">
         {specItems.map((item) => (
           <div key={item.label} className="flex items-center justify-between py-3 border-b border-border last:border-0">
@@ -262,7 +268,7 @@ function TechSpecsPanel({ specs }: { specs: TechSpecs }) {
             </span>
           </div>
         ))}
-        
+
         {specs.platforms && specs.platforms.length > 0 && (
           <div className="pt-4">
             <span className="font-medium text-xs uppercase tracking-wide text-muted-foreground block mb-3">
@@ -333,14 +339,14 @@ function BRollPanel({ items }: { items: BRollItem[] }) {
   return (
     <div data-testid="panel-broll">
       <PanelHeader title="B-Roll Suggestions" count={items.length} unit="clips" />
-      
+
       <div className="space-y-4 mt-6">
         {items.map((item) => {
           const currentType = getSelectedType(item.id);
           const content = getContent(item, currentType);
           const copyId = `${item.id}-${currentType}`;
           const hasPrompts = item.imagePrompt || item.videoPrompt;
-          
+
           return (
             <Card key={item.id} className="p-4 border-card-border" data-testid={`broll-item-${item.id}`}>
               <div className="flex items-start justify-between gap-4 mb-3">
@@ -358,7 +364,7 @@ function BRollPanel({ items }: { items: BRollItem[] }) {
                   <span>Source: {item.source}</span>
                 </div>
               </div>
-              
+
               <div className="bg-muted/30 rounded-md p-3 mb-3 relative group">
                 <p className="text-sm leading-relaxed pr-8">{content}</p>
                 {(currentType === 'image' || currentType === 'video') && hasPrompts && (
@@ -377,7 +383,7 @@ function BRollPanel({ items }: { items: BRollItem[] }) {
                   </Button>
                 )}
               </div>
-              
+
               {item.keywords && item.keywords.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-3">
                   {item.keywords.map((keyword) => (
@@ -387,7 +393,7 @@ function BRollPanel({ items }: { items: BRollItem[] }) {
                   ))}
                 </div>
               )}
-              
+
               <div className="flex items-center justify-end gap-1 pt-2 border-t border-border">
                 <Button
                   size="sm"
@@ -434,7 +440,7 @@ function CaptionsPanel({ captions }: { captions: Caption[] }) {
   return (
     <div data-testid="panel-captions">
       <PanelHeader title="Captions" count={captions.length} unit="segments" />
-      
+
       <div className="space-y-3 mt-6">
         {captions.map((caption) => (
           <div key={caption.id} className="flex gap-4 py-2">
