@@ -6,11 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { FileText, Film, Settings, Video, MessageSquare, Camera, ImageIcon, Clapperboard, Copy, Check, Download, FileSpreadsheet, Subtitles, FileDown, Lock } from 'lucide-react';
+import { FileText, Film, Camera, Video, MessageSquare, Share2, Clapperboard, ImageIcon, Copy, Check, Download, FileSpreadsheet, Subtitles, FileDown, Lock } from 'lucide-react';
 import { FloatingRemixMenu } from './FloatingRemixMenu';
 import { exportToCSV, exportToSRT, exportToPDF } from '@/lib/exports';
 import { useUser } from '@/hooks/use-user';
-import type { ContentOutput, ScriptLine, StoryboardFrame, TechSpecs, BRollItem, Caption } from '@shared/schema';
+import type { ContentOutput, ScriptLine, StoryboardFrame, TechSpecs, Cinematography, BRollItem, Caption, Deployment } from '@shared/schema';
 
 interface OutputPanelsProps {
   output: ContentOutput;
@@ -64,9 +64,10 @@ export function OutputPanels({ output, onOutputUpdate, projectTitle = 'Script' }
         <TabsList className="bg-transparent h-auto p-0 gap-1">
           <TabButton value="script" icon={FileText} label="Script" />
           <TabButton value="storyboard" icon={Film} label="Storyboard" />
-          <TabButton value="tech" icon={Settings} label="Tech Specs" />
+          <TabButton value="cinema" icon={Camera} label="Cinematography" />
           <TabButton value="broll" icon={Video} label="B-Roll" />
           <TabButton value="captions" icon={MessageSquare} label="Captions" />
+          <TabButton value="deployment" icon={Share2} label="Deployment" />
         </TabsList>
 
         {isUserLoading ? (
@@ -132,8 +133,8 @@ export function OutputPanels({ output, onOutputUpdate, projectTitle = 'Script' }
               <StoryboardPanel frames={localOutput.storyboard} />
             </TabsContent>
 
-            <TabsContent value="tech" className="mt-0">
-              <TechSpecsPanel specs={localOutput.techSpecs} />
+            <TabsContent value="cinema" className="mt-0">
+              <CinematographyPanel specs={localOutput.cinematography || localOutput.techSpecs} />
             </TabsContent>
 
             <TabsContent value="broll" className="mt-0">
@@ -142,6 +143,17 @@ export function OutputPanels({ output, onOutputUpdate, projectTitle = 'Script' }
 
             <TabsContent value="captions" className="mt-0">
               <CaptionsPanel captions={localOutput.captions} />
+            </TabsContent>
+
+            <TabsContent value="deployment" className="mt-0">
+              {localOutput.deployment ? (
+                <DeploymentPanel deployment={localOutput.deployment} />
+              ) : (
+                <div className="text-center py-16 text-muted-foreground">
+                  <p>Deployment strategy not yet generated.</p>
+                  <p className="text-sm mt-2">This feature will be available with enhanced CAL prompt.</p>
+                </div>
+              )}
             </TabsContent>
           </div>
         </ScrollArea>
@@ -243,35 +255,76 @@ function StoryboardPanel({ frames }: { frames: StoryboardFrame[] }) {
   );
 }
 
-function TechSpecsPanel({ specs }: { specs: TechSpecs }) {
+function CinematographyPanel({ specs }: { specs?: Cinematography | TechSpecs }) {
+  const [mode, setMode] = useState<'amateur' | 'professional'>('amateur');
+
+  if (!specs) {
+    return (
+      <div data-testid="panel-cinematography">
+        <PanelHeader title="Cinematography & Director Notes" />
+        <p className="text-muted-foreground text-sm">No cinematography guidelines available.</p>
+      </div>
+    );
+  }
+
+  // Check if we have enhanced cinematography data  const hasCinematography = 'amateurMode' in specs || 'professionalMode' in specs;
+
   const specItems = [
     { label: 'Aspect Ratio', value: specs.aspectRatio },
     { label: 'Resolution', value: specs.resolution },
     { label: 'Frame Rate', value: specs.frameRate },
     { label: 'Duration', value: specs.duration },
-    { label: 'Audio Format', value: specs.audioFormat },
-    { label: 'Export Format', value: specs.exportFormat }
+    { label: 'Audio Format', value: 'audioFormat' in specs ? specs.audioFormat : undefined },
+    { label: 'Export Format', value: 'exportFormat' in specs ? specs.exportFormat : undefined }
   ].filter(item => item.value);
 
   return (
-    <div data-testid="panel-tech-specs">
-      <PanelHeader title="Technical Specifications" />
+    <div data-testid="panel-cinematography">
+      <PanelHeader title="Cinematography & Director Notes" />
 
-      <div className="space-y-4 mt-6">
-        {specItems.map((item) => (
-          <div key={item.label} className="flex items-center justify-between py-3 border-b border-border last:border-0">
-            <span className="font-medium text-xs uppercase tracking-wide text-muted-foreground">
-              {item.label}
-            </span>
-            <span className="text-sm font-mono">
-              {item.value}
-            </span>
-          </div>
-        ))}
+      {/* Mode Toggle (only show if enhanced data available) */}
+      {hasCinematography && 'amateurMode' in specs && 'professionalMode' in specs && (
+        <div className="flex gap-2 mb-6">
+          <Button
+            onClick={() => setMode('amateur')}
+            variant={mode === 'amateur' ? 'default' : 'outline'}
+            size="sm"
+            className="flex-1"
+          >
+            📱 Amateur Mode
+          </Button>
+          <Button
+            onClick={() => setMode('professional')}
+            variant={mode === 'professional' ? 'default' : 'outline'}
+            size="sm"
+            className="flex-1"
+          >
+            🎬 Professional Mode
+          </Button>
+        </div>
+      )}
+
+      {/* Technical Specifications */}
+      <div className="mb-6">
+        <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+          Technical Specifications
+        </h4>
+        <div className="space-y-3">
+          {specItems.map((item) => (
+            <div key={item.label} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+              <span className="font-medium text-xs uppercase tracking-wide text-muted-foreground">
+                {item.label}
+              </span>
+              <span className="text-sm font-mono">
+                {item.value}
+              </span>
+            </div>
+          ))}
+        </div>
 
         {specs.platforms && specs.platforms.length > 0 && (
           <div className="pt-4">
-            <span className="font-medium text-xs uppercase tracking-wide text-muted-foreground block mb-3">
+            <span className="font-medium text-xs uppercase tracking-wide text-muted-foreground block mb-2">
               Target Platforms
             </span>
             <div className="flex flex-wrap gap-2">
@@ -284,6 +337,110 @@ function TechSpecsPanel({ specs }: { specs: TechSpecs }) {
           </div>
         )}
       </div>
+
+      {/* Mode-Specific Guidance */}
+      {hasCinematography && 'amateurMode' in specs && mode === 'amateur' && specs.amateurMode && (
+        <div className="space-y-4">
+          <div>
+            <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Equipment Needed
+            </h4>
+            <ul className="list-disc list-inside space-y-1 text-sm">
+              {specs.amateurMode.equipment.map((item, idx) => (
+                <li key={idx}>{item}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Filming Tips
+            </h4>
+            <ul className="list-disc list-inside space-y-1 text-sm">
+              {specs.amateurMode.tips.map((tip, idx) => (
+                <li key={idx}>{tip}</li>
+              ))}
+            </ul>
+          </div>
+
+          {specs.amateurMode.warnings && specs.amateurMode.warnings.length > 0 && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+              <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-400 mb-2">
+                ⚠️ Warnings
+              </h4>
+              <ul className="list-disc list-inside space-y-1 text-sm text-amber-700 dark:text-amber-300">
+                {specs.amateurMode.warnings.map((warning, idx) => (
+                  <li key={idx}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {hasCinematography && 'professionalMode' in specs && mode === 'professional' && specs.professionalMode && (
+        <div className="space-y-4">
+          {specs.professionalMode.cameraSettings && (
+            <div>
+              <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                Camera Settings
+              </h4>
+              <div className="grid grid-cols-2 gap-3">
+                {specs.professionalMode.cameraSettings.aperture && (
+                  <div className="bg-muted/30 rounded p-2">
+                    <span className="text-xs text-muted-foreground block">Aperture</span>
+                    <span className="font-mono font-medium">{specs.professionalMode.cameraSettings.aperture}</span>
+                  </div>
+                )}
+                {specs.professionalMode.cameraSettings.shutterSpeed && (
+                  <div className="bg-muted/30 rounded p-2">
+                    <span className="text-xs text-muted-foreground block">Shutter Speed</span>
+                    <span className="font-mono font-medium">{specs.professionalMode.cameraSettings.shutterSpeed}</span>
+                  </div>
+                )}
+                {specs.professionalMode.cameraSettings.iso && (
+                  <div className="bg-muted/30 rounded p-2">
+                    <span className="text-xs text-muted-foreground block">ISO</span>
+                    <span className="font-mono font-medium">{specs.professionalMode.cameraSettings.iso}</span>
+                  </div>
+                )}
+                {specs.professionalMode.cameraSettings.whiteBalance && (
+                  <div className="bg-muted/30 rounded p-2">
+                    <span className="text-xs text-muted-foreground block">White Balance</span>
+                    <span className="font-mono font-medium">{specs.professionalMode.cameraSettings.whiteBalance}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {specs.professionalMode.lighting && specs.professionalMode.lighting.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                Lighting Setup
+              </h4>
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                {specs.professionalMode.lighting.map((light, idx) => (
+                  <li key={idx}>{light}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {specs.professionalMode.lensRecommendations && specs.professionalMode.lensRecommendations.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                Lens Recommendations
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {specs.professionalMode.lensRecommendations.map((lens, idx) => (
+                  <Badge key={idx} variant="outline">{lens}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -478,6 +635,106 @@ function PanelHeader({ title, count, unit }: PanelHeaderProps) {
         <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
           {count} {unit}
         </span>
+      )}
+    </div>
+  );
+}
+// Add DeploymentPanel component before CaptionsPanel
+
+function DeploymentPanel({ deployment }: { deployment: Deployment }) {
+  return (
+    <div data-testid="panel-deployment">
+      <PanelHeader title="Deployment Strategy" />
+      
+      <div className="mb-6">
+        <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+          Distribution Strategy
+        </h4>
+        <p className="text-sm leading-relaxed">
+          {deployment.strategy}
+        </p>
+      </div>
+      
+      <div className="space-y-4">
+        <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+          Platform Posting Schedule
+        </h4>
+        
+        {deployment.platforms.sort((a, b) => a.priority - b.priority).map((platform, idx) => (
+          <Card key={idx} className="p-4 border-card-border">
+            <div className="flex items-center gap-2 mb-3">
+              <Badge className="bg-primary text-primary-foreground">
+                Priority {platform.priority}
+              </Badge>
+              <h5 className="font-semibold">{platform.name}</h5>
+              <span className="ml-auto text-xs text-muted-foreground font-mono">
+                ðŸ“… {platform.postingTime}
+              </span>
+            </div>
+            
+            <div className="bg-muted/40 rounded-lg p-3 mb-3">
+              <p className="text-sm leading-relaxed">
+                {platform.caption}
+              </p>
+            </div>
+            
+            {platform.hashtags && platform.hashtags.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-xs uppercase tracking-wide text-muted-foreground">Hashtags</span>
+                <div className="flex flex-wrap gap-1">
+                  {platform.hashtags.map(tag => (
+                    <Badge key={tag} variant="outline" className="text-xs">
+                      #{tag}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {platform.thumbnail && (
+              <div className="mt-3 pt-3 border-t border-border">
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block mb-1">
+                  Thumbnail Recommendation
+                </span>
+                <p className="text-xs text-muted-foreground italic">
+                  {platform.thumbnail}
+                </p>
+              </div>
+            )}
+         </Card>
+        ))}
+      </div>
+      
+      {deployment.crossPromotion && (
+        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <h5 className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2 flex items-center gap-2">
+            ðŸ”„ Cross-Promotion Strategy
+          </h5>
+          <p className="text-sm text-blue-800 dark:text-blue-300">
+            {deployment.crossPromotion}
+          </p>
+        </div>
+      )}
+      
+      {deployment.timing && (
+        <div className="mt-4 p-4 bg-muted/30 rounded-lg">
+          <h5 className="text-sm font-semibold mb-2">â° Timing Recommendations</h5>
+          {deployment.timing.interval && (
+            <p className="text-sm mb-1">
+              <strong>Interval:</strong> {deployment.timing.interval}
+            </p>
+          )}
+          {deployment.timing.schedule && deployment.timing.schedule.length > 0 && (
+            <div className="mt-2">
+              <strong className="text-sm">Schedule:</strong>
+              <ul className="list-disc list-inside mt-1 text-sm space-y-0.5">
+                {deployment.timing.schedule.map((time, idx) => (
+                  <li key={idx}>{time}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
