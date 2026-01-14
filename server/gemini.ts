@@ -3,6 +3,8 @@ import { llmRouter } from "./lib/llm-router";
 import { getHookPatternSummary, getRelevantHookPatterns } from "./hookDatabase";
 import { queryDatabase, getAllCategories } from "./queryDatabase";
 import type { ContentOutput } from "@shared/schema";
+import { FEATURES } from "./lib/features";
+import { CONTENT_GENERATION_PROMPT_V2 } from "./prompts/cal-enhanced-v2";
 
 // const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" }); // Replaced by router
 
@@ -211,7 +213,8 @@ STEP 4: OUTPUT (Return ONLY this JSON, no additional text):
   ]
 }`;
 
-const CONTENT_GENERATION_PROMPT = `Generate a complete content package for short-form video using CHAIN-OF-THOUGHT reasoning.
+// Legacy prompt - maintained for backward compatibility
+const CONTENT_GENERATION_PROMPT_LEGACY = `Generate a complete content package for short-form video using CHAIN-OF-THOUGHT reasoning.
 
 🎯 DURATION & LENGTH REQUIREMENTS (CRITICAL):
 You MUST generate scripts that match the specified duration EXACTLY.
@@ -318,6 +321,20 @@ STEP 5: OUTPUT (Return ONLY this JSON, no additional text):
     ]
   }
 }`;
+
+/**
+ * Get the appropriate content generation prompt based on feature flags
+ * @returns The selected prompt (legacy or enhanced v2)
+ */
+export function getContentGenerationPrompt(): string {
+  if (FEATURES.USE_ENHANCED_CAL_PROMPT) {
+    console.log('🧠 [CAL] Using enhanced prompt v2.0 (neurobiology-grounded, 133KB)');
+    return CONTENT_GENERATION_PROMPT_V2;
+  }
+  console.log('📝 [CAL] Using legacy prompt v1.0');
+  return CONTENT_GENERATION_PROMPT_LEGACY;
+}
+
 
 export interface ChatResponse {
   message: string;
@@ -907,7 +924,7 @@ export async function generateContentFromMultiHooks(
     const maxWordCount = Math.ceil(targetWordCount * 1.1);   // 110% of target
 
     // CHANGE #3: Enhanced prompt with duration emphasis
-    const prompt = `${CONTENT_GENERATION_PROMPT}
+    const prompt = `${getContentGenerationPrompt()}
 
 Content Details:
 - Topic: ${inputs.topic || 'Not specified'}
@@ -1117,7 +1134,7 @@ export async function generateContent(
   selectedHook: { id: string; type: string; text: string; preview: string }
 ): Promise<ContentResponse> {
   try {
-    const prompt = `${CONTENT_GENERATION_PROMPT}
+    const prompt = `${getContentGenerationPrompt()}
 
 Content Details:
 - Topic: ${inputs.topic || 'Not specified'}
