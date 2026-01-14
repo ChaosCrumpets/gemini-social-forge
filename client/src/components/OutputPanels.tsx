@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FileText, Film, Camera, Video, MessageSquare, Share2, Clapperboard, ImageIcon, Copy, Check, Download, FileSpreadsheet, Subtitles, FileDown, Lock } from 'lucide-react';
 import { FloatingRemixMenu } from './FloatingRemixMenu';
+import { ErrorBoundary } from './ErrorBoundary';
 import { exportToCSV, exportToSRT, exportToPDF } from '@/lib/exports';
 import { useUser } from '@/hooks/use-user';
 import type { ContentOutput, ScriptLine, StoryboardFrame, TechSpecs, Cinematography, BRollItem, Caption, Deployment } from '@shared/schema';
@@ -134,7 +135,33 @@ export function OutputPanels({ output, onOutputUpdate, projectTitle = 'Script' }
             </TabsContent>
 
             <TabsContent value="cinema" className="mt-0">
-              <CinematographyPanel specs={localOutput.cinematography || localOutput.techSpecs} />
+              <ErrorBoundary
+                fallback={(error, reset) => (
+                  <div data-testid="panel-cinematography-error" className="p-8">
+                    <PanelHeader title="Cinematography & Director Notes" />
+                    <div className="text-center py-12 space-y-4">
+                      <p className="text-muted-foreground">
+                        Couldn't load cinematography panel
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {error.message || 'An unexpected error occurred'}
+                      </p>
+                      <Button
+                        onClick={() => {
+                          reset();
+                          window.location.reload();
+                        }}
+                        variant="outline"
+                        size="sm"
+                      >
+                        Try Again
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              >
+                <CinematographyPanel specs={localOutput.cinematography || localOutput.techSpecs} />
+              </ErrorBoundary>
             </TabsContent>
 
             <TabsContent value="broll" className="mt-0">
@@ -267,15 +294,29 @@ function CinematographyPanel({ specs }: { specs?: Cinematography | TechSpecs }) 
     );
   }
 
-  // Check if we have enhanced cinematography data  const hasCinematography = 'amateurMode' in specs || 'professionalMode' in specs;
+  // Additional safety check - ensure specs is an object
+  if (typeof specs !== 'object' || specs === null) {
+    console.error('CinematographyPanel: Invalid specs type', specs);
+    return (
+      <div data-testid="panel-cinematography">
+        <PanelHeader title="Cinematography & Director Notes" />
+        <p className="text-muted-foreground text-sm text-red-500">
+          Error loading cinematography data. Please try regenerating content.
+        </p>
+      </div>
+    );
+  }
+
+  // Check if we have enhanced cinematography data
+  const hasCinematography = 'amateurMode' in specs || 'professionalMode' in specs;
 
   const specItems = [
-    { label: 'Aspect Ratio', value: specs.aspectRatio },
-    { label: 'Resolution', value: specs.resolution },
-    { label: 'Frame Rate', value: specs.frameRate },
-    { label: 'Duration', value: specs.duration },
-    { label: 'Audio Format', value: 'audioFormat' in specs ? specs.audioFormat : undefined },
-    { label: 'Export Format', value: 'exportFormat' in specs ? specs.exportFormat : undefined }
+    { label: 'Aspect Ratio', value: specs?.aspectRatio },
+    { label: 'Resolution', value: specs?.resolution },
+    { label: 'Frame Rate', value: specs?.frameRate },
+    { label: 'Duration', value: specs?.duration },
+    { label: 'Audio Format', value: ('audioFormat' in specs && specs.audioFormat) ? specs.audioFormat : undefined },
+    { label: 'Export Format', value: ('exportFormat' in specs && specs.exportFormat) ? specs.exportFormat : undefined }
   ].filter(item => item.value);
 
   return (
@@ -645,7 +686,7 @@ function DeploymentPanel({ deployment }: { deployment: Deployment }) {
   return (
     <div data-testid="panel-deployment">
       <PanelHeader title="Deployment Strategy" />
-      
+
       <div className="mb-6">
         <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
           Distribution Strategy
@@ -654,12 +695,12 @@ function DeploymentPanel({ deployment }: { deployment: Deployment }) {
           {deployment.strategy}
         </p>
       </div>
-      
+
       <div className="space-y-4">
         <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
           Platform Posting Schedule
         </h4>
-        
+
         {deployment.platforms.sort((a, b) => a.priority - b.priority).map((platform, idx) => (
           <Card key={idx} className="p-4 border-card-border">
             <div className="flex items-center gap-2 mb-3">
@@ -671,13 +712,13 @@ function DeploymentPanel({ deployment }: { deployment: Deployment }) {
                 ðŸ“… {platform.postingTime}
               </span>
             </div>
-            
+
             <div className="bg-muted/40 rounded-lg p-3 mb-3">
               <p className="text-sm leading-relaxed">
                 {platform.caption}
               </p>
             </div>
-            
+
             {platform.hashtags && platform.hashtags.length > 0 && (
               <div className="space-y-2">
                 <span className="text-xs uppercase tracking-wide text-muted-foreground">Hashtags</span>
@@ -690,7 +731,7 @@ function DeploymentPanel({ deployment }: { deployment: Deployment }) {
                 </div>
               </div>
             )}
-            
+
             {platform.thumbnail && (
               <div className="mt-3 pt-3 border-t border-border">
                 <span className="text-xs uppercase tracking-wide text-muted-foreground block mb-1">
@@ -701,10 +742,10 @@ function DeploymentPanel({ deployment }: { deployment: Deployment }) {
                 </p>
               </div>
             )}
-         </Card>
+          </Card>
         ))}
       </div>
-      
+
       {deployment.crossPromotion && (
         <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
           <h5 className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2 flex items-center gap-2">
@@ -715,7 +756,7 @@ function DeploymentPanel({ deployment }: { deployment: Deployment }) {
           </p>
         </div>
       )}
-      
+
       {deployment.timing && (
         <div className="mt-4 p-4 bg-muted/30 rounded-lg">
           <h5 className="text-sm font-semibold mb-2">â° Timing Recommendations</h5>
