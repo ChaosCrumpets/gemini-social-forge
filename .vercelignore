@@ -1,0 +1,15 @@
+node_modules
+.git
+.env*
+!.env.example
+*.log
+.DS_Store
+coverage
+.nyc_output
+dist
+.cache
+.vscode
+.idea
+*.swp
+*.swo
+*~
