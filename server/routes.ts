@@ -20,11 +20,18 @@ import {
 import { queryDatabase } from "./queryDatabase";
 import { verifyFirebaseToken, optionalFirebaseAuth } from "./middleware/firebase-auth";
 import { requireAuth, requirePremium, requireAdmin, getUserFromRequest, incrementScriptCount, incrementUsageCount, checkUsageLimit } from "./middleware/auth-helpers";
+import { ensureUserExists, requireDbUser } from "./middleware/user-provisioning";
 import { auth, firestore } from "./db";
 import { registerSchema, loginSchema, upgradeSchema, SubscriptionTier, TierInfo } from "@shared/schema";
 import * as firestoreUtils from "./lib/firestore";
 import bcrypt from "bcryptjs";
 import { Timestamp } from "firebase-admin/firestore";
+
+// DEBUG: Verify this file is loading
+console.log('🔥🔥🔥 ROUTES.TS LOADING - TIMESTAMP:', new Date().toISOString());
+console.log('🔥🔥🔥 optionalFirebaseAuth type:', typeof optionalFirebaseAuth);
+console.log('🔥🔥🔥 verifyFirebaseToken type:', typeof verifyFirebaseToken);
+
 
 export async function registerRoutes(
   httpServer: Server,
@@ -49,6 +56,16 @@ export async function registerRoutes(
       timestamp
     });
   });
+
+  // ============================================
+  // Global Middleware Chain
+  // ============================================
+
+  // 1. Verify Firebase token (sets req.user)
+  app.use(optionalFirebaseAuth);
+
+  // 2. Ensure Firestore user exists (sets req.dbUser)
+  app.use(ensureUserExists);
 
 
   // ============================================
@@ -178,31 +195,228 @@ export async function registerRoutes(
   });
 
   // Get current user (requires Firebase Auth token)
-  app.get("/api/me", optionalFirebaseAuth, async (req: Request, res: Response) => {
+  app.get("/api/me", requireAuth, requireDbUser, async (req: Request, res: Response) => {
     try {
-      const userId = req.user?.uid;
-      if (!userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const user = await firestoreUtils.getUser(userId);
-      if (!user) {
-        return res.status(401).json({ error: "User not found" });
-      }
+      const dbUser = (req as any).dbUser;
 
       res.json({
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        profileImageUrl: user.profileImageUrl,
-        role: user.role,
-        subscriptionTier: user.subscriptionTier,
-        isPremium: user.isPremium
+        id: dbUser.id,
+        uid: dbUser.uid,
+        email: dbUser.email,
+        displayName: dbUser.displayName || `${dbUser.firstName || ''} ${dbUser.lastName || ''}`.trim(),
+        firstName: dbUser.firstName,
+        lastName: dbUser.lastName,
+        profileImageUrl: dbUser.profileImageUrl,
+        role: dbUser.role,
+        subscriptionTier: dbUser.subscriptionTier,
+        isPremium: dbUser.isPremium,
+        isAdmin: dbUser.isAdmin,
+        scriptsGenerated: dbUser.scriptsGenerated,
+        usageCount: dbUser.usageCount
       });
     } catch (error) {
-      console.error("Get me error:", error);
+      console.error("[/api/me] Error:", error);
       res.status(500).json({ error: "Failed to get user" });
+    }
+  });
+
+  // ============================================
+  // Hook Generation Routes
+  // ============================================
+
+  // Generate text hooks
+  app.post("/api/generate-text-hooks", requireAuth, async (req, res) => {
+    try {
+      const { inputs } = req.body;
+
+      if (!inputs) {
+        return res.status(400).json({ error: "Inputs are required" });
+      }
+
+      console.log('[generate-text-hooks] Generating text hooks...');
+      const response = await generateTextHooks(inputs);
+
+      res.json(response);
+    } catch (error: any) {
+      console.error("[generate-text-hooks] Error:", error);
+      res.status(500).json({
+        error: error.message || "Failed to generate text hooks",
+        textHooks: []
+      });
+    }
+  });
+
+  // Generate visual hooks
+  app.post("/api/generate-visual-hooks", requireAuth, async (req, res) => {
+    const startTime = Date.now();
+    const requestId = `vhooks-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    console.log(`\n┌─────────────────────────────────────────────────────────────`);
+    console.log(`│ [VISUAL HOOKS] Request Start - ID: ${requestId}`);
+    console.log(`│ Timestamp: ${new Date().toISOString()}`);
+    console.log(`│ User: ${req.user?.email || 'unknown'}`);
+    console.log(`└─────────────────────────────────────────────────────────────`);
+
+    try {
+      const { inputs, visualContext } = req.body;
+
+      console.log(`[${requestId}] 📥 Request Body:`);
+      console.log(`  - Inputs:`, JSON.stringify(inputs, null, 2));
+      console.log(`  - Visual Context:`, JSON.stringify(visualContext, null, 2));
+
+      if (!inputs) {
+        console.log(`[${requestId}] ❌ Validation failed: Missing inputs`);
+        return res.status(400).json({ error: "Inputs are required" });
+      }
+
+      console.log(`[${requestId}] ✅ Validation passed`);
+      console.log(`[${requestId}] 🔄 Calling generateVisualHooks...`);
+
+      try {
+        const response = await generateVisualHooks(inputs, visualContext || {});
+        const duration = Date.now() - startTime;
+
+        console.log(`[${requestId}] ✅ API Success - Duration: ${duration}ms`);
+        console.log(`[${requestId}] 📤 Response:`, JSON.stringify(response, null, 2));
+        console.log(`┌─────────────────────────────────────────────────────────────`);
+        console.log(`│ [VISUAL HOOKS] Request Complete - ${duration}ms`);
+        console.log(`└─────────────────────────────────────────────────────────────\n`);
+
+        res.json(response);
+      } catch (apiError: any) {
+        const duration = Date.now() - startTime;
+
+        console.log(`[${requestId}] ⚠️  API Failed - Duration: ${duration}ms`);
+        console.log(`[${requestId}] 📛 Error Name: ${apiError.name}`);
+        console.log(`[${requestId}] 📛 Error Message: ${apiError.message}`);
+        console.log(`[${requestId}] 📛 Error Stack:\n${apiError.stack}`);
+        console.log(`[${requestId}] ��� Using Mock Fallback Data`);
+
+        const mockResponse = {
+          visualHooks: [
+            {
+              id: 'mock-visual-1',
+              type: 'Dynamic Opening',
+              fiyGuide: 'Start with an attention-grabbing visual that immediately hooks the viewer.',
+              genAiPrompt: 'Person looking directly at camera with surprised expression, bright lighting',
+              sceneDescription: 'Medium shot, person centered, warm color grading',
+              rank: 1,
+              isRecommended: true
+            },
+            {
+              id: 'mock-visual-2',
+              type: 'Context Setting',
+              fiyGuide: 'Establish the scene and context for what\'s coming.',
+              genAiPrompt: 'Workspace setup with laptop and creative materials visible',
+              sceneDescription: 'Wide shot, organized desk, natural window light',
+              rank: 2,
+              isRecommended: false
+            },
+            {
+              id: 'mock-visual-3',
+              type: 'Action Shot',
+              fiyGuide: 'Show movement and energy to maintain engagement.',
+              genAiPrompt: 'Hands actively working on project, dynamic angle',
+              sceneDescription: 'Close-up, shallow depth of field, energetic composition',
+              rank: 3,
+              isRecommended: false
+            }
+          ]
+        };
+
+        console.log(`[${requestId}] 📤 Mock Response:`, JSON.stringify(mockResponse, null, 2));
+        console.log(`┌─────────────────────────────────────────────────────────────`);
+        console.log(`│ [VISUAL HOOKS] Request Complete (Mock) - ${duration}ms`);
+        console.log(`└─────────────────────────────────────────────────────────────\n`);
+
+        res.json(mockResponse);
+      }
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+
+      console.log(`[${requestId}] 💥 CRITICAL ERROR - Duration: ${duration}ms`);
+      console.log(`[${requestId}] 💥 Error Name: ${error.name}`);
+      console.log(`[${requestId}] 💥 Error Message: ${error.message}`);
+      console.log(`[${requestId}] 💥 Error Stack:\n${error.stack}`);
+      console.log(`┌─────────────────────────────────────────────────────────────`);
+      console.log(`│ [VISUAL HOOKS] Request Failed - ${duration}ms`);
+      console.log(`└─────────────────────────────────────────────────────────────\n`);
+
+      res.status(500).json({
+        error: error.message || "Failed to generate visual hooks",
+        visualHooks: []
+      });
+    }
+  });
+
+  // Generate verbal hooks
+  app.post("/api/generate-verbal-hooks", requireAuth, async (req, res) => {
+    try {
+      const { inputs } = req.body;
+
+      if (!inputs) {
+        return res.status(400).json({ error: "Inputs are required" });
+      }
+
+      console.log('[generate-verbal-hooks] Generating verbal hooks...');
+      const response = await generateVerbalHooks(inputs);
+
+      res.json(response);
+    } catch (error: any) {
+      console.error("[generate-verbal-hooks] Error:", error);
+      res.status(500).json({
+        error: error.message || "Failed to generate verbal hooks",
+        verbalHooks: []
+      });
+    }
+  });
+
+  // Generate final content from selected hooks
+  app.post("/api/generate-content-multi", requireAuth, async (req, res) => {
+    const startTime = Date.now();
+    const requestId = `content-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    console.log(`\n┌─────────────────────────────────────────────────────────────`);
+    console.log(`│ [CONTENT GENERATION] Request Start - ID: ${requestId}`);
+    console.log(`│ Timestamp: ${new Date().toISOString()}`);
+    console.log(`│ User: ${req.user?.email || 'unknown'}`);
+    console.log(`└─────────────────────────────────────────────────────────────`);
+
+    try {
+      const { inputs, selectedTextHook, selectedVisualHook, selectedVerbalHook } = req.body;
+
+      console.log(`[${requestId}] 📥 Request Body Inspection:`);
+      console.log(`  - Inputs: ${inputs ? 'PROVIDED' : '❌ MISSING'}`);
+      console.log(`  - Text Hook: ${selectedTextHook ? 'PROVIDED' : '❌ MISSING'}`);
+      console.log(`  - Visual Hook: ${selectedVisualHook ? 'PROVIDED' : '❌ MISSING'}`);
+      console.log(`  - Verbal Hook: ${selectedVerbalHook ? 'PROVIDED' : '❌ MISSING'}`);
+
+      console.log(`[${requestId}] 📊 Full Request Data:`);
+      console.log(JSON.stringify({ inputs, selectedTextHook, selectedVisualHook, selectedVerbalHook }, null, 2));
+
+      if (!inputs || !selectedTextHook || !selectedVisualHook || !selectedVerbalHook) {
+        console.log(`[${requestId}] ❌ Validation Failed`);
+        return res.status(400).json({ error: "All hooks must be selected" });
+      }
+
+      console.log(`[${requestId}] ✅ Validation passed - Calling API...`);
+      const response = await generateContentFromMultiHooks(
+        inputs,
+        {
+          text: selectedTextHook,
+          visual: selectedVisualHook,
+          verbal: selectedVerbalHook
+        }
+      );
+
+      const duration = Date.now() - startTime;
+      console.log(`[${requestId}] ✅ Success - ${duration}ms`);
+      res.json(response);
+    } catch (error: any) {
+      console.error("[generate-content-multi] Error:", error);
+      res.status(500).json({
+        error: error.message || "Failed to generate content"
+      });
     }
   });
 
@@ -264,474 +478,42 @@ export async function registerRoutes(
   // Sessions API (Projects/Content)
   // ============================================
 
-  // Create new session
-  app.post('/api/sessions', verifyFirebaseToken, requireAuth, async (req: Request, res: Response) => {
+
+
+
+  // --- RESTORED ROUTES ---
+  app.post("/api/chat", async (req, res) => {
     try {
-      const user = await getUserFromRequest(req);
-      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+      const { projectId, message, inputs, messages, discoveryComplete } = req.body;
 
-      const { title = 'New Project', ...otherData } = req.body;
-
-      // Generate unique numeric ID
-      const sessionId = Date.now();
-
-      const newSession = {
-        id: sessionId,
-        userId: user.uid,
-        title,
-        status: otherData.status || 'inputting',
-        inputs: otherData.inputs || {},
-        visualContext: otherData.visualContext || null,
-        textHooks: otherData.textHooks || null,
-        verbalHooks: otherData.verbalHooks || null,
-        visualHooks: otherData.visualHooks || null,
-        selectedHooks: otherData.selectedHooks || null,
-        selectedHook: otherData.selectedHook || null,
-        output: otherData.output || null,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      };
-
-      await firestore.collection('sessions').doc(sessionId.toString()).set(newSession);
-
-      console.log(`[API] Created session ${sessionId} for user ${user.uid}`);
-      res.json(newSession);
-    } catch (error) {
-      console.error('[API] Create session error:', error);
-      res.status(500).json({ error: 'Failed to create session' });
-    }
-  });
-
-  // List all sessions for current user
-  app.get('/api/sessions', verifyFirebaseToken, requireAuth, async (req: Request, res: Response) => {
-    try {
-      const user = await getUserFromRequest(req);
-      if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-      const snapshot = await firestore
-        .collection('sessions')
-        .where('userId', '==', user.uid)
-        .limit(50)
-        .get();
-
-      const sessions = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: parseInt(doc.id),
-        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
-        updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt
-      }));
-
-      res.json(sessions);
-    } catch (error) {
-      console.error('[API] List sessions error:', error);
-      console.error('[API] Error details:', JSON.stringify(error, null, 2));
-      console.error('[API] Error message:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('[API] Error stack:', error instanceof Error ? error.stack : 'No stack');
-
-      // Return empty array instead of 500 to allow app to function
-      console.log('[API] Returning empty sessions array as fallback');
-      res.json([]);
-    }
-  });
-
-  // Create new session
-  app.post('/api/sessions', verifyFirebaseToken, requireAuth, async (req: Request, res: Response) => {
-    try {
-      const user = await getUserFromRequest(req);
-      if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-      console.log(`[API] Creating new session for user ${user.uid}`);
-
-      const session = await sessionStorage.createSession(user.uid);
-
-      console.log(`[API] Session created successfully: ${session.id}`);
-
-      res.json({
-        ...session,
-        createdAt: session.createdAt instanceof Date ? session.createdAt : new Date(session.createdAt),
-        updatedAt: session.updatedAt instanceof Date ? session.updatedAt : new Date(session.updatedAt)
-      });
-    } catch (error) {
-      console.error('[API] Create session error:', error);
-      res.status(500).json({ error: 'Failed to create session' });
-    }
-  });
-
-
-  // Get single session by ID
-  app.get('/api/sessions/:id', verifyFirebaseToken, requireAuth, async (req: Request, res: Response) => {
-    try {
-      const user = await getUserFromRequest(req);
-      if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-      const sessionId = req.params.id;
-      const docRef = firestore.collection('sessions').doc(sessionId);
-      const doc = await docRef.get();
-
-      if (!doc.exists) {
-        return res.status(404).json({ error: 'Session not found' });
-      }
-
-      const session = doc.data();
-      if (session?.userId !== user.uid) {
-        return res.status(403).json({ error: 'Forbidden' });
-      }
-
-      res.json({
-        ...session,
-        id: parseInt(sessionId),
-        createdAt: session.createdAt?.toDate?.() || session.createdAt,
-        updatedAt: session.updatedAt?.toDate() || session.updatedAt
-      });
-    } catch (error) {
-      console.error('[API] Get session error:', error);
-      res.status(500).json({ error: 'Failed to get session' });
-    }
-  });
-
-  // Update session
-  app.patch('/api/sessions/:id', verifyFirebaseToken, requireAuth, async (req: Request, res: Response) => {
-    try {
-      const user = await getUserFromRequest(req);
-      if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-      const sessionId = req.params.id;
-      console.log(`[API] Updating session ${sessionId} for user ${user.uid}`);
-
-      const docRef = firestore.collection('sessions').doc(sessionId);
-      const doc = await docRef.get();
-
-      if (!doc.exists) {
-        console.log(`[API] Session ${sessionId} not found`);
-        return res.status(404).json({ error: 'Session not found' });
-      }
-
-      const session = doc.data();
-      if (session?.userId !== user.uid) {
-        console.log(`[API] Session ${sessionId} forbidden for user ${user.uid}`);
-        return res.status(403).json({ error: 'Forbidden' });
-      }
-
-      // Filter valid update fields and sanitize
-      const updates = {
-        ...req.body,
-        updatedAt: Timestamp.now()
-      };
-      delete updates.id;
-      delete updates.userId;
-      delete updates.createdAt;
-
-      // Log the update for debugging
-      console.log(`[API] Session ${sessionId} update fields:`, Object.keys(updates).filter(k => k !== 'updatedAt'));
-
-      await docRef.update(updates);
-
-      const updated = await docRef.get();
-      const updatedData = updated.data();
-
-      console.log(`[API] Session ${sessionId} updated successfully`);
-
-      res.json({
-        ...updatedData,
-        id: parseInt(sessionId),
-        createdAt: updatedData?.createdAt?.toDate?.() || updatedData?.createdAt,
-        updatedAt: updatedData?.updatedAt?.toDate?.() || updatedData?.updatedAt
-      });
-    } catch (error: any) {
-      console.error('[API] Update session error:', error);
-      console.error('[API] Error details:', {
-        message: error.message,
-        code: error.code,
-        stack: error.stack?.split('\n').slice(0, 3)
-      });
-
-      // More specific error messages
-      if (error.code === 'permission-denied') {
-        return res.status(403).json({ error: 'Permission denied' });
-      }
-      if (error.message?.includes('document size')) {
-        return res.status(413).json({ error: 'Update too large - try with smaller data' });
-      }
-
-      res.status(500).json({ error: 'Failed to update session', details: error.message });
-    }
-  });
-
-  // Delete session
-  app.delete('/api/sessions/:id', verifyFirebaseToken, requireAuth, async (req: Request, res: Response) => {
-    try {
-      const user = await getUserFromRequest(req);
-      if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-      const sessionId = req.params.id;
-      const docRef = firestore.collection('sessions').doc(sessionId);
-      const doc = await docRef.get();
-
-      if (!doc.exists) {
-        return res.status(404).json({ error: 'Session not found' });
-      }
-
-      const session = doc.data();
-      if (session?.userId !== user.uid) {
-        return res.status(403).json({ error: 'Forbidden' });
-      }
-
-      // Also delete associated messages and versions subcollections
-      const messagesSnapshot = await docRef.collection('messages').get();
-      const versionsSnapshot = await docRef.collection('versions').get();
-
-      const batch = firestore.batch();
-      messagesSnapshot.docs.forEach(doc => batch.delete(doc.ref));
-      versionsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
-      batch.delete(docRef);
-
-      await batch.commit();
-
-      console.log(`[API] Deleted session ${sessionId} for user ${user.uid}`);
-      res.json({ success: true });
-    } catch (error) {
-      console.error('[API] Delete session error:', error);
-      res.status(500).json({ error: 'Failed to delete session' });
-    }
-  });
-
-  // ============================================
-  // Session Messages Endpoint
-  // ============================================
-
-  // Add message to session
-  app.post(
-    "/api/sessions/:id/messages",
-    verifyFirebaseToken,
-    requireAuth,
-    async (req: Request, res: Response) => {
-      try {
-        const sessionId = parseInt(req.params.id, 10);
-        const { role, content, isEditMessage } = req.body;
-        const userId = req.user!.uid;
-
-        console.log(`[API] Adding message to session ${sessionId}:`, {
-          role,
-          contentLength: content?.length,
-          isEditMessage,
-          userId,
-        });
-
-        // Validate session ID
-        if (isNaN(sessionId)) {
-          return res.status(400).json({ error: "Invalid session ID" });
-        }
-
-        // Validate required fields
-        if (!role || !content) {
-          return res.status(400).json({ error: "Missing role or content" });
-        }
-
-        // Validate role value
-        if (!["user", "assistant"].includes(role)) {
-          return res.status(400).json({ error: "Invalid role. Must be 'user' or 'assistant'" });
-        }
-
-        // Verify session exists and user owns it
-        const session = await sessionStorage.getSession(sessionId);
-        if (!session) {
-          console.error(`[API] Session ${sessionId} not found`);
-          return res.status(404).json({ error: "Session not found" });
-        }
-
-        if (session.userId !== userId) {
-          console.error(`[API] User ${userId} does not own session ${sessionId} (owner: ${session.userId})`);
-          return res.status(403).json({ error: "Access denied to this session" });
-        }
-
-        // Add message to session via sessionStorage
-        const message = await sessionStorage.addMessage(
-          sessionId,
-          userId,
-          role,
-          content,
-          isEditMessage || false
-        );
-
-        console.log(`[API] Message added successfully to session ${sessionId}`);
-        res.json(message);
-      } catch (error: any) {
-        console.error("[API] Error adding message to session:", {
-          message: error.message,
-          stack: error.stack,
-          sessionId: req.params.id,
-        });
-        res.status(500).json({ error: "Failed to add message to session" });
-      }
-    }
-  );
-
-
-  // Get tier info
-  app.get("/api/tiers", (_req: Request, res: Response) => {
-    res.json(TierInfo);
-  });
-
-  // DEBUG ENDPOINT - Last Error
-  let lastError: any = null;
-  app.get("/api/debug/last-error", (_req: Request, res: Response) => {
-    res.json({
-      lastError: lastError ? {
-        message: lastError.message,
-        stack: lastError.stack,
-        name: lastError.name,
-        timestamp: lastError.timestamp
-      } : null
-    });
-  });
-
-  // DEVELOPMENT ONLY: Create admin user endpoint
-  if (process.env.NODE_ENV !== "production") {
-    app.get("/api/dev/create-admin", async (req: Request, res: Response) => {
-      try {
-        const adminEmail = "admin@test.com";
-        const adminPassword = "admin123";
-
-        let userRecord;
-        try {
-          userRecord = await auth.getUserByEmail(adminEmail);
-        } catch (error: any) {
-          if (error.code === 'auth/user-not-found') {
-            userRecord = await auth.createUser({
-              email: adminEmail,
-              password: adminPassword,
-              displayName: "Admin User",
-            });
-          } else {
-            throw error;
-          }
-        }
-
-        const hashedPassword = await bcrypt.hash(adminPassword, 10);
-
-        await firestore.collection("users").doc(userRecord.uid).set({
-          id: userRecord.uid,
-          email: adminEmail,
-          password: hashedPassword,
-          firstName: "Admin",
-          lastName: "User",
-          role: "admin",
-          subscriptionTier: "diamond",
-          isPremium: true,
-          scriptsGenerated: 0,
-          usageCount: 0,
-          lastUsageReset: Timestamp.now(),
-          subscriptionEndDate: Timestamp.fromDate(new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000)),
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        }, { merge: true });
-
-        const customToken = await auth.createCustomToken(userRecord.uid);
-
-        res.json({
-          success: true,
-          message: "Admin user created successfully!",
-          credentials: {
-            email: adminEmail,
-            password: adminPassword,
-          },
-          user: {
-            uid: userRecord.uid,
-            email: adminEmail,
-            role: "admin",
-            tier: "diamond"
-          }
-        });
-      } catch (error) {
-        console.error("Error creating admin user:", error);
-        res.status(500).json({ error: "Failed to create admin user", details: error });
-      }
-    });
-  }
-
-  app.post("/api/chat", verifyFirebaseToken, requireAuth, async (req, res) => {
-    try {
-      // ✅ CHANGED: Accept sessionId instead of projectId
-      const { sessionId, projectId, message, inputs, messages, discoveryComplete } = req.body;
-      const userId = req.user!.uid;
-
-      // Support both sessionId (new) and projectId (backward compat)
-      const actualSessionId = sessionId || projectId;
-
-      console.log(`[Chat] Processing message for session ${actualSessionId}. History size: ${messages?.length || 0}`);
-
-      if (!message || typeof message !== "string") {
+      if (!message) {
         return res.status(400).json({ error: "Message is required" });
       }
 
-      // ✅ REMOVED SESSION VALIDATION - IT WAS BREAKING CHAT
-      // The working version (commit 78ae240) did not have this validation
-
-      // ✅ UNCHANGED: Use existing chat() function from gemini.ts
       const conversationHistory = (messages || []).map((msg: { role: string; content: string }) => ({
         role: msg.role === 'user' ? 'user' : 'model',
         content: msg.content
       }));
 
-      // ✅ SAVE USER MESSAGE
-      if (actualSessionId && typeof actualSessionId === 'number') {
-        try {
-          await sessionStorage.addMessage(actualSessionId, userId, 'user', message, false);
-        } catch (msgError) {
-          console.error(`[Chat] Failed to save user message:`, msgError);
-          // Continue execution (don't fail generation if save fails, though ideally we should)
-        }
-      }
-
       const response = await chat(message, conversationHistory, inputs || {}, discoveryComplete);
 
-      // ✅ SAVE ASSISTANT MESSAGE
-      if (actualSessionId && typeof actualSessionId === 'number' && response.message) {
-        try {
-          await sessionStorage.addMessage(actualSessionId, userId, 'assistant', response.message, false);
-        } catch (msgError) {
-          console.error(`[Chat] Failed to save assistant message:`, msgError);
-        }
-      }
-
-      // ✅ FIXED: Update SESSION storage instead of legacy project storage
-      if (actualSessionId && typeof actualSessionId === 'number' && response.extractedInputs) {
-        console.log(`[Chat] Updating session ${actualSessionId} inputs:`, response.extractedInputs);
-
-        try {
-          // Merge with existing inputs
-          const mergedInputs = { ...inputs, ...response.extractedInputs };
-
-          await sessionStorage.updateSession(actualSessionId, {
-            inputs: mergedInputs,
-          });
-
-          console.log(`[Chat] Session ${actualSessionId} inputs updated successfully`);
-        } catch (updateError: any) {
-          console.error(`[Chat] Failed to update session inputs:`, {
-            sessionId: actualSessionId,
-            error: updateError.message,
-          });
-          // Don't fail the whole request if session update fails
-        }
+      if (projectId && response.extractedInputs) {
+        await storage.updateInputs(projectId, response.extractedInputs as Partial<{
+          topic?: string;
+          goal?: "educate" | "entertain" | "promote" | "inspire" | "inform";
+          platforms?: ("tiktok" | "instagram" | "youtube_shorts" | "twitter" | "linkedin")[];
+          targetAudience?: string;
+          tone?: string;
+          duration?: string;
+        }>);
       }
 
       res.json(response);
-    } catch (error: any) {
-      // Store for debug endpoint
-      lastError = { ...error, timestamp: new Date().toISOString() };
-
-      console.error("❌ Chat error (FULL DETAILS):", {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-        sessionId: req.body.sessionId || req.body.projectId,
-      });
-
+    } catch (error) {
+      console.error("Chat error:", error);
       res.status(500).json({
         error: "Failed to process chat message",
-        message: "I apologize, but I'm having trouble processing your message. Please try again.",
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        message: "I apologize, but I'm having trouble processing your message. Please try again."
       });
     }
   });
@@ -761,8 +543,8 @@ export async function registerRoutes(
     }
   });
 
-  // New modality-specific hook endpoints (Requires auth, premium gating happens after first free use)
-  app.post("/api/generate-text-hooks", async (req, res) => {
+  // New modality-specific hook endpoints (Premium required)
+  app.post("/api/generate-text-hooks", requireAuth, requirePremium, async (req, res) => {
     try {
       const { inputs } = req.body;
 
@@ -781,7 +563,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/generate-verbal-hooks", async (req, res) => {
+  app.post("/api/generate-verbal-hooks", requireAuth, requirePremium, async (req, res) => {
     try {
       const { inputs } = req.body;
 
@@ -800,7 +582,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/generate-visual-hooks", async (req, res) => {
+  app.post("/api/generate-visual-hooks", requireAuth, requirePremium, async (req, res) => {
     try {
       const { inputs, visualContext } = req.body;
 
@@ -977,7 +759,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/generate-discovery-questions", async (req, res) => {
+  app.post("/api/generate-discovery-questions", optionalFirebaseAuth, requireAuth, async (req, res) => {
     try {
       const { topic, intent } = req.body;
 
@@ -1020,13 +802,20 @@ export async function registerRoutes(
   });
 
   // ============================================
-  // Session API Endpoints (Database-backed)
+
+  // ============================================
+  // Session API Endpoints (SQLite + Optional Auth)
   // ============================================
 
   app.get("/api/sessions", optionalFirebaseAuth, async (req, res) => {
     try {
-      const userId = req.user?.uid;
+      // In development mode with DISABLE_AUTH, don't filter by userId
+      // This allows sessions to appear regardless of which dev user created them
+      const userId = process.env.DISABLE_AUTH === 'true' ? undefined : req.user?.uid;
+
+      console.log('[Sessions List] Fetching sessions for user:', userId || 'ALL (dev mode)');
       const sessions = await sessionStorage.listSessions(userId);
+      console.log('[Sessions List] Found', sessions.length, 'sessions');
       res.json(sessions);
     } catch (error) {
       console.error("Sessions list error:", error);
@@ -1036,7 +825,7 @@ export async function registerRoutes(
 
   app.post("/api/sessions", optionalFirebaseAuth, async (req, res) => {
     try {
-      const userId = req.user?.uid; // Optional - sessions can be created without auth
+      const userId = req.user?.uid;
       const session = await sessionStorage.createSession(userId || undefined);
       res.json(session);
     } catch (error) {
@@ -1045,7 +834,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/sessions/:id", async (req, res) => {
+  app.get("/api/sessions/:id", optionalFirebaseAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
@@ -1062,7 +851,61 @@ export async function registerRoutes(
     }
   });
 
-  // POST message to session
+  app.patch("/api/sessions/:id", optionalFirebaseAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid session ID" });
+      }
+      const session = await sessionStorage.updateSession(id, req.body);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      res.json(session);
+    } catch (error) {
+      console.error("Session update error:", error);
+      res.status(500).json({ error: "Failed to update session" });
+    }
+  });
+
+  app.patch("/api/sessions/:id/title", optionalFirebaseAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { title } = req.body;
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid session ID" });
+      }
+      if (!title) {
+        return res.status(400).json({ error: "Title is required" });
+      }
+      const session = await sessionStorage.updateSessionTitle(id, title);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      res.json(session);
+    } catch (error) {
+      console.error("Session title update error:", error);
+      res.status(500).json({ error: "Failed to update session title" });
+    }
+  });
+
+  app.delete("/api/sessions/:id", optionalFirebaseAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid session ID" });
+      }
+      const deleted = await sessionStorage.deleteSession(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Session delete error:", error);
+      res.status(500).json({ error: "Failed to delete session" });
+    }
+  });
+
   app.post("/api/sessions/:id/messages", optionalFirebaseAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -1084,145 +927,13 @@ export async function registerRoutes(
     }
   });
 
-  // GET messages for session
-  app.get("/api/sessions/:id/messages", optionalFirebaseAuth, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ error: "Invalid session ID" });
-      }
 
-      const sessionWithMessages = await sessionStorage.getSessionWithMessages(id);
-      if (!sessionWithMessages) {
-        // Return empty array if session valid but no messages found logic inside getSessionWithMessages handles undefined
-        // Actually getSessionWithMessages returns undefined if session not found.
-        return res.status(404).json({ error: "Session not found" });
-      }
-
-      res.json(sessionWithMessages.messages);
-    } catch (error) {
-      console.error("Messages fetch error:", error);
-      res.status(500).json({ error: "Failed to fetch messages" });
-    }
-  });
-
-  // POST version to session
-  app.post("/api/sessions/:id/versions", optionalFirebaseAuth, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ error: "Invalid session ID" });
-      }
-
-      // Allow minimal validation since frontend handles structure, but basic check is good
-      if (!req.body.contentOutput) {
-        return res.status(400).json({ error: "Content output required" });
-      }
-
-      const version = await sessionStorage.addVersion(id, req.body);
-      res.json(version);
-    } catch (error) {
-      console.error("Version creation error:", error);
-      res.status(500).json({ error: "Failed to create version" });
-    }
-  });
-
-  // GET versions for session
-  app.get("/api/sessions/:id/versions", optionalFirebaseAuth, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ error: "Invalid session ID" });
-      }
-
-      const versions = await sessionStorage.getVersions(id);
-      res.json(versions);
-    } catch (error) {
-      console.error("Versions fetch error:", error);
-      res.status(500).json({ error: "Failed to fetch versions" });
-    }
-  });
-
-  app.patch("/api/sessions/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ error: "Invalid session ID" });
-      }
-      const session = await sessionStorage.updateSession(id, req.body);
-      if (!session) {
-        return res.status(404).json({ error: "Session not found" });
-      }
-      res.json(session);
-    } catch (error) {
-      console.error("Session update error:", error);
-      res.status(500).json({ error: "Failed to update session" });
-    }
-  });
-
-  app.patch("/api/sessions/:id/title", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { title } = req.body;
-      if (isNaN(id)) {
-        return res.status(400).json({ error: "Invalid session ID" });
-      }
-      if (!title) {
-        return res.status(400).json({ error: "Title is required" });
-      }
-      const session = await sessionStorage.updateSessionTitle(id, title);
-      if (!session) {
-        return res.status(404).json({ error: "Session not found" });
-      }
-      res.json(session);
-    } catch (error) {
-      console.error("Session title update error:", error);
-      res.status(500).json({ error: "Failed to update session title" });
-    }
-  });
-
-  app.post("/api/sessions/:id/messages", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { role, content, isEditMessage } = req.body;
-      if (isNaN(id)) {
-        return res.status(400).json({ error: "Invalid session ID" });
-      }
-      if (!role || !content) {
-        return res.status(400).json({ error: "Role and content are required" });
-      }
-      const message = await sessionStorage.addMessage(id, role, content, isEditMessage || false);
-      res.json(message);
-    } catch (error) {
-      console.error("Message creation error:", error);
-      res.status(500).json({ error: "Failed to add message" });
-    }
-  });
-
-  app.delete("/api/sessions/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ error: "Invalid session ID" });
-      }
-      const deleted = await sessionStorage.deleteSession(id);
-      if (!deleted) {
-        return res.status(404).json({ error: "Session not found" });
-      }
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Session delete error:", error);
-      res.status(500).json({ error: "Failed to delete session" });
-    }
-  });
-
-  // ============================================
   // Admin Routes (Protected by adminRequired)
   // ============================================
 
   app.get("/api/admin/users", requireAuth, requireAdmin, async (req, res) => {
     try {
-      const allUsers = await firestoreUtils.getAllUsers();
+      const allUsers = await db.select().from(users);
       res.json(allUsers);
     } catch (error) {
       console.error("Admin users fetch error:", error);
@@ -1235,10 +946,14 @@ export async function registerRoutes(
       const { id } = req.params;
       const { isPremium } = req.body;
 
-      const updatedUser = await firestoreUtils.updateUser(id, {
-        isPremium: isPremium,
-        subscriptionEndDate: isPremium ? Timestamp.fromDate(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)) : undefined,
-      });
+      const [updatedUser] = await db.update(users)
+        .set({
+          isPremium: isPremium,
+          subscriptionEndDate: isPremium ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) : null,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, id))
+        .returning();
 
       if (!updatedUser) {
         return res.status(404).json({ error: "User not found" });
@@ -1260,7 +975,10 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid role. Must be 'user' or 'admin'" });
       }
 
-      const updatedUser = await firestoreUtils.updateUser(id, { role });
+      const [updatedUser] = await db.update(users)
+        .set({ role, updatedAt: new Date() })
+        .where(eq(users.id, id))
+        .returning();
 
       if (!updatedUser) {
         return res.status(404).json({ error: "User not found" });
@@ -1279,12 +997,7 @@ export async function registerRoutes(
 
   app.post("/api/create-checkout-session", requireAuth, async (req, res) => {
     try {
-      const userId = req.user?.uid;
-      if (!userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const user = await firestoreUtils.getUser(userId);
+      const user = await getUserFromSession(req);
       if (!user) {
         return res.status(401).json({ error: "User not found" });
       }
@@ -1355,24 +1068,27 @@ export async function registerRoutes(
         const userId = session.metadata?.userId;
 
         if (userId) {
-          await firestoreUtils.updateUser(userId, {
-            isPremium: true,
-            stripeCustomerId: session.customer as string,
-            stripeSubscriptionId: session.subscription as string,
-            subscriptionEndDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
-          });
+          await db.update(users)
+            .set({
+              isPremium: true,
+              stripeCustomerId: session.customer as string,
+              stripeSubscriptionId: session.subscription as string,
+              subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              updatedAt: new Date()
+            })
+            .where(eq(users.id, userId));
         }
       } else if (event.type === "customer.subscription.deleted") {
         const subscription = event.data.object;
         const customerId = subscription.customer as string;
 
-        const user = await firestoreUtils.getUserByStripeCustomerId(customerId);
-        if (user) {
-          await firestoreUtils.updateUser(user.id, {
+        await db.update(users)
+          .set({
             isPremium: false,
-            subscriptionEndDate: undefined,
-          });
-        }
+            subscriptionEndDate: null,
+            updatedAt: new Date()
+          })
+          .where(eq(users.stripeCustomerId, customerId));
       }
 
       res.json({ received: true });

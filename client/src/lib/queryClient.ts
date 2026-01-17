@@ -35,10 +35,13 @@ function waitForFirebaseReady(): Promise<void> {
   return firebaseReadyPromise;
 }
 
-async function throwIfResNotOk(res: Response) {
+async function throwIfResNotOk(res: Response, url?: string) {
   if (!res.ok) {
     if (res.status === 401) {
-      if (typeof window !== 'undefined') {
+      // Don't redirect for session endpoints - they support optional auth
+      const isSessionEndpoint = url?.includes('/api/sessions');
+
+      if (!isSessionEndpoint && typeof window !== 'undefined') {
         const returnUrl = window.location.pathname + window.location.search;
         // Don't overwrite if we're already on auth page to prevent loop
         if (!returnUrl.includes('/auth')) {
@@ -111,7 +114,9 @@ export async function apiRequest(
 
       // If 401, try refreshing token once
       if (res.status === 401) {
+        const isSessionEndpoint = url?.includes('/api/sessions');
         const user = auth.currentUser;
+
         if (user) {
           try {
             // Force refresh
@@ -128,27 +133,44 @@ export async function apiRequest(
 
             // If retry also failed, throw error
             if (!retryResponse.ok) {
-              await throwIfResNotOk(retryResponse);
+              await throwIfResNotOk(retryResponse, url);
             }
             return retryResponse;
           } catch (error) {
             console.error('Token refresh failed:', error);
+
+            //  If this is a session endpoint and refresh failed, try WITHOUT token (anonymous)
+            if (isSessionEndpoint) {
+              console.log('[apiRequest] Token refresh failed for session endpoint - retrying anonymously');
+              delete headers['Authorization'];
+              const anonymousRetry = await fetch(url, {
+                method,
+                headers,
+                body: data ? JSON.stringify(data) : undefined,
+                credentials: "include",
+              });
+
+              // Return anonymous response (might still be 404, but not 401)
+              return anonymousRetry;
+            }
+
             throw error;
           }
         }
-        // If no user, throw immediately
-        await throwIfResNotOk(res);
+
+        // If no user, throw immediately (unless session endpoint - already handled above)
+        await throwIfResNotOk(res, url);
       }
 
       // Don't retry on 4xx errors (client errors - bad request, auth, etc.)
       if (res.status >= 400 && res.status < 500) {
-        await throwIfResNotOk(res);
+        await throwIfResNotOk(res, url);
         return res;
       }
 
       // If response is ok or this is the last attempt, return/throw
       if (res.ok || attempt === maxRetries) {
-        await throwIfResNotOk(res);
+        await throwIfResNotOk(res, url);
         return res;
       }
 
@@ -189,7 +211,8 @@ export const getQueryFn: <T>(options: {
         ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
       };
 
-      const res = await fetch(queryKey.join("/") as string, {
+      const url = queryKey.join("/") as string;
+      const res = await fetch(url, {
         headers,
         credentials: "include",
       });
@@ -198,7 +221,7 @@ export const getQueryFn: <T>(options: {
         return null;
       }
 
-      await throwIfResNotOk(res);
+      await throwIfResNotOk(res, url);
       return await res.json();
     };
 

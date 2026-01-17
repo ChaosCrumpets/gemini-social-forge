@@ -14,6 +14,20 @@ export async function requireAuth(
     res: Response,
     next: NextFunction
 ): Promise<void> {
+    // Development mode bypass
+    if (process.env.NODE_ENV === 'development' && process.env.DISABLE_AUTH === 'true') {
+        if (!req.user) {
+            console.log('[Auth] requireAuth: Injecting mock user (DISABLE_AUTH active)');
+            req.user = {
+                uid: 'dev-user-123',
+                email: 'admin@test.com',
+                name: 'Dev Admin'
+            };
+        }
+        next();
+        return;
+    }
+
     if (!req.user || !req.user.uid) {
         res.status(401).json({ message: "Unauthorized: Authentication required" });
         return;

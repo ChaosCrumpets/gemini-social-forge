@@ -1,11 +1,11 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import Papa from 'papaparse';
 import type { ContentOutput, ScriptLine, StoryboardFrame, BRollItem } from '@shared/schema';
 
 declare module 'jspdf' {
   interface jsPDF {
-    autoTable: (options: any) => jsPDF;
+    autoTable: typeof autoTable;
   }
 }
 
@@ -26,13 +26,13 @@ export function exportToCSV(output: ContentOutput, projectTitle: string = 'Scrip
 
 function generateHashtags(output: ContentOutput, line: ScriptLine): string {
   const keywords: string[] = [];
-  
+
   output.bRoll?.forEach(item => {
     if (item.keywords) {
       keywords.push(...item.keywords);
     }
   });
-  
+
   const uniqueKeywords = Array.from(new Set(keywords)).slice(0, 5);
   return uniqueKeywords.map(k => `#${k.replace(/\s+/g, '')}`).join(' ');
 }
@@ -45,14 +45,14 @@ export function exportToSRT(output: ContentOutput, projectTitle: string = 'Scrip
   output.script.forEach((line, index) => {
     const startTime = currentTime;
     const endTime = startTime + SECONDS_PER_LINE;
-    
+
     const startFormatted = formatSRTTime(startTime);
     const endFormatted = formatSRTTime(endTime);
-    
+
     srtContent += `${index + 1}\n`;
     srtContent += `${startFormatted} --> ${endFormatted}\n`;
     srtContent += `${line.text}\n\n`;
-    
+
     currentTime = endTime;
   });
 
@@ -65,7 +65,7 @@ function formatSRTTime(seconds: number): string {
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
   const ms = 0;
-  
+
   return `${pad(hours, 2)}:${pad(minutes, 2)}:${pad(secs, 2)},${pad(ms, 3)}`;
 }
 
@@ -78,26 +78,26 @@ export function exportToPDF(output: ContentOutput, projectTitle: string = 'Scrip
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 20;
   const contentWidth = pageWidth - (margin * 2);
-  
+
   doc.setFont('courier', 'normal');
   doc.setFontSize(18);
   doc.text('C.A.L PRODUCTION SHEET', pageWidth / 2, 20, { align: 'center' });
-  
+
   doc.setFontSize(14);
   doc.text(projectTitle, pageWidth / 2, 30, { align: 'center' });
-  
+
   doc.setFontSize(10);
   doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 38, { align: 'center' });
-  
+
   doc.setLineWidth(0.5);
   doc.line(margin, 42, pageWidth - margin, 42);
-  
+
   const tableData: string[][] = [];
-  
+
   output.storyboard.forEach((frame, index) => {
     const correspondingScript = output.script[index];
     const brollItem = output.bRoll?.[index];
-    
+
     tableData.push([
       (frame.frameNumber || index + 1).toString(),
       frame.description + (brollItem ? `\n\nB-Roll: ${brollItem.description}` : ''),
@@ -106,7 +106,7 @@ export function exportToPDF(output: ContentOutput, projectTitle: string = 'Scrip
     ]);
   });
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 50,
     head: [['Scene #', 'Visual / B-Roll Description', 'Audio / Script', 'Duration']],
     body: tableData,
@@ -135,16 +135,16 @@ export function exportToPDF(output: ContentOutput, projectTitle: string = 'Scrip
   });
 
   const finalY = (doc as any).lastAutoTable?.finalY || 150;
-  
+
   if (output.techSpecs) {
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('TECHNICAL SPECIFICATIONS', margin, finalY + 15);
-    
+
     doc.setFontSize(9);
     doc.setFont('courier', 'normal');
     let specY = finalY + 25;
-    
+
     const specs = [
       ['Aspect Ratio:', output.techSpecs.aspectRatio],
       ['Resolution:', output.techSpecs.resolution],
@@ -152,7 +152,7 @@ export function exportToPDF(output: ContentOutput, projectTitle: string = 'Scrip
       ['Duration:', output.techSpecs.duration],
       ['Platforms:', output.techSpecs.platforms?.join(', ')]
     ].filter(s => s[1]);
-    
+
     specs.forEach(([label, value]) => {
       if (specY > doc.internal.pageSize.getHeight() - 20) {
         doc.addPage();

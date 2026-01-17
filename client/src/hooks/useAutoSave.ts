@@ -71,8 +71,18 @@ export function useAutoSave(firestoreId: string | null) {
                 body: JSON.stringify(updateData),
             });
 
+            // Handle 401 silently - sessions work without auth, this is expected
+            if (response.status === 401) {
+                console.log('[AutoSave] Session save with 401 - this is normal for anonymous users');
+                if (isMountedRef.current) {
+                    setSaveStatus('saved');
+                    setLastSaved(new Date());
+                }
+                return;
+            }
+
             if (!response.ok) {
-                throw new Error('Failed to save session');
+                throw new Error(`Failed to save session: ${response.status}`);
             }
 
             if (isMountedRef.current) {

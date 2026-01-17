@@ -48,11 +48,20 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
 
   const loadSessionMutation = useMutation({
     mutationFn: async (sessionId: number) => {
+      console.log('[LoadSession] Mutation started for session:', sessionId);
       const response = await apiRequest('GET', `/api/sessions/${sessionId}`);
-      return response.json() as Promise<SessionWithMessages>;
+      console.log('[LoadSession] API response status:', response.status);
+      const data = await response.json() as Promise<SessionWithMessages>;
+      console.log('[LoadSession] Data received:', data);
+      return data;
     },
     onSuccess: (data) => {
+      console.log('[LoadSession] Loading session into store:', data.session.id);
       loadSession(data.session, data.messages, data.editMessages);
+      console.log('[LoadSession] Session loaded successfully');
+    },
+    onError: (error) => {
+      console.error('[LoadSession] Mutation failed:', error);
     }
   });
 
@@ -85,8 +94,19 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
       return;
     }
 
-    console.log('🔀 Navigating to session via URL:', sessionId);
-    setLocation(`/app?session=${sessionId}`, { replace: false });
+    console.log('🔀 Loading session:', sessionId);
+
+    try {
+      // CRITICAL FIX: Actually load the session data, not just change URL
+      await loadSessionMutation.mutateAsync(sessionId);
+
+      // Update URL to reflect the loaded session
+      setLocation(`/app?session=${sessionId}`, { replace: false });
+
+      console.log('✅ Session loaded successfully');
+    } catch (error) {
+      console.error('❌ Failed to load session:', error);
+    }
 
     if (isMobile) onClose();
   };

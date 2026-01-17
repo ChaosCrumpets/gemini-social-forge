@@ -170,6 +170,8 @@ export interface SessionWithMessages {
   editMessages: SessionMessage[];
 }
 
+
+
 export const sessionStorage = {
   async createSession(userId?: string): Promise<Session> {
     const session = await firestoreUtils.createSession(userId);
@@ -177,29 +179,51 @@ export const sessionStorage = {
   },
 
   async getSession(id: number): Promise<Session | undefined> {
-    // Look up the actual Firestore ID from our mapping
-    const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
-    if (!firestoreId) return undefined;
+    try {
+      // Look up the actual Firestore ID from our mapping
+      const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
+      console.log(`[Storage] getSession(${id}) resolved to firestoreId: ${firestoreId}`);
 
-    const firestoreSession = await firestoreUtils.getSession(firestoreId);
-    if (!firestoreSession) return undefined;
+      if (!firestoreId) {
+        console.warn(`[Storage] No firestore ID found for numeric ID ${id}`);
+        return undefined;
+      }
 
-    return {
-      id,
-      userId: firestoreSession.userId || null,
-      title: firestoreSession.title,
-      status: firestoreSession.status,
-      inputs: firestoreSession.inputs,
-      visualContext: firestoreSession.visualContext || null,
-      textHooks: firestoreSession.textHooks || null,
-      verbalHooks: firestoreSession.verbalHooks || null,
-      visualHooks: firestoreSession.visualHooks || null,
-      selectedHooks: firestoreSession.selectedHooks || null,
-      selectedHook: firestoreSession.selectedHook || null,
-      output: firestoreSession.output || null,
-      createdAt: firestoreSession.createdAt.toDate(),
-      updatedAt: firestoreSession.updatedAt.toDate(),
-    };
+      const firestoreSession = await firestoreUtils.getSession(firestoreId);
+      if (!firestoreSession) {
+        console.warn(`[Storage] No session found in Firestore for ID ${firestoreId}`);
+        return undefined;
+      }
+
+      // Safe hydration of timestamps
+      const createdAt = firestoreSession.createdAt && typeof firestoreSession.createdAt.toDate === 'function'
+        ? firestoreSession.createdAt.toDate()
+        : new Date(); // Fallback date if missing/invalid
+
+      const updatedAt = firestoreSession.updatedAt && typeof firestoreSession.updatedAt.toDate === 'function'
+        ? firestoreSession.updatedAt.toDate()
+        : new Date();
+
+      return {
+        id,
+        userId: firestoreSession.userId || null,
+        title: firestoreSession.title,
+        status: firestoreSession.status,
+        inputs: firestoreSession.inputs,
+        visualContext: firestoreSession.visualContext || null,
+        textHooks: firestoreSession.textHooks || null,
+        verbalHooks: firestoreSession.verbalHooks || null,
+        visualHooks: firestoreSession.visualHooks || null,
+        selectedHooks: firestoreSession.selectedHooks || null,
+        selectedHook: firestoreSession.selectedHook || null,
+        output: firestoreSession.output || null,
+        createdAt,
+        updatedAt,
+      };
+    } catch (error) {
+      console.error(`[Storage] CRITICAL getSession error for ${id}:`, error);
+      throw error;
+    }
   },
 
   async getSessionWithMessages(id: number): Promise<SessionWithMessages | undefined> {
@@ -269,11 +293,22 @@ export const sessionStorage = {
       .filter((s): s is Session => s !== null);
   },
 
+
+
   async updateSession(id: number, updates: Record<string, unknown>): Promise<Session | undefined> {
     const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
     if (!firestoreId) return undefined;
 
-    await firestoreUtils.updateSession(firestoreId, updates as any);
+    // Sanitize updates using JSON serialization to remove undefined values
+    // This is safer and more robust than custom recursion for removing undefined
+    try {
+      const sanitizedUpdates = JSON.parse(JSON.stringify(updates));
+      console.log(`[Storage] Updating session ${id} with:`, JSON.stringify(sanitizedUpdates, null, 2));
+      await firestoreUtils.updateSession(firestoreId, sanitizedUpdates);
+    } catch (e) {
+      console.error(`[Storage] Failed to update session ${id}:`, e);
+      throw e;
+    }
     return this.getSession(id);
   },
 

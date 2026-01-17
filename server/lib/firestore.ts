@@ -241,26 +241,52 @@ export async function getSession(id: string): Promise<FirestoreSession | null> {
 }
 
 export async function listSessions(userId?: string): Promise<FirestoreSession[]> {
-    let query = firestore.collection("sessions").orderBy("createdAt", "desc");
+    console.log('[Firestore] listSessions called with userId:', userId);
+
+    // Temporarily remove orderBy to avoid index requirement
+    let query = firestore.collection("sessions");
 
     if (userId) {
+        console.log('[Firestore] Filtering by userId:', userId);
         query = query.where("userId", "==", userId) as any;
+    } else {
+        console.log('[Firestore] No userId filter - fetching ALL sessions');
     }
 
     const snapshot = await query.get();
-    return snapshot.docs.map((doc) => doc.data() as FirestoreSession);
+    console.log('[Firestore] Query returned', snapshot.size, 'documents');
+
+    const sessions = snapshot.docs.map((doc) => {
+        const data = doc.data() as FirestoreSession;
+        console.log('[Firestore] Session doc:', doc.id, 'hasUserId:', !!data.userId, 'hasNumericId:', !!data.numericId);
+        return data;
+    });
+
+    return sessions;
 }
 
 export async function updateSession(
     id: string,
     updates: Partial<Omit<FirestoreSession, "id" | "createdAt">>
 ): Promise<FirestoreSession | null> {
-    const sessionRef = firestore.collection("sessions").doc(id);
-    await sessionRef.update({
-        ...updates,
-        updatedAt: Timestamp.now(),
-    });
-    return getSession(id);
+    try {
+        const sessionRef = firestore.collection("sessions").doc(id);
+
+        // Use set with merge: true to avoid crashing if doc doesn't exist (or check existence first)
+        // But to be safe and stick to semantics, we try update and catch error
+        await sessionRef.update({
+            ...updates,
+            updatedAt: Timestamp.now(),
+        });
+        return getSession(id);
+    } catch (error: any) {
+        console.error(`[Firestore] Update failed for ${id}:`, error);
+        // If doc not found, return null
+        if (error.code === 5 || error.message.includes('NOT_FOUND')) {
+            return null;
+        }
+        throw error;
+    }
 }
 
 export async function deleteSession(id: string): Promise<boolean> {

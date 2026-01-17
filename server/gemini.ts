@@ -387,8 +387,14 @@ User message: ${userMessage}`;
 
     const text = response.text || '';
 
+
+
     try {
-      const parsed = JSON.parse(text);
+      // robust JSON extraction using bracket counting
+      // This handles "mixed" content where the model chats before/after the JSON
+      const jsonString = extractJsonBlock(text) || text;
+
+      const parsed = JSON.parse(jsonString);
       return {
         message: parsed.message || "I'm processing your request...",
         extractedInputs: parsed.extractedInputs,
@@ -396,9 +402,21 @@ User message: ${userMessage}`;
         readyForDiscovery: parsed.readyForDiscovery || false,
         readyForHooks: parsed.readyForHooks || false
       };
-    } catch {
+    } catch (e) {
+      console.warn('[Gemini] JSON parsing failed, falling back to raw text', e);
+      // Fallback: If parsing fails, use the raw text as the message
+      // But check if it looks like JSON that failed to parse
+      let fallbackMessage = text;
+      if (text.trim().startsWith('{') && text.includes('"message":')) {
+        // Try one more desperate regex to get the message field
+        const msgMatch = text.match(/"message":\s*"([^"]*)"/);
+        if (msgMatch && msgMatch[1]) {
+          fallbackMessage = msgMatch[1];
+        }
+      }
+
       return {
-        message: text || "I'm here to help you create amazing content. What topic would you like to explore?",
+        message: fallbackMessage || "I'm here to help you create amazing content. What topic would you like to explore?",
         readyForDiscovery: false,
         readyForHooks: false
       };
@@ -407,6 +425,47 @@ User message: ${userMessage}`;
     console.error('Gemini chat error:', error);
     throw new Error('Failed to process chat message');
   }
+}
+
+// Helper to extract the first valid JSON block by counting braces
+function extractJsonBlock(text: string): string | null {
+  const startIndex = text.indexOf('{');
+  if (startIndex === -1) return null;
+
+  let braceCount = 0;
+  let inString = false;
+  let isEscaped = false;
+
+  for (let i = startIndex; i < text.length; i++) {
+    const char = text[i];
+
+    if (isEscaped) {
+      isEscaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      isEscaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === '{') {
+        braceCount++;
+      } else if (char === '}') {
+        braceCount--;
+        if (braceCount === 0) {
+          return text.substring(startIndex, i + 1);
+        }
+      }
+    }
+  }
+  return null;
 }
 
 export async function generateHooks(

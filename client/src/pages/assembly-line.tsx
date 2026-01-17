@@ -193,13 +193,19 @@ export default function AssemblyLine() {
           editMessages: SessionMessage[];
         } = await response.json();
 
+        // ⚠️ DEFENSIVE: Validate session data structure
+        if (!data || !data.session || typeof data.session.id === 'undefined') {
+          console.error('❌ Invalid session data structure:', data);
+          throw new Error('Invalid session data received from server');
+        }
+
         console.log('✅ Session data loaded:', {
           id: data.session.id,
           title: data.session.title,
-          messageCount: data.messages.length
+          messageCount: data.messages?.length || 0
         });
 
-        loadSession(data.session, data.messages, data.editMessages);
+        loadSession(data.session, data.messages || [], data.editMessages || []);
 
         toast({
           title: "Session Restored",
@@ -214,8 +220,10 @@ export default function AssemblyLine() {
         const errorMessage = error?.status === 404
           ? "Session not found"
           : error?.status === 401
-            ? "Please log in to access this session"
-            : "Could not load session";
+            ? "Authentication required"
+            : error?.message?.includes('Invalid session data')
+              ? "Session data corrupted"
+              : "Could not load session";
 
         toast({
           title: "Restoration Failed",
@@ -644,7 +652,9 @@ export default function AssemblyLine() {
       const response = await withTimeout(
         apiRequest('POST', '/api/generate-content-multi', {
           inputs: project.inputs,
-          selectedHooks: project.selectedHooks
+          selectedTextHook: project.selectedHooks?.text,
+          selectedVisualHook: project.selectedHooks?.visual,
+          selectedVerbalHook: project.selectedHooks?.verbal
         }),
         120000,
         'Generation timed out'

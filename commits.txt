@@ -1,0 +1,76 @@
+﻿07c5f5d added claude, whole app broken
+19f44c5 Fix: Add __dirname polyfill to client/vite.config.ts for ESM compatibility
+c520491 Fix: Restore missing client/server configs and enable NPM workspaces
+5dbf9ad Remove conflicting directories
+f7b4c2e Save local changes
+dde5e24 LFG_fullflow_functioning
+033d25a fix: Resolve Cinematography tab crash issue
+74f6974 docs: Complete Phase 8 - Documentation & Deployment (FINAL)
+c97b9a1 feat(rollback): Complete Phase 7 - Rollback Preparation
+8b94f67 docs: Complete Phase 6 - Integration Testing
+e269508 feat(panels): Complete Phase 5 - Frontend panel updates
+38a6d66 feat(schema): Add Cinematography and Deployment types for Phase 5
+2de4102 feat(discovery): Complete Phase 4 frontend - ProgressionGate UI component
+217282f feat(discovery): Implement Phase 4 backend - 4-level entropy classification
+9b3c949 feat(hooks): Complete Phase 3 - Hook database integration with gemini.ts
+369bbda feat(hooks): Implement Phase 3 - Enhanced hook database with UAV/SPCL integration
+30a33ee test: Add Phase 2 backend test suite with 100% pass rate
+f3ec566 feat(cal): Complete Phase 2 - Enhanced prompt integration with feature flag system
+4a25db7 feat(cal): Phase 1 complete + Phase 2 started - feature flags and prep work
+cb2d492 feat: add feature flag system for C.A.L. enhanced prompt Phase 2
+2b9e954 chat_75_functionable_no_output
+69f638f imtired
+bdd6760 fix(critical): resolve compilation blockers, hardening auth logic, and crash prevention in assembly-line
+529c2f7 feat: Production-ready auth fix - Phase 1-3 complete (AuthContext, Solution C, token refresh, error handling)
+78ae240 fix: E2E stability improvements - role types, session handling, chat button reactivity
+bb0abaa chore: resolve merge conflict, keep comprehensive .gitignore
+1bc4cdb feat: Phase 3 - Visual Feedback & UX Polish complete
+bbfe106 Initial commit
+4f9856a Grant administrator role unlimited access to all premium features
+d32816f Saved progress at the end of the loop
+4dad60a Enhance content generation with remixing and export features
+4875cbe Update subscription tiers to grant one free script for Bronze users
+6533046 Fix chat scrolling and prevent text hook errors
+9e948b2 Update authentication and session handling for improved user experience
+2230dba Update authentication forms to improve autofill functionality
+ef991ed Improve account creation by fixing autofill issues in form fields
+ed82705 Saved progress at the end of the loop
+c7b7333 Add user authentication and subscription management features
+b17648c Saved progress at the end of the loop
+9bd7453 Update app navigation and visual design to match new branding
+35893c8 Add error message for inaccessible GitHub repository
+3af5c77 Document app development phases and features with authentication and paywall details
+f065a67 Add authentication and premium subscription features to the application
+7781bb7 Add admin and upgrade pages and protect content generation endpoints
+6d51898 Add user authentication, roles, and a premium subscription paywall
+c7f3c19 Saved progress at the end of the loop
+9d46b63 Add discovery questions to personalize content generation
+d6cf64a Add interactive discovery questions to gather user context for content generation
+3f84d77 Add a system to generate relevant discovery questions for users
+c909b62 Update sidebar to use an overlay pattern on mobile devices
+6029dbb Saved progress at the end of the loop
+1b1d435 Update new content creation to properly reset session
+e6f6f23 Add session management and persistence for chat history and generation
+22c158f Add session management functionality to the project store
+ebc38a4 Add database-backed session management for chat content generation
+908db97 Add persistent storage for chat sessions and messages to the database
+2dd7f53 Add editing capabilities and a new content plan creation flow
+6cda3bd Enhance chat interface for editing content and creating new plans
+6004cb1 Add AI-generated prompts for B-roll image and video creation
+e1dda99 Add AI prompt generation for B-roll suggestions
+1d21a7c Add AI-generated prompts for B-roll creation and display
+afe6d44 Update documentation to reflect new multi-stage hook selection process
+d856ff4 Improve visual context form handling in hook selection
+540d0a3 Update hook selection stages and UI components for content generation
+eb21b6f Introduce multi-stage hook selection with distinct text, verbal, and visual options
+5d5bfb0 Saved progress at the end of the loop
+9aa0f2c Improve hook selection with ranking and recommended indicators
+b0e8d9d Add hook ranking and inspiration from database to AI content generation
+ec609a1 Add ranking and recommendation fields to hook schema and hook database
+cfc97aa Saved progress at the end of the loop
+93a1add Add ability to generate content hooks and update user inputs
+4a1cda2 Saved progress at the end of the loop
+3b6e0a0 Add AI-powered content generation and dashboard interface
+6c9f446 Add Gemini AI integration for content generation capabilities
+c5f1898 Extracted stack files
+865d8df Initial commit

@@ -1,0 +1,2337 @@
+﻿
+> rest-express@1.0.0 dev
+> cross-env NODE_ENV=development tsx server/index.ts
+
+[dotenv@17.2.3] injecting env (26) from .env -- tip: ≡ƒôí add observability to secrets: https://dotenvx.com/ops
+≡ƒöÑ≡ƒöÑ≡ƒöÑ ROUTES.TS LOADING - TIMESTAMP: 2026-01-17T21:56:45.631Z
+≡ƒöÑ≡ƒöÑ≡ƒöÑ optionalFirebaseAuth type: function
+≡ƒöÑ≡ƒöÑ≡ƒöÑ verifyFirebaseToken type: function
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ≡ƒöæ add access controls to secrets: https://dotenvx.com/ops
+
+≡ƒÜÇ SERVER STARTED: 2026-01-17T21:56:45.634Z
+≡ƒôì Port: 5000
+
+4:56:46 PM [express] serving on port 5000
+Γ£à Health check #1 - 2026-01-17T21:57:12.568Z
+4:57:12 PM [express] POST /api/health 200 in 11ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":1,"timestamp":"2026-01-17T21:57:12.568Z"}
+Γ£à Health check #2 - 2026-01-17T21:58:12.201Z
+4:58:12 PM [express] POST /api/health 200 in 2ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":2,"timestamp":"2026-01-17T21:58:12.201Z"}
+Γ£à Health check #3 - 2026-01-17T21:59:12.509Z
+4:59:12 PM [express] POST /api/health 200 in 1ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":3,"timestamp":"2026-01-17T21:59:12.509Z"}
+Γ£à Health check #4 - 2026-01-17T22:00:12.203Z
+5:00:12 PM [express] POST /api/health 200 in 0ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":4,"timestamp":"2026-01-17T22:00:12.203Z"}
+Γ£à Health check #5 - 2026-01-17T22:01:12.510Z
+5:01:12 PM [express] POST /api/health 200 in 2ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":5,"timestamp":"2026-01-17T22:01:12.510Z"}
+Γ£à Health check #6 - 2026-01-17T22:02:12.206Z
+5:02:12 PM [express] POST /api/health 200 in 1ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":6,"timestamp":"2026-01-17T22:02:12.206Z"}
+Γ£à Health check #7 - 2026-01-17T22:03:12.504Z
+5:03:12 PM [express] POST /api/health 200 in 2ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":7,"timestamp":"2026-01-17T22:03:12.504Z"}
+Γ£à Health check #8 - 2026-01-17T22:04:12.208Z
+5:04:12 PM [express] POST /api/health 200 in 2ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":8,"timestamp":"2026-01-17T22:04:12.208Z"}
+Γ£à Health check #9 - 2026-01-17T22:05:12.506Z
+5:05:12 PM [express] POST /api/health 200 in 1ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":9,"timestamp":"2026-01-17T22:05:12.506Z"}
+[OptionalAuth] START - Method: GET URL: /auth
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/main.tsx?v=hwSKqwszmcHinuOKasK9N
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /@vite/client
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /@react-refresh
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /@fs/C:/Users/tobis/OneDrive/Documents/Information%20and%20Knowledge/AI/Gemini-Social-Forge_4%20-%20Copy/Gemini-Social-Forge/node_modules/vite/dist/client/env.mjs
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /.well-known/appspecific/com.chrome.devtools.json
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/App.tsx?v=hwSKqwszmcHinuOKasK9N
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/index.css?v=hwSKqwszmcHinuOKasK9N
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/lib/queryClient.ts
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/toaster.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/tooltip.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/avatar.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/badge.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+node.exe : 
+At line:1 char:1
++ & "C:\Program Files
+\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo 
+...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo   
+           : 
+NotSpecified: (:    
+String) [], 
+RemoteExc    eption
+    + 
+FullyQualifiedError  
+  Id : 
+NativeCommandErr    
+or
+ 
+A PostCSS plugin did 
+not pass the `from` 
+option to 
+`postcss.parse`. 
+This may cause 
+imported assets to 
+be incorrectly 
+transformed. If 
+you've recently 
+added a PostCSS 
+plugin that raised 
+this warning, please 
+contact the package 
+author to fix the 
+issue.
+[OptionalAuth] START - Method: GET URL: /src/components/ui/button.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/dropdown-menu.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/pages/not-found.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/pages/assembly-line.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/pages/admin.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/pages/landing.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/pages/projects.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/pages/auth.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/pages/membership.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/SessionSidebar.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/hooks/useInactivityTimeout.ts
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ErrorBoundary.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/FullPageLoader.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/hooks/use-user.ts
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/contexts/AuthContext.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/lib/utils.ts
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/lib/firebase.ts
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/hooks/use-toast.ts
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/toast.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/card.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/switch.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/select.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/LoadingStates.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/lib/store.ts
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ChatInterface.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/TextHookStage.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/VerbalHookStage.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/VisualHookStage.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/HookOverviewStage.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ThinkingState.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/DirectorView.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/SplitDashboard.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/StatusBar.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/AutoSaveIndicator.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/UnsavedChangesPrompt.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/LiveStatusIndicator.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/StageFooter.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/hooks/useAutoSave.ts
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/hooks/useUnsavedChanges.ts
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /@fs/C:/Users/tobis/OneDrive/Documents/Information%20and%20Knowledge/AI/Gemini-Social-Forge_4%20-%20Copy/Gemini-Social-Forge/shared/schema.ts
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/lib/api-wrapper.ts
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/lib/url-utils.ts
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/alert-dialog.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/input.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/label.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/hooks/use-auth.ts
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/scroll-area.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/textarea.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/HookCard.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/OutputPanels.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ExportPanel.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/SimpleModal.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/lib/toast-helper.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/ui/tabs.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/components/FloatingRemixMenu.tsx
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /src/lib/exports.ts
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /api/me
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[Auth] requireAuth: Injecting mock user (DISABLE_AUTH active)
+5:05:50 PM [express] GET /api/me 304 in 2ms :: {"id":"dev-user-123","uid":"dev-user-123","email":"admin@test.com","displayName":"Dev Admin","role":"admin","subscriptionTier":"gold","isPremium":true,"isAdmin":true,"scriptsGenerated":0,"usageCount":0}
+[OptionalAuth] START - Method: GET URL: /api/sessions
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: GET URL: /api/sessions
+[OptionalAuth] Development mode - auth disabled, calling next()
+[Sessions List] Fetching sessions for user: ALL (dev mode)
+[Firestore] listSessions called with userId: undefined
+[Firestore] No userId filter - fetching ALL sessions
+[OptionalAuth] START - Method: POST URL: /api/sessions
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: POST URL: /api/sessions
+[OptionalAuth] Development mode - auth disabled, calling next()
+[Firestore] Query returned 443 documents
+[Firestore] Session doc: 0lFcLbrtL89rTJUzrRcJ hasUserId: false hasNumericId: true
+[Firestore] Session doc: 1768070579784 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768070773799 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768070825527 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768070942039 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768071100508 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768071479661 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768071756753 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768071932217 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768072098295 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768072152777 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768072196461 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768073317180 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768073455893 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768078890438 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768078890518 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768078890685 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768078891076 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768078891312 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082808383 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082808489 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082808623 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082808760 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082808840 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082830850 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082830870 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082830906 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082830938 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082830949 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082831031 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082831068 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082831113 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082833005 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082833645 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082833764 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082833847 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082833857 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082835147 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082839058 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082898413 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768082928356 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768083033976 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768083034721 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768083050180 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768083060888 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768083204681 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768084723038 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768096934443 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768096943208 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768096946582 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768098749623 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768098752245 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768099610545 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768100554433 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768100558286 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768101435429 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768102406894 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768102426058 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768104218241 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768104240551 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768105011525 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768106021686 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768106044175 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768107826698 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768107883674 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768107897117 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768107912433 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768107944179 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768108134834 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768108149415 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768108156424 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768108182472 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768109139992 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768109748546 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768110037484 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768111680307 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768111687595 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768111841924 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768113503682 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768113505984 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768113646587 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768115307276 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768115310297 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768115450149 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768117365132 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768117365143 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768117365162 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768117648831 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768117688282 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768117895854 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768118619840 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768119133584 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768119171799 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768119172744 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768119177340 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768119240391 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768119637082 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768120047180 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768120847078 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768121224475 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768121473674 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768123028993 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768123277287 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768124832603 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768125082171 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768126636815 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768126885969 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768128440602 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768128689493 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768130244501 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768130493279 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768132048487 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768132296850 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768133852372 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768134100383 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768135656655 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768135904081 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768137460914 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768137707744 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768139264488 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768139511477 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768141068387 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768141315151 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768142872509 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768143118647 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768144676348 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768144922309 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768146480818 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768146725916 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768147441142 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768147864402 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768148046887 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768148313264 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768148386974 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768148427362 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768148918619 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768148946935 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768150765782 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768151683883 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768157027430 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768157152680 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768157286950 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768158204085 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768158485321 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768158761396 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768158808287 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768160470418 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768169728591 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768171209489 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768171227383 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768171335841 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768172176618 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768172316533 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768173655321 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768175806624 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768176547435 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768177373564 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768178874784 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768180869506 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768181939620 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768183716850 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768184455238 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768185525083 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768189191833 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768189192129 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768190995304 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768190995485 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768233611501 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768235784029 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768238025255 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768239828251 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768248435038 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768251433147 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768253237629 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768255042423 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768256846862 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768258651039 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768260455301 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768262260473 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768264064657 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768265002653 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768267453055 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768269258067 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768275445877 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768277252104 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768279419242 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768281223757 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768283032302 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768284835794 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768287382340 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768289187526 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768290992727 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768292798396 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768294603909 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768296408413 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768298212858 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768324392168 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768327556670 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768329360748 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768331164464 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768332968080 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768336135383 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768337938495 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768339741381 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768341544346 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768343347437 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768345150588 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768346954520 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768348757438 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768350560359 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768355603842 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768357576325 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768359380298 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768361183645 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768361220012 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768362168194 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768368524022 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768369319104 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768369348213 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768369358346 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768370302566 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768370766759 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768371517849 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768372114874 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768372569553 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768373321092 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768373918205 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768374372596 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768375124759 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768375721501 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768376175467 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768376927736 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768377524497 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768377978400 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768378730756 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768379327489 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768379781669 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768380533864 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768381130786 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768381584630 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768382335861 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768382933541 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768383387424 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768384138850 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768384736915 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768385190968 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768385942971 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768386541050 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768386995287 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768387746743 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768388344877 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768388799661 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768389549938 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768390147788 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768390602906 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768415349038 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768427551495 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768428603972 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768429565907 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768429723826 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768429844541 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768429849757 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768429860412 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768429907298 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768430101354 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768430211892 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768430461967 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768430475134 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768431686474 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768431909515 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768431947995 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768432041188 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768432267473 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768432280181 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768432581558 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768433222041 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768433555010 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768433721767 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768433761940 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768433855647 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768434071305 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768434083657 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768434385152 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768435361662 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768435526145 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768435566313 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768435663273 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768435876445 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768435888964 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768436244821 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768436245944 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768436246831 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768436405338 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768436543749 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768438054383 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768438054596 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768438055198 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768438055620 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768438056045 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768438116790 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768438136701 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768438137709 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768438143390 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768438159261 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768438198220 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768438227790 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768439288649 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768439861772 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768439861960 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768439862227 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768439862384 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768439862657 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768439921799 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768439944091 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768439947283 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768439950641 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768439969295 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768440000930 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768440031404 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768441094632 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768441665438 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768441666612 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768441666736 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768441666852 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768441667029 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768441724087 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768441746531 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768441749701 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768441753219 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768441771629 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768441803346 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768441834093 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768442898782 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768443468655 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768443470554 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768443470557 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768443470632 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768443471865 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768443527467 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768443550032 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768443552006 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768443557317 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768443575400 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768443607241 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768443640810 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768444705138 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768445272417 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768445277088 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768445277208 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768445277429 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768445277768 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768445332320 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768445356109 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768445356199 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768445362519 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768445379893 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768445412120 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768445443388 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768446508241 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768447073902 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768447077592 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768447078100 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768447078883 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768447079548 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768447132947 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768447156679 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768447159293 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768447163413 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768447180270 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768447212650 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768447247474 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768447638736 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768600075404 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768600101177 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768600171299 hasUserId: true hasNumericId: false
+Skipping malformed 
+session: 1732067800 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+[Firestore] Session doc: 1768600217284 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768601752914 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768602040918 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768602253006 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768602956147 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768602957031 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768602957515 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768602969813 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768603309583 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768603766813 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768603939528 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768604775737 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768604775836 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768604775939 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768604776543 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768604776823 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768604776902 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768604980846 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768606584864 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768606585270 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768606585300 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768606585470 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768606585504 hasUserId: true hasNumericId: false
+Skipping malformed 
+session: 742546835 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 129287617 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 61876373 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 763554727 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+[Firestore] Session doc: 1768606585670 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768606628251 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768606816461 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1768606923359 hasUserId: true hasNumericId: false
+[Firestore] Session doc: 1V0VA6qGY4WJ0lrRncaY hasUserId: true hasNumericId: true
+[Firestore] Session doc: 1vAU6X0eO8Kk3YhWUBn4 hasUserId: true hasNumericId: true
+[Firestore] Session doc: 9BkoEbQ9iKfwYdcFAFB5 hasUserId: true hasNumericId: true
+[Firestore] Session doc: A30onfsNjhK40m15So1P hasUserId: false hasNumericId: true
+Skipping malformed 
+session: 2104600457 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1980838203 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+[Firestore] Session doc: BvlFgUdWyHzh5N1HZmFN hasUserId: false hasNumericId: true
+[Firestore] Session doc: IlYMV8efwyNNiVMPAeE0 hasUserId: true hasNumericId: true
+[Firestore] Session doc: JYP5EDJxnwpAfm7pk7a6 hasUserId: false hasNumericId: true
+[Firestore] Session doc: NoXr5mtbW9xoljXDutLD hasUserId: true hasNumericId: true
+[Firestore] Session doc: OyQ9cZyCnjDig8DNfuuc hasUserId: false hasNumericId: true
+[Firestore] Session doc: P5h4DZB1vFhQvMry97Ou hasUserId: false hasNumericId: true
+[Firestore] Session doc: QVmL0QzfAcLfaK9CxAeP hasUserId: false hasNumericId: true
+[Firestore] Session doc: Qid02LY8f7aGKOT9SPNA hasUserId: true hasNumericId: true
+[Firestore] Session doc: QrDE3ZbvIjkSwJ2uoi3V hasUserId: false hasNumericId: true
+[Firestore] Session doc: RyLM3JY4dkT3GA3PDO7S hasUserId: true hasNumericId: true
+[Firestore] Session doc: XtS1GVXviRKdDn8U3lAG hasUserId: true hasNumericId: true
+[Firestore] Session doc: YGpSSjKCEKZUxExPMIM0 hasUserId: false hasNumericId: true
+[Firestore] Session doc: ZKzF55i7s2w37xBdAV23 hasUserId: true hasNumericId: true
+[Firestore] Session doc: ZOzNH3kz0ug9G3Wsk9PU hasUserId: true hasNumericId: true
+[Firestore] Session doc: cKikKr928LnZdEAsZz7s hasUserId: true hasNumericId: true
+[Firestore] Session doc: cd89F8WrXRLgH5wNtFuG hasUserId: false hasNumericId: true
+[Firestore] Session doc: dLrdGPUdWUhZbTXyL20G hasUserId: false hasNumericId: true
+[Firestore] Session doc: dxKdVA9J95L5it27fzWm hasUserId: true hasNumericId: true
+[Firestore] Session doc: e9TtY8ABlDPstNiwWyab hasUserId: true hasNumericId: true
+[Firestore] Session doc: f205cNL3DdTLJISs1jGW hasUserId: true hasNumericId: true
+[Firestore] Session doc: fsc1Jr94w7qh34SpVjJo hasUserId: false hasNumericId: true
+[Firestore] Session doc: hMad5SvyR1wM3hgesVaR hasUserId: false hasNumericId: true
+[Firestore] Session doc: jkiZnevL6vtoy1TCRQRS hasUserId: false hasNumericId: true
+[Firestore] Session doc: kmMlV1EjW1rQqHsnShDQ hasUserId: true hasNumericId: true
+[Firestore] Session doc: l1vawzBsWMEY8xLFn6cv hasUserId: true hasNumericId: true
+[Firestore] Session doc: lHNXC5DXPmfHzSKGtEW0 hasUserId: true hasNumericId: true
+[Firestore] Session doc: n1EPS7jLueJ45Ie55wTx hasUserId: true hasNumericId: true
+[Firestore] Session doc: oO2qQHevXGIbaxs2KJxS hasUserId: false hasNumericId: true
+[Firestore] Session doc: r4rN37dRgl6cdWmCCyoq hasUserId: false hasNumericId: true
+[Firestore] Session doc: tN4bSfKptm3lGxcWvtow hasUserId: true hasNumericId: true
+[Firestore] Session doc: tNN9ksQPCr81g0LTZqp4 hasUserId: false hasNumericId: true
+[Firestore] Session doc: vUOqAQwbW597zRweRt0A hasUserId: false hasNumericId: true
+[Firestore] Session doc: x8fQjyBD8gps9XDwW9nO hasUserId: true hasNumericId: true
+[Firestore] Session doc: xAlv3WPc9IDV6PD9euZo hasUserId: false hasNumericId: true
+[Firestore] Session doc: xoHT2LG983aVIhrIY2tT hasUserId: true hasNumericId: true
+[Firestore] Session doc: xz7gKLVO7H3vYB3LX7nL hasUserId: true hasNumericId: true
+[Firestore] Session doc: zHYly0aNn07pgBDacsAo hasUserId: true hasNumericId: true
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1342100004 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1088908933 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1479868172 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1761495183 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 835127019 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 229697101 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1199013959 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1881652254 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1558398895 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 992792677 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 800019585 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1351401173 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1787639673 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1397541236 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1965068910 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 2117927976 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 857645158 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1144621603 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1118476212 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1552845147 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 782924833 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 2078007790 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 596730627 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 51ca719a-786
+6-4138-8fdf-1b6073946
+c54 TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 518525368 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+[Sessions List] Found 0 sessions
+5:05:51 PM [express] GET /api/sessions 200 in 806ms :: []
+5:05:51 PM [express] POST /api/sessions 200 in 793ms :: {"id":1830833912,"firestoreId":"V3h5ra43uGHAp0wNjJXF","userId":null,"title":"New Script","status":"inputting","inputs":{},"visualContext":null,"textHooks":null,"verbalHooks":null,"visualHooks":null,"selectedHooks":null,"selectedHook":null,"output":null,"createdAt":"2026-01-17T22:05:50.819Z","updatedAt":"2026-01-17T22:05:50.819Z"}
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 486736449 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+Γ£à Health check #10 - 2026-01-17T22:05:51.642Z
+5:05:51 PM [express] POST /api/health 200 in 0ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":10,"timestamp":"2026-01-17T22:05:51.642Z"}
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 81684317 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1167838813 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 2129279264 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1182648465 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 1159874493 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 89887680 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 228c13fa-990
+f-4428-9c3c-49b36b184
+ad2 TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 708551359 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+Skipping malformed 
+session: 857077674 
+TypeError: 
+fs.createdAt.toDate 
+is not a function
+    at <anonymous> (C
+:\Users\tobis\OneDriv
+e\Documents\Informati
+on and Knowledge\AI\G
+emini-Social-Forge_4 
+- Copy\Gemini-Social-
+Forge\server\storage.
+ts:285:52)
+    at Array.map 
+(<anonymous>)
+    at 
+Object.listSessions (
+C:\Users\tobis\OneDri
+ve\Documents\Informat
+ion and Knowledge\AI\
+Gemini-Social-Forge_4
+ - Copy\Gemini-Social
+-Forge\server\storage
+.ts:270:8)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+<anonymous> (C:\Users
+\tobis\OneDrive\Docum
+ents\Information and 
+Knowledge\AI\Gemini-S
+ocial-Forge_4 - Copy\
+Gemini-Social-Forge\s
+erver\routes.ts:817:2
+4)
+[OptionalAuth] START - Method: PATCH URL: /api/sessions/1830833912
+[OptionalAuth] Development mode - auth disabled, calling next()
+[UserProvisioning] Development mode - injecting mock DB user
+[OptionalAuth] START - Method: PATCH URL: /api/sessions/1830833912
+[OptionalAuth] Development mode - auth disabled, calling next()
+[Storage] Updating session 1830833912 with: {
+  "id": "1830833912",
+  "status": "inputting",
+  "inputs": {},
+  "messages": [],
+  "createdAt": 1768687550819,
+  "updatedAt": 1768687550819
+}
+[Storage] getSession(1830833912) resolved to firestoreId: V3h5ra43uGHAp0wNjJXF
+5:05:53 PM [express] PATCH /api/sessions/1830833912 200 in 528ms :: {"id":1830833912,"userId":null,"title":"New Script","status":"inputting","inputs":{},"visualContext":null,"textHooks":null,"verbalHooks":null,"visualHooks":null,"selectedHooks":null,"selectedHook":null,"output":null,"createdAt":"2026-01-17T22:05:53.730Z","updatedAt":"2026-01-17T22:05:53.306Z"}
+Γ£à Health check #11 - 2026-01-17T22:05:57.194Z
+5:05:57 PM [express] POST /api/health 200 in 1ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":11,"timestamp":"2026-01-17T22:05:57.194Z"}
+Γ£à Health check #12 - 2026-01-17T22:06:02.203Z
+5:06:02 PM [express] POST /api/health 200 in 1ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":12,"timestamp":"2026-01-17T22:06:02.203Z"}
+Γ£à Health check #13 - 2026-01-17T22:06:07.204Z
+5:06:07 PM [express] POST /api/health 200 in 1ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":13,"timestamp":"2026-01-17T22:06:07.204Z"}
+Γ£à Health check #14 - 2026-01-17T22:06:12.201Z
+5:06:12 PM [express] POST /api/health 200 in 1ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":14,"timestamp":"2026-01-17T22:06:12.201Z"}
+Γ£à Health check #15 - 2026-01-17T22:06:17.203Z
+5:06:17 PM [express] POST /api/health 200 in 1ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":15,"timestamp":"2026-01-17T22:06:17.203Z"}
+Γ£à Health check #16 - 2026-01-17T22:06:22.198Z
+5:06:22 PM [express] POST /api/health 200 in 1ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":16,"timestamp":"2026-01-17T22:06:22.198Z"}
+Γ£à Health check #17 - 2026-01-17T22:06:27.197Z
+5:06:27 PM [express] POST /api/health 200 in 1ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":17,"timestamp":"2026-01-17T22:06:27.197Z"}
+Γ£à Health check #18 - 2026-01-17T22:06:32.211Z
+5:06:32 PM [express] POST /api/health 200 in 0ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":18,"timestamp":"2026-01-17T22:06:32.211Z"}
+Γ£à Health check #19 - 2026-01-17T22:06:37.206Z
+5:06:37 PM [express] POST /api/health 200 in 0ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":19,"timestamp":"2026-01-17T22:06:37.206Z"}
+Γ£à Health check #20 - 2026-01-17T22:07:12.522Z
+5:07:12 PM [express] POST /api/health 200 in 1ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":20,"timestamp":"2026-01-17T22:07:12.522Z"}
+Γ£à Health check #21 - 2026-01-17T22:08:12.199Z
+5:08:12 PM [express] POST /api/health 200 in 1ms :: {"status":"alive","startTime":"2026-01-17T21:56:45.634Z","requestCount":21,"timestamp":"2026-01-17T22:08:12.199Z"}
+

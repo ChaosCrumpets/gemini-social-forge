@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(init)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill /F /PID 5056)",
+      "Bash(taskkill //F //PID 5056)",
+      "Bash(dir /a \"C:\\\\Users\\\\tobis\\\\OneDrive\\\\Documents\\\\Information and Knowledge\\\\AI\\\\Gemini-Social-Forge_4 - Copy\\\\Gemini-Social-Forge\")",
+      "Bash(dir:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(npm run check:*)",
+      "Bash(timeout:*)"
+    ]
+  }
+}
