@@ -180,19 +180,33 @@ export const sessionStorage = {
 
   async getSession(id: number): Promise<Session | undefined> {
     try {
+      console.log(`[SessionStorage.getSession] 🔍 Looking up session: ${id}`);
+
       // Look up the actual Firestore ID from our mapping
       const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
-      console.log(`[Storage] getSession(${id}) resolved to firestoreId: ${firestoreId}`);
+      console.log(`[SessionStorage.getSession] Mapping lookup: ${id} → ${firestoreId || 'NOT FOUND'}`);
+
+      let firestoreSession;
 
       if (!firestoreId) {
-        console.warn(`[Storage] No firestore ID found for numeric ID ${id}`);
-        return undefined;
-      }
+        // FALLBACK: Try using the numeric ID directly as document ID
+        console.warn(`[SessionStorage.getSession] ⚠️  No mapping found, trying direct lookup: ${id}`);
+        firestoreSession = await firestoreUtils.getSession(id.toString());
 
-      const firestoreSession = await firestoreUtils.getSession(firestoreId);
-      if (!firestoreSession) {
-        console.warn(`[Storage] No session found in Firestore for ID ${firestoreId}`);
-        return undefined;
+        if (!firestoreSession) {
+          console.error(`[SessionStorage.getSession] ❌ Session ${id} not found (mapping failed AND direct lookup failed)`);
+          return undefined;
+        }
+
+        console.log(`[SessionStorage.getSession] ✅ Direct lookup succeeded for ${id}!`);
+      } else {
+        // Normal path: use the mapped Firestore ID
+        firestoreSession = await firestoreUtils.getSession(firestoreId);
+
+        if (!firestoreSession) {
+          console.error(`[SessionStorage.getSession] ❌ Firestore session ${firestoreId} not found`);
+          return undefined;
+        }
       }
 
       // Safe hydration of timestamps
@@ -204,6 +218,7 @@ export const sessionStorage = {
         ? firestoreSession.updatedAt.toDate()
         : new Date();
 
+      console.log(`[SessionStorage.getSession] ✅ Session ${id} loaded successfully`);
       return {
         id,
         userId: firestoreSession.userId || null,
@@ -221,8 +236,8 @@ export const sessionStorage = {
         updatedAt,
       };
     } catch (error) {
-      console.error(`[Storage] CRITICAL getSession error for ${id}:`, error);
-      throw error;
+      console.error(`[SessionStorage.getSession] Error loading session ${id}:`, error);
+      return undefined;
     }
   },
 
@@ -230,8 +245,12 @@ export const sessionStorage = {
     const session = await this.getSession(id);
     if (!session) return undefined;
 
-    const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
-    if (!firestoreId) return undefined;
+    // Try to get Firestore ID from mapping, fallback to using numeric ID directly
+    let firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
+    if (!firestoreId) {
+      console.warn(`[SessionStorage.getSessionWithMessages] No mapping for ${id}, trying direct lookup`);
+      firestoreId = id.toString();
+    }
 
     const allMessages = await firestoreUtils.getMessages(firestoreId, true);
     const messages = allMessages
@@ -264,13 +283,29 @@ export const sessionStorage = {
   },
 
   async listSessions(userId?: string): Promise<Session[]> {
+    console.log('🔍 [SessionStorage.listSessions] Fetching sessions for:', userId || 'ALL (dev mode)');
+
     const firestoreSessions = await firestoreUtils.listSessions(userId);
-    return firestoreSessions
-      .filter((fs) => fs.numericId !== undefined) // Skip sessions without numericId
-      .map((fs) => {
+    console.log('📊 [SessionStorage.listSessions] Found', firestoreSessions.length, 'raw sessions');
+
+    const processed = firestoreSessions
+      .map((fs, index) => {
         try {
+          // FIXED: Use numericId if available, otherwise generate from document ID or timestamp
+          let sessionId: number;
+
+          if (fs.numericId !== undefined) {
+            sessionId = fs.numericId;
+            console.log(`  ✅ Session ${index}: Using numericId ${sessionId}`);
+          } else {
+            // Try parsing document ID as number, or use timestamp
+            const parsedId = parseInt(fs.id);
+            sessionId = isNaN(parsedId) ? Date.now() + index : parsedId;
+            console.warn(`  ⚠️  Session ${index}: No numericId, generated ${sessionId} from ID "${fs.id}"`);
+          }
+
           return {
-            id: fs.numericId!,
+            id: sessionId,
             userId: fs.userId || null,
             title: fs.title || 'Untitled Session',
             status: fs.status || 'inputting',
@@ -282,34 +317,72 @@ export const sessionStorage = {
             selectedHooks: fs.selectedHooks || null,
             selectedHook: fs.selectedHook || null,
             output: fs.output || null,
-            createdAt: fs.createdAt ? fs.createdAt.toDate() : new Date(),
-            updatedAt: fs.updatedAt ? fs.updatedAt.toDate() : new Date(),
+            createdAt: fs.createdAt && typeof fs.createdAt.toDate === 'function'
+              ? fs.createdAt.toDate()
+              : (fs.createdAt || new Date()),
+            updatedAt: fs.updatedAt && typeof fs.updatedAt.toDate === 'function'
+              ? fs.updatedAt.toDate()
+              : (fs.updatedAt || new Date()),
           };
         } catch (e) {
-          console.warn('Skipping malformed session:', fs.id, e);
+          console.error('❌ Error processing session:', fs.id, e);
           return null;
         }
       })
       .filter((s): s is Session => s !== null);
+
+    console.log('✅ [SessionStorage.listSessions] Returning', processed.length, 'sessions');
+    return processed;
   },
 
 
 
   async updateSession(id: number, updates: Record<string, unknown>): Promise<Session | undefined> {
-    const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
-    if (!firestoreId) return undefined;
+    // Try to get Firestore ID from mapping, fallback to using numeric ID directly
+    let firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
+    if (!firestoreId) {
+      console.warn(`[SessionStorage.updateSession] No mapping for ${id}, trying direct lookup`);
+      firestoreId = id.toString();
+    }
 
-    // Sanitize updates using JSON serialization to remove undefined values
-    // This is safer and more robust than custom recursion for removing undefined
     try {
       const sanitizedUpdates = JSON.parse(JSON.stringify(updates));
-      console.log(`[Storage] Updating session ${id} with:`, JSON.stringify(sanitizedUpdates, null, 2));
-      await firestoreUtils.updateSession(firestoreId, sanitizedUpdates);
+      console.log(`[Storage] Updating session ${id} (Firestore ID: ${firestoreId}) with updates`);
+      const updatedRaw = await firestoreUtils.updateSession(firestoreId, sanitizedUpdates);
+
+      if (!updatedRaw) {
+        console.error(`[Storage] Update returned null for ${id}`);
+        return undefined;
+      }
+
+      console.log(`[Storage] Update successful for ${id}, returning mapped object directly`);
+
+      // Manually map to Session to ensure we return the latest data without re-fetching
+      // safely handling timestamp conversions
+      return {
+        id,
+        userId: updatedRaw.userId || null,
+        title: updatedRaw.title || '',
+        status: updatedRaw.status || 'started',
+        inputs: updatedRaw.inputs || {},
+        visualContext: updatedRaw.visualContext || null,
+        textHooks: updatedRaw.textHooks || null,
+        verbalHooks: updatedRaw.verbalHooks || null,
+        visualHooks: updatedRaw.visualHooks || null,
+        selectedHooks: updatedRaw.selectedHooks || null,
+        selectedHook: updatedRaw.selectedHook || null,
+        output: updatedRaw.output || null,
+        createdAt: updatedRaw.createdAt && typeof updatedRaw.createdAt.toDate === 'function'
+          ? updatedRaw.createdAt.toDate()
+          : new Date(),
+        updatedAt: updatedRaw.updatedAt && typeof updatedRaw.updatedAt.toDate === 'function'
+          ? updatedRaw.updatedAt.toDate()
+          : new Date(),
+      };
     } catch (e) {
       console.error(`[Storage] Failed to update session ${id}:`, e);
       throw e;
     }
-    return this.getSession(id);
   },
 
   async updateSessionTitle(id: number, title: string): Promise<Session | undefined> {
@@ -399,8 +472,12 @@ export const sessionStorage = {
   },
 
   async deleteSession(id: number): Promise<boolean> {
-    const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
-    if (!firestoreId) return false;
+    // Try to get Firestore ID from mapping, fallback to using numeric ID directly
+    let firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
+    if (!firestoreId) {
+      console.warn(`[SessionStorage.deleteSession] No mapping for ${id}, trying direct lookup`);
+      firestoreId = id.toString();
+    }
 
     // Also delete the ID mapping
     await firestoreUtils.deleteSessionIdMapping(id);

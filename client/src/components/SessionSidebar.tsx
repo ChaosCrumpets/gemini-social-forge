@@ -94,18 +94,20 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
       return;
     }
 
-    console.log('🔀 Loading session:', sessionId);
+    console.log('🔀 Navigating to session:', sessionId);
 
+    // CRITICAL: Navigate to the URL FIRST, then let URL hydration handle loading
+    // This ensures navigation happens even if the initial load attempt fails
+    setLocation(`/app?session=${sessionId}`, { replace: false });
+
+    // Optionally pre-load the session data to warm the cache
+    // But don't let failures block navigation since URL hydration will retry
     try {
-      // CRITICAL FIX: Actually load the session data, not just change URL
       await loadSessionMutation.mutateAsync(sessionId);
-
-      // Update URL to reflect the loaded session
-      setLocation(`/app?session=${sessionId}`, { replace: false });
-
-      console.log('✅ Session loaded successfully');
+      console.log('✅ Session pre-loaded successfully');
     } catch (error) {
-      console.error('❌ Failed to load session:', error);
+      console.warn('⚠️ Session pre-load failed, will retry via URL hydration:', error);
+      // Navigation already happened above, so URL hydration will take over
     }
 
     if (isMobile) onClose();

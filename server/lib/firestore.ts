@@ -272,12 +272,12 @@ export async function updateSession(
     try {
         const sessionRef = firestore.collection("sessions").doc(id);
 
-        // Use set with merge: true to avoid crashing if doc doesn't exist (or check existence first)
-        // But to be safe and stick to semantics, we try update and catch error
-        await sessionRef.update({
+        // query for existence first or use set with merge to be robust
+        // We use set with merge to ensure the save ALWAYS succeeds even if update() thinks doc is missing
+        await sessionRef.set({
             ...updates,
             updatedAt: Timestamp.now(),
-        });
+        }, { merge: true });
         return getSession(id);
     } catch (error: any) {
         console.error(`[Firestore] Update failed for ${id}:`, error);
