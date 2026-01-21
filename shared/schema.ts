@@ -120,22 +120,31 @@ export const selectedHooksSchema = z.object({
 
 export type SelectedHooks = z.infer<typeof selectedHooksSchema>;
 
-// Script line schema
+// Script line schema (enhanced with neurobiology beats)
 export const scriptLineSchema = z.object({
   lineNumber: z.number(),
-  speaker: z.string().optional(),
+  speaker: z.string().nullable().optional(),
   text: z.string(),
   timing: z.string().optional(),
-  notes: z.string().optional()
+  notes: z.string().optional(),
+  source: z.enum(["user-provided", "AI-enhanced", "AI-generated"]).optional(),
+  neurobiologyBeat: z.enum(["hook", "context", "conflict", "turning_point", "resolution"]).optional()
 });
 
 export type ScriptLine = z.infer<typeof scriptLineSchema>;
 
-// Storyboard frame schema
+// Storyboard frame schema (enhanced with camera movement and audio)
 export const storyboardFrameSchema = z.object({
   frameNumber: z.number(),
+  timing: z.string().optional(),
   shotType: z.string(),
-  description: z.string(),
+  visualDescription: z.string(),
+  cameraMovement: z.string().optional(),
+  audioVO: z.string().optional(),
+  transition: z.string().optional(),
+  notes: z.string().optional(),
+  // Legacy fields for backward compatibility
+  description: z.string().optional(),
   visualNotes: z.string().optional(),
   duration: z.string().optional()
 });
@@ -168,23 +177,74 @@ export const bRollItemSchema = z.object({
 
 export type BRollItem = z.infer<typeof bRollItemSchema>;
 
-// Caption schema
+// Caption schema (enhanced with platform-specific styling)
 export const captionSchema = z.object({
   id: z.string(),
   timestamp: z.string(),
   text: z.string(),
-  style: z.string().optional()
+  style: z.enum(["normal", "emphasis", "question"]).optional(),
+  platform: z.enum(["tiktok", "instagram", "youtube", "linkedin", "twitter"]).optional(),
+  notes: z.string().optional()
 });
 
 export type Caption = z.infer<typeof captionSchema>;
 
-// Full content output schema (the 5-panel output)
+// NEW: Cinematography schema (merged tech specs + storyboard)
+export const cinematographyTechSpecsSchema = z.object({
+  cameraVideo: z.array(z.string()),
+  audio: z.array(z.string()),
+  lighting: z.array(z.string()),
+  platformOptimizations: z.array(z.string()),
+  exportSettings: z.array(z.string())
+});
+
+export type CinematographyTechSpecs = z.infer<typeof cinematographyTechSpecsSchema>;
+
+export const cinematographySchema = z.object({
+  techSpecs: cinematographyTechSpecsSchema,
+  storyboard: z.array(storyboardFrameSchema)
+});
+
+export type Cinematography = z.infer<typeof cinematographySchema>;
+
+// NEW: Deployment Strategy schema
+export const deploymentStrategySchema = z.object({
+  postingSchedule: z.record(z.string(), z.object({
+    bestTimes: z.array(z.string()),
+    frequency: z.string(),
+    peakDays: z.array(z.string())
+  })),
+  hashtagStrategy: z.object({
+    tier1_broad: z.array(z.string()),
+    tier2_niche: z.array(z.string()),
+    tier3_micro: z.array(z.string()),
+    recommended: z.array(z.string())
+  }),
+  captionCopy: z.record(z.string(), z.string()),
+  engagementTactics: z.object({
+    firstHour: z.array(z.string()),
+    first24Hours: z.array(z.string()),
+    ongoing: z.array(z.string())
+  }),
+  crossPromotion: z.array(z.string()),
+  analyticsTracking: z.object({
+    keyMetrics: z.record(z.string(), z.array(z.string())),
+    successBenchmarks: z.record(z.string(), z.string())
+  })
+});
+
+export type DeploymentStrategy = z.infer<typeof deploymentStrategySchema>;
+
+// Full content output schema (NEW structure from CONTENT_GENERATION_ENGINE)
 export const contentOutputSchema = z.object({
   script: z.array(scriptLineSchema),
-  storyboard: z.array(storyboardFrameSchema),
-  techSpecs: techSpecsSchema,
-  bRoll: z.array(bRollItemSchema),
-  captions: z.array(captionSchema)
+  cinematography: cinematographySchema,
+  bRoll: z.array(bRollItemSchema).optional(),
+  captions: z.array(captionSchema),
+  deploymentStrategy: deploymentStrategySchema.optional(),
+  // Legacy fields for backward compatibility
+  storyboard: z.array(storyboardFrameSchema).optional(),
+  techSpecs: techSpecsSchema.optional()
 });
 
 export type ContentOutput = z.infer<typeof contentOutputSchema>;

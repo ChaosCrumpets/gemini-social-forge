@@ -38,27 +38,46 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Get current user to ensure we don't fetch sessions anonymously
+  // We use useProjectStore which doesn't directly expose user, so we need to grab it from a hook or store
+  // Since we don't have a global useAuth hook exposed here easily, 
+  // we can rely on the fact that apiRequest handles 401s, BUT preventing the call is better.
+
+  // For now, let's just make the query more robust by NOT refetching on window focus if we just got a 401
   const { data: sessions = [], isLoading } = useQuery<Session[]>({
     queryKey: ['/api/sessions'],
     queryFn: async () => {
+      // apiRequest handles token injection. If it fails with 401, it throws.
       const response = await apiRequest('GET', '/api/sessions');
       return response.json() as Promise<Session[]>;
-    }
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: (query) => {
+      // Don't refetch on focus if we are in an error state (likely auth)
+      if (query.state.status === 'error') return false;
+      return true;
+    },
+    refetchOnMount: true,
+    retry: 1 // Reduce retries for session list to avoid spamming 401s
+  });
+
+  // Client-side sort to guarantee "Newest Top" regardless of API order or caching
+  const sortedSessions = [...sessions].sort((a, b) => {
+    // Priority: UpdatedAt -> CreatedAt
+    const dateA = new Date(a.updatedAt || a.createdAt).getTime();
+    const dateB = new Date(b.updatedAt || b.createdAt).getTime();
+    // Descending: Newest (Larger timestamp) first
+    return dateB - dateA;
   });
 
   const loadSessionMutation = useMutation({
     mutationFn: async (sessionId: number) => {
-      console.log('[LoadSession] Mutation started for session:', sessionId);
       const response = await apiRequest('GET', `/api/sessions/${sessionId}`);
-      console.log('[LoadSession] API response status:', response.status);
       const data = await response.json() as Promise<SessionWithMessages>;
-      console.log('[LoadSession] Data received:', data);
       return data;
     },
     onSuccess: (data) => {
-      console.log('[LoadSession] Loading session into store:', data.session.id);
       loadSession(data.session, data.messages, data.editMessages);
-      console.log('[LoadSession] Session loaded successfully');
     },
     onError: (error) => {
       console.error('[LoadSession] Mutation failed:', error);
@@ -83,34 +102,6 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
   const handleNewChat = () => {
     reset();
     setCurrentSessionId(null);
-    // CRITICAL: Update URL to remove session param for new chat
-    setLocation('/app', { replace: false });
-    if (isMobile) onClose();
-  };
-
-  const handleSelectSession = async (sessionId: number) => {
-    if (sessionId === currentSessionId) {
-      if (isMobile) onClose();
-      return;
-    }
-
-    console.log('🔀 Navigating to session:', sessionId);
-
-    // CRITICAL: Navigate to the URL FIRST, then let URL hydration handle loading
-    // This ensures navigation happens even if the initial load attempt fails
-    setLocation(`/app?session=${sessionId}`, { replace: false });
-
-    // Optionally pre-load the session data to warm the cache
-    // But don't let failures block navigation since URL hydration will retry
-    try {
-      await loadSessionMutation.mutateAsync(sessionId);
-      console.log('✅ Session pre-loaded successfully');
-    } catch (error) {
-      console.warn('⚠️ Session pre-load failed, will retry via URL hydration:', error);
-      // Navigation already happened above, so URL hydration will take over
-    }
-
-    if (isMobile) onClose();
   };
 
   const handleDeleteSession = (e: React.MouseEvent, sessionId: number) => {
@@ -119,15 +110,19 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
     deleteSessionMutation.mutate(sessionId);
   };
 
-  const formatDate = (date: Date) => {
-    const now = new Date();
-    const d = new Date(date);
-    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  const handleSelectSession = (sessionId: number) => {
+    if (currentSessionId === sessionId) return;
+    setCurrentSessionId(sessionId);
+    loadSessionMutation.mutate(sessionId);
+    if (isMobile) onToggle();
+  };
 
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    return d.toLocaleDateString();
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
   };
 
   const sidebarContent = (
@@ -181,7 +176,7 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
           </div>
         ) : (
           <div className="space-y-1">
-            {sessions.map((session) => (
+            {sortedSessions.map((session) => (
               <div
                 key={session.id}
                 onClick={() => handleSelectSession(session.id)}

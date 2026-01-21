@@ -148,7 +148,12 @@ export async function getUserByStripeCustomerId(customerId: string): Promise<Fir
 // Session Operations
 // ============================================
 
-export async function createSession(userId?: string): Promise<Session & { firestoreId: string }> {
+export async function createSession(userId: string): Promise<Session & { firestoreId: string }> {
+    // Enforce userId requirement for production-ready architecture
+    if (!userId) {
+        throw new Error('userId is required to create a session');
+    }
+
     const now = Timestamp.now();
     const sessionRef = firestore.collection("sessions").doc();
 
@@ -158,17 +163,13 @@ export async function createSession(userId?: string): Promise<Session & { firest
     const sessionDoc: Partial<FirestoreSession> = {
         id: sessionRef.id,
         numericId, // STORE IT IN THE DOCUMENT
+        userId, // ALWAYS required - no optional logic
         title: "New Script",
         status: "inputting",
         inputs: {},
         createdAt: now,
         updatedAt: now,
     };
-
-    // Only add userId if provided (prevents permission issues)
-    if (userId) {
-        sessionDoc.userId = userId;
-    }
 
     await sessionRef.set(sessionDoc);
 
@@ -243,7 +244,6 @@ export async function getSession(id: string): Promise<FirestoreSession | null> {
 export async function listSessions(userId?: string): Promise<FirestoreSession[]> {
     console.log('[Firestore] listSessions called with userId:', userId);
 
-    // Temporarily remove orderBy to avoid index requirement
     let query = firestore.collection("sessions");
 
     if (userId) {
@@ -253,6 +253,9 @@ export async function listSessions(userId?: string): Promise<FirestoreSession[]>
         console.log('[Firestore] No userId filter - fetching ALL sessions');
     }
 
+    // REMOVED: Firestore orderBy (requires index that may not be ready)
+    // Instead, sort in memory after fetching
+
     const snapshot = await query.get();
     console.log('[Firestore] Query returned', snapshot.size, 'documents');
 
@@ -260,6 +263,27 @@ export async function listSessions(userId?: string): Promise<FirestoreSession[]>
         const data = doc.data() as FirestoreSession;
         console.log('[Firestore] Session doc:', doc.id, 'hasUserId:', !!data.userId, 'hasNumericId:', !!data.numericId);
         return data;
+    });
+
+    // Sort by updatedAt in MEMORY (works without index)
+    sessions.sort((a, b) => {
+        // Use updatedAt if available (activity based), fallback to createdAt (creation based)
+        const aTime = (a.updatedAt || a.createdAt)?.toMillis?.() || 0;
+        const bTime = (b.updatedAt || b.createdAt)?.toMillis?.() || 0;
+
+        // DEBUG: Log the comparison for the first few items
+        // if (Math.random() < 0.01) console.log(`[Sort] ${a.title} (${aTime}) vs ${b.title} (${bTime})`);
+
+        return bTime - aTime; // Descending (newest activity first)
+    });
+
+    // DEBUG: Show first 5 sessions with their timestamps
+    console.log('[Firestore] Sorted Session List (Top 5):');
+    sessions.slice(0, 5).forEach((s, i) => {
+        const uDate = s.updatedAt?.toDate?.();
+        const cDate = s.createdAt?.toDate?.();
+        const effective = uDate || cDate;
+        console.log(`  ${i + 1}. [${s.title}] Effective: ${effective?.toISOString()} (Updated: ${!!uDate}, Created: ${cDate?.toISOString()})`);
     });
 
     return sessions;
@@ -346,6 +370,17 @@ export async function addMessage(
     };
 
     await messageRef.set(messageDoc);
+
+    // Update parent session timestamp for "Recents" sorting
+    try {
+        await firestore.collection("sessions").doc(sessionId).update({
+            updatedAt: Timestamp.now()
+        });
+    } catch (e) {
+        console.warn(`[Firestore] Failed to update parent session timestamp for ${sessionId}`, e);
+        // Continue - message save is more important
+    }
+
     return messageDoc;
 }
 
@@ -365,6 +400,25 @@ export async function getMessages(
 
     const snapshot = await query.get();
     return snapshot.docs.map((doc) => doc.data() as FirestoreMessage);
+}
+
+export async function clearMessages(sessionId: string): Promise<void> {
+    const messagesRef = firestore
+        .collection("sessions")
+        .doc(sessionId)
+        .collection("messages");
+
+    const snapshot = await messagesRef.get();
+    const batch = firestore.batch();
+
+    snapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+    });
+
+    if (snapshot.docs.length > 0) {
+        await batch.commit();
+        console.log(`[Firestore] Cleared ${snapshot.docs.length} messages from session ${sessionId}`);
+    }
 }
 
 // ============================================

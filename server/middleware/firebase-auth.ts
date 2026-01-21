@@ -24,17 +24,7 @@ export async function verifyFirebaseToken(
     next: NextFunction
 ): Promise<void> {
     try {
-        // Development mode bypass
-        if (process.env.NODE_ENV === 'development' && process.env.DISABLE_AUTH === 'true') {
-            console.log('[Auth] Development mode - auth disabled, injecting mock user');
-            req.user = {
-                uid: 'dev-user-123',
-                email: 'admin@test.com',
-                name: 'Dev Admin'
-            };
-            next();
-            return;
-        }
+        // DISABLE_AUTH removed - always enforce authentication for production-ready security
 
         const authHeader = req.headers.authorization;
         console.log(`[Auth] Verifying token. Header present: ${!!authHeader}`);
@@ -81,6 +71,10 @@ export async function verifyFirebaseToken(
  * If token is present and valid, attaches user to req.user
  * If no token or invalid token, continues without user
  * 
+ * ⚠️ DEPRECATED: This middleware should gradually be replaced with verifyFirebaseToken
+ * for production-ready security. It's kept for backward compatibility with routes
+ * that haven't been migrated yet.
+ * 
  * This middleware NEVER returns 401 - it always calls next() to allow the request through
  */
 export async function optionalFirebaseAuth(
@@ -91,12 +85,7 @@ export async function optionalFirebaseAuth(
     console.log('[OptionalAuth] START - Method:', req.method, 'URL:', req.url);
 
     try {
-        // Development mode bypass
-        if (process.env.NODE_ENV === 'development' && process.env.DISABLE_AUTH === 'true') {
-            console.log('[OptionalAuth] Development mode - auth disabled, calling next()');
-            next();
-            return;
-        }
+        // DISABLE_AUTH removed - always attempt proper authentication
 
         const authHeader = req.headers.authorization;
         console.log('[OptionalAuth] Auth header present:', !!authHeader);

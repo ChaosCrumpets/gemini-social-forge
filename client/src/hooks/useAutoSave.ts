@@ -53,14 +53,20 @@ export function useAutoSave(firestoreId: string | null) {
 
         setSaveStatus('saving');
         try {
+            // ENTERPRISE: Phase 2 - Filter out messages (saved individually via POST /api/sessions/:id/messages)
+            const { messages, ...dataWithoutMessages } = data;
+
             // Filter out undefined values to prevent errors
             const updateData: Record<string, unknown> = {};
-            Object.entries(data).forEach(([key, value]) => {
+            Object.entries(dataWithoutMessages).forEach(([key, value]) => {
                 if (value !== undefined) {
                     updateData[key] = value;
                 }
             });
-            // updateData.updatedAt = serverTimestamp(); // Backend handles timestamps
+
+            if (messages) {
+                console.log(`[AutoSave] Filtered out ${messages.length} messages from auto-save`);
+            }
 
             // Use backend API
             const response = await fetch(`/api/sessions/${id}`, {

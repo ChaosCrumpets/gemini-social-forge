@@ -105,7 +105,7 @@ export default function AssemblyLine() {
     }
   }, [project, saveNow]);
 
-  // Auto-save when project changes
+  // Auto-save when project changes (MESSAGES EXCLUDED - saved individually)
   useEffect(() => {
     if (project && currentSessionId) {
       console.log('📝 Project changed, triggering auto-save:', new Date().toISOString());
@@ -254,11 +254,26 @@ export default function AssemblyLine() {
     }
   }, [currentSessionId, isHydrating]);
 
-  const saveMessageToSession = useCallback(async (sessionId: number, role: string, content: string, isEditMessage = false) => {
+  // ENTERPRISE: Phase 3 - Save individual message to database (non-blocking)
+  const saveMessageToDb = useCallback(async (
+    sessionId: number,
+    role: 'user' | 'assistant',
+    content: string,
+    isEditMessage: boolean = false
+  ) => {
     try {
-      await apiRequest('POST', `/api/sessions/${sessionId}/messages`, { role, content, isEditMessage });
+      console.log(`💾 Saving ${role} message to session ${sessionId}`);
+
+      await apiRequest('POST', `/api/sessions/${sessionId}/messages`, {
+        role,
+        content,
+        isEditMessage
+      });
+
+      console.log(`✅ ${role} message saved to database`);
     } catch (error) {
-      console.error('Failed to save message to session:', error);
+      console.error(`❌ Failed to save ${role} message:`, error);
+      // Non-critical - message is in local state
     }
   }, []);
 
@@ -320,14 +335,32 @@ export default function AssemblyLine() {
       const response = await apiRequest('POST', '/api/sessions');
       const session: Session = await response.json();
       setCurrentSessionId(session.id);
-      queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+
+      // Invalidate and refetch to ensure sidebar updates immediately
+      await queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/sessions'] });
 
       console.log('✅ Session created:', session.id);
 
       return session.id;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create session:', error);
 
+      // Handle authentication errors specifically
+      if (error?.message?.includes('401') || error?.message?.includes('Authentication required')) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to create a new session.",
+          variant: "destructive"
+        });
+
+        // Note: If you want to redirect to login, uncomment the following:
+        // navigate('/login');
+
+        return null;
+      }
+
+      // Generic error handling for other failures
       toast({
         title: "Save Failed",
         description: "Could not create session. Working in temporary mode.",
@@ -483,6 +516,8 @@ export default function AssemblyLine() {
     if (!project) return;
 
     let sessionId = currentSessionId;
+    const isFirstMessage = project.messages.length === 0;
+
     if (!sessionId) {
       const createdId = await ensureSession();
       if (!createdId) {
@@ -490,6 +525,31 @@ export default function AssemblyLine() {
         return;
       }
       if (createdId) sessionId = createdId;
+    }
+
+    // Generate title from first message (ChatGPT-style)
+    if (isFirstMessage && sessionId) {
+      const title = content.length > 50
+        ? content.substring(0, 50) + '...'
+        : content;
+
+      console.log('🏷️ Auto-title: Setting title for session', sessionId, 'to:', title);
+
+      try {
+        // Update session with auto-generated title using the dedicated endpoint
+        await apiRequest('PATCH', `/api/sessions/${sessionId}/title`, {
+          title: title
+        });
+
+        // Force sidebar to refresh with new title
+        await queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+        await queryClient.refetchQueries({ queryKey: ['/api/sessions'] });
+
+        console.log('✅ Session title set successfully:', title);
+      } catch (error) {
+        console.error('❌ Failed to set session title:', error);
+        // Non-critical, continue anyway
+      }
     }
 
     const userMessage: ChatMessage = {
@@ -500,6 +560,12 @@ export default function AssemblyLine() {
     };
 
     addMessage(userMessage);
+
+    // ENTERPRISE: Phase 3 - Save user message to database immediately
+    if (sessionId) {
+      saveMessageToDb(sessionId, 'user', content);
+    }
+
     setLoading(true);
     setError(null);
 
@@ -536,10 +602,11 @@ export default function AssemblyLine() {
           timestamp: Date.now()
         };
         addMessage(assistantMessage);
-        // Backend handles message persistence
-        // if (sessionId) {
-        //   saveMessageToSession(sessionId, 'assistant', data.message);
-        // }
+
+        // ENTERPRISE: Phase 3 - Save assistant message to database immediately
+        if (sessionId) {
+          saveMessageToDb(sessionId, 'assistant', data.message);
+        }
       }
 
 
@@ -578,7 +645,7 @@ export default function AssemblyLine() {
     } finally {
       setLoading(false);
     }
-  }, [project, addMessage, updateInputs, setLoading, setError, generateTextHooks, currentSessionId, createSession, saveMessageToSession, updateSessionData, discoveryComplete, discoveryQuestions, fetchDiscoveryQuestions]);
+  }, [project, addMessage, updateInputs, setLoading, setError, generateTextHooks, currentSessionId, createSession, saveMessageToDb, updateSessionData, discoveryComplete, discoveryQuestions, fetchDiscoveryQuestions]);
 
   const handleSelectTextHook = useCallback(async (hook: TextHook) => {
     if (!project) return;
@@ -688,7 +755,7 @@ export default function AssemblyLine() {
             output: data.output,
             status: 'complete'
           });
-          saveMessageToSession(currentSessionId, 'assistant', completeMessage.content);
+          saveMessageToDb(currentSessionId, 'assistant', completeMessage.content);
         }
       }
     } catch (error: unknown) {
@@ -734,7 +801,7 @@ export default function AssemblyLine() {
     } finally {
       setLoading(false);
     }
-  }, [project, setLoading, setStatus, setAgents, updateAgent, setOutput, addMessage, setError, currentSessionId, updateSessionData, saveMessageToSession]);
+  }, [project, setLoading, setStatus, setAgents, updateAgent, setOutput, addMessage, setError, currentSessionId, updateSessionData, saveMessageToDb]);
 
   const handleEditMessage = useCallback(async (content: string) => {
     if (!project || !project.output) return;
@@ -751,7 +818,7 @@ export default function AssemblyLine() {
     setError(null);
 
     if (currentSessionId) {
-      saveMessageToSession(currentSessionId, 'user', content, true);
+      saveMessageToDb(currentSessionId, 'user', content, true);
     }
 
     try {
@@ -781,7 +848,7 @@ export default function AssemblyLine() {
         addEditMessage(assistantMessage);
 
         if (currentSessionId) {
-          saveMessageToSession(currentSessionId, 'assistant', data.message, true);
+          saveMessageToDb(currentSessionId, 'assistant', data.message, true);
         }
       }
     } catch (error) {
@@ -798,7 +865,7 @@ export default function AssemblyLine() {
     } finally {
       setLoading(false);
     }
-  }, [project, editMessages, addEditMessage, setOutput, setLoading, setError, currentSessionId, saveMessageToSession, updateSessionData]);
+  }, [project, editMessages, addEditMessage, setOutput, setLoading, setError, currentSessionId, saveMessageToDb, updateSessionData]);
 
   useEffect(() => {
     if (project?.status === ProjectStatus.GENERATING && !isLoading) {

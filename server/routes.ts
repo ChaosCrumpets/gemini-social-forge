@@ -807,13 +807,15 @@ export async function registerRoutes(
   // Session API Endpoints (SQLite + Optional Auth)
   // ============================================
 
-  app.get("/api/sessions", optionalFirebaseAuth, async (req, res) => {
+  app.get("/api/sessions", verifyFirebaseToken, async (req, res) => {
     try {
-      // In development mode with DISABLE_AUTH, don't filter by userId
-      // This allows sessions to appear regardless of which dev user created them
-      const userId = process.env.DISABLE_AUTH === 'true' ? undefined : req.user?.uid;
+      const userId = req.user?.uid;
 
-      console.log('[Sessions List] Fetching sessions for user:', userId || 'ALL (dev mode)');
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      console.log('[Sessions List] Fetching sessions for user:', userId);
       const sessions = await sessionStorage.listSessions(userId);
       console.log('[Sessions List] Found', sessions.length, 'sessions');
       res.json(sessions);
@@ -823,10 +825,15 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/sessions", optionalFirebaseAuth, async (req, res) => {
+  app.post("/api/sessions", verifyFirebaseToken, async (req, res) => {
     try {
       const userId = req.user?.uid;
-      const session = await sessionStorage.createSession(userId || undefined);
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Authentication required to create session' });
+      }
+
+      const session = await sessionStorage.createSession(userId);
       res.json(session);
     } catch (error) {
       console.error("Session creation error:", error);
@@ -865,6 +872,33 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Session update error:", error);
       res.status(500).json({ error: "Failed to update session" });
+    }
+  });
+
+  // POST /api/sessions/:id/messages - Add single message (ENTERPRISE: Phase 1)
+  app.post("/api/sessions/:id/messages", optionalFirebaseAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid session ID" });
+      }
+
+      const { role, content, isEditMessage } = req.body;
+
+      if (!role || !content) {
+        return res.status(400).json({ error: "Role and content required" });
+      }
+
+      const message = await sessionStorage.addMessage(id, role, content, isEditMessage || false);
+
+      if (!message) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+
+      res.status(201).json(message);
+    } catch (error) {
+      console.error("Add message error:", error);
+      res.status(500).json({ error: "Failed to add message" });
     }
   });
 

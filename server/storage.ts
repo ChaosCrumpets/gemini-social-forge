@@ -173,9 +173,8 @@ export interface SessionWithMessages {
 
 
 export const sessionStorage = {
-  async createSession(userId?: string): Promise<Session> {
-    const session = await firestoreUtils.createSession(userId);
-    return session;
+  async createSession(userId: string): Promise<Session> {
+    return await firestoreUtils.createSession(userId);
   },
 
   async getSession(id: number): Promise<Session | undefined> {
@@ -335,20 +334,70 @@ export const sessionStorage = {
     return processed;
   },
 
-
-
-  async updateSession(id: number, updates: Record<string, unknown>): Promise<Session | undefined> {
-    // Try to get Firestore ID from mapping, fallback to using numeric ID directly
+  // Helper to get Firestore ID, handling mapping and direct lookup
+  async getFirestoreId(id: number): Promise<string | undefined> {
     let firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
     if (!firestoreId) {
-      console.warn(`[SessionStorage.updateSession] No mapping for ${id}, trying direct lookup`);
+      console.warn(`[SessionStorage.getFirestoreId] No mapping for ${id}, trying direct lookup`);
       firestoreId = id.toString();
+      // Verify if a session with this direct ID actually exists
+      const sessionExists = await firestoreUtils.getSession(firestoreId);
+      if (!sessionExists) {
+        return undefined; // No session found with either mapping or direct lookup
+      }
     }
+    return firestoreId;
+  },
 
+  async updateSession(id: number, updates: Record<string, unknown>): Promise<Session | undefined> {
     try {
-      const sanitizedUpdates = JSON.parse(JSON.stringify(updates));
-      console.log(`[Storage] Updating session ${id} (Firestore ID: ${firestoreId}) with updates`);
+      console.log(`[Storage] updateSession called for ${id} with keys:`, Object.keys(updates));
+
+      const firestoreId = await this.getFirestoreId(id);
+      if (!firestoreId) {
+        console.error(`[Storage] No Firestore ID found for session ${id}`);
+        return undefined;
+      }
+
+      // Extract messages if present (they need separate handling)
+      const messages = updates.messages as any[];
+      const messagesUpdates = { ...updates };
+      delete messagesUpdates.messages; // Remove from session updates
+
+      // Sanitize updates
+      const sanitizedUpdates: Record<string, unknown> = {};
+      Object.entries(messagesUpdates).forEach(([key, value]) => {
+        if (value !== undefined) {
+          sanitizedUpdates[key] = value;
+        }
+      });
+
+      console.log(`[Storage] Updating session fields for ${id}:`, Object.keys(sanitizedUpdates));
+
+      // Update session fields
       const updatedRaw = await firestoreUtils.updateSession(firestoreId, sanitizedUpdates);
+
+      // Save messages to subcollection if provided
+      if (messages && Array.isArray(messages) && messages.length > 0) {
+        console.log(`[Storage] Saving ${messages.length} messages for session ${id}`);
+
+        // Clear existing messages first to avoid duplicates
+        await firestoreUtils.clearMessages(firestoreId);
+
+        // Save each message
+        for (const msg of messages) {
+          if (msg.role && msg.content) {
+            await firestoreUtils.addMessage(
+              firestoreId,
+              msg.role,
+              msg.content,
+              msg.isEditMessage || false
+            );
+          }
+        }
+
+        console.log(`[Storage] ✅ Saved ${messages.length} messages for session ${id}`);
+      }
 
       if (!updatedRaw) {
         console.error(`[Storage] Update returned null for ${id}`);
@@ -412,51 +461,44 @@ export const sessionStorage = {
   },
 
   async updateSessionOutput(id: number, output: ContentOutput): Promise<Session | undefined> {
-    return this.updateSession(id, { output, status: "complete" });
+    return this.updateSession(id, { output });
   },
 
-  async addMessage(sessionId: number, userId: string, role: string, content: string, isEditMessage: boolean = false): Promise<SessionMessage> {
-    console.log(`[Storage] addMessage called for sessionId ${sessionId}, userId ${userId}`);
+  // ENTERPRISE: Phase 1 - Atomic message persistence (FIXED VERSION)
+  async addMessage(
+    sessionId: number,
+    role: string,
+    content: string,
+    isEditMessage: boolean = false
+  ): Promise<SessionMessage | undefined> {
+    try {
+      const firestoreId = await this.getFirestoreId(sessionId);
+      if (!firestoreId) {
+        console.error(`[Storage] No Firestore ID found for session ${sessionId}`);
+        return undefined;
+      }
 
-    const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(sessionId);
-    console.log(`[Storage] Resolved firestoreId: ${firestoreId}`);
+      console.log(`[Storage] Adding ${role} message to session ${sessionId}`);
 
-    if (!firestoreId) {
-      console.error(`[Storage] Session ${sessionId} not found (no firestoreId mapping)`);
-      throw new Error('Session not found');
+      const firestoreMessage = await firestoreUtils.addMessage(
+        firestoreId,
+        role,
+        content,
+        isEditMessage
+      );
+
+      // Convert Firestore message to SessionMessage
+      return {
+        id: firestoreMessage.id,
+        role: firestoreMessage.role as 'user' | 'assistant',
+        content: firestoreMessage.content,
+        isEditMessage: firestoreMessage.isEditMessage || false,
+        timestamp: firestoreMessage.timestamp.toDate()
+      };
+    } catch (error) {
+      console.error(`[Storage] Failed to add message to session ${sessionId}:`, error);
+      throw error;
     }
-
-    // Verify session ownership before adding message
-    const session = await firestoreUtils.getSession(firestoreId);
-    if (!session) {
-      console.error(`[Storage] Firestore session ${firestoreId} does not exist`);
-      throw new Error('Session not found');
-    }
-
-    // Only check ownership if session has a userId (anonymous sessions might exist but usually have userId)
-    if (session.userId && session.userId !== userId) {
-      console.error(`[Storage] Ownership mismatch: Session owner ${session.userId} vs Request user ${userId}`);
-      throw new Error(`Unauthorized: User ${userId} does not own session ${sessionId}`);
-    }
-
-    // Validate role to prevent crashes
-    const validRole: "user" | "assistant" = role === "user" || role === "assistant" ? role : "user";
-    if (role !== validRole) {
-      console.warn(`Invalid message role "${role}" normalized to "${validRole}"`);
-    }
-
-    console.log(`[Storage] Adding message to Firestore session ${firestoreId}`);
-    const message = await firestoreUtils.addMessage(firestoreId, validRole, content, isEditMessage);
-    console.log(`[Storage] Message added with ID: ${message.id}`);
-
-    return {
-      id: Date.now(), // Use timestamp as ID for simplicity
-      sessionId,
-      role: validRole,
-      content: message.content,
-      isEditMessage: message.isEditMessage,
-      timestamp: message.timestamp.toDate(),
-    };
   },
 
   async addVersion(sessionId: number, versionData: any) {
