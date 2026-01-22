@@ -138,7 +138,7 @@ export const storyboardFrameSchema = z.object({
   frameNumber: z.number(),
   timing: z.string().optional(),
   shotType: z.string(),
-  visualDescription: z.string(),
+  visualDescription: z.string().optional(),
   cameraMovement: z.string().optional(),
   audioVO: z.string().optional(),
   transition: z.string().optional(),
@@ -194,6 +194,10 @@ export const cinematographyTechSpecsSchema = z.object({
   cameraVideo: z.array(z.string()),
   audio: z.array(z.string()),
   lighting: z.array(z.string()),
+  soundDesign: z.array(z.string().optional()).optional().default([]),
+  colorGrade: z.array(z.string().optional()).optional().default([]),
+  equipment: z.array(z.string().optional()).optional().default([]),
+  composition: z.array(z.string().optional()).optional().default([]),
   platformOptimizations: z.array(z.string()),
   exportSettings: z.array(z.string())
 });
@@ -220,7 +224,6 @@ export const deploymentStrategySchema = z.object({
     tier3_micro: z.array(z.string()),
     recommended: z.array(z.string())
   }),
-  captionCopy: z.record(z.string(), z.string()),
   engagementTactics: z.object({
     firstHour: z.array(z.string()),
     first24Hours: z.array(z.string()),

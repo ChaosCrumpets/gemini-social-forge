@@ -48,10 +48,15 @@ app.use((req, res, next) => {
 
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
+    if (path.startsWith("/api") && path !== "/api/health") {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
+      const DEBUG = process.env.DEBUG_LOGS === "true";
+      if (capturedJsonResponse && DEBUG) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      }
+
+      if (logLine.length > 80 && !DEBUG) {
+        logLine = logLine.slice(0, 79) + "…";
       }
 
       log(logLine);
@@ -96,4 +101,15 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
     },
   );
+
+  const shutdown = () => {
+    log('Shutting down server...');
+    httpServer.close(() => {
+      log('Server closed');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 })();

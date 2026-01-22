@@ -118,9 +118,9 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
   };
 
   const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
+    return new Date(date).toLocaleDateString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
       year: 'numeric'
     });
   };

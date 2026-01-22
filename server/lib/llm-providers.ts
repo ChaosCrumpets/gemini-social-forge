@@ -13,8 +13,8 @@ export const providers: LLMProvider[] = [
     name: 'gemini',
     apiKey: process.env.GEMINI_API_KEY || '',
     rpm: 60,
-    logicModel: 'gemini-1.5-flash',
-    contentModel: 'gemini-1.5-flash',
+    logicModel: 'gemini-1.5-flash-001',
+    contentModel: 'gemini-1.5-flash-001',
     enabled: !!process.env.GEMINI_API_KEY,
     priority: 1
   },
@@ -22,8 +22,8 @@ export const providers: LLMProvider[] = [
     name: 'claude',
     apiKey: process.env.ANTHROPIC_API_KEY || '',
     rpm: 50,
-    logicModel: 'claude-3-5-sonnet-20241022',
-    contentModel: 'claude-3-5-haiku-20241022',
+    logicModel: 'claude-3-5-sonnet-20240620',
+    contentModel: 'claude-3-haiku-20240307',
     enabled: !!process.env.ANTHROPIC_API_KEY,
     priority: 2
   },
@@ -41,7 +41,7 @@ export const providers: LLMProvider[] = [
     apiKey: process.env.GROQ_API_KEY || '',
     rpm: 30, // Default free tier limit
     logicModel: 'llama-3.3-70b-versatile',
-    contentModel: 'llama-3.1-8b-instant',
+    contentModel: 'llama-3.3-70b-versatile',
     enabled: !!process.env.GROQ_API_KEY,
     priority: 4
   },

@@ -13,6 +13,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import Groq from 'groq-sdk';
 import OpenAI from 'openai';
 import { providers, type LLMProvider } from './llm-providers';
+import { log } from '../utils/logger';
 
 export type TaskCategory = 'logic' | 'content';
 
@@ -123,28 +124,28 @@ class LLMRouter {
             }
 
             try {
-                console.log(`[LLM Router] Attempting ${provider.name} for ${request.category} task`);
+                log.router(`Attempting ${provider.name} for ${request.category} task`);
 
                 this.recordRequest(provider.name);
 
                 const response = await this.callProvider(provider, request);
 
-                console.log(`[LLM Router] ✅ Success with ${provider.name}`);
+                log.success(`[LLM Router] Success with ${provider.name} (${request.category})`);
                 return response;
 
             } catch (error: any) {
-                console.error(`[LLM Router] ❌ ${provider.name} failed:`, error.message);
+                log.error(`[LLM Router] ${provider.name} failed:`, error.message);
                 lastError = error;
 
                 // If rate limited, mark and try next
                 if (error.message?.includes('rate limit') || error.status === 429) {
-                    console.log(`[LLM Router] Rate limit hit for ${provider.name}, trying next provider`);
+                    log.router(`Rate limit hit for ${provider.name}, trying next provider`);
                     continue;
                 }
 
                 // If quota exceeded, disable provider temporarily
                 if (error.message?.includes('quota') || error.status === 403) {
-                    console.log(`[LLM Router] Quota exceeded for ${provider.name}, trying next provider`);
+                    log.router(`Quota exceeded for ${provider.name}, trying next provider`);
                     continue;
                 }
 
@@ -301,7 +302,8 @@ class LLMRouter {
             model,
             messages,
             temperature: request.temperature,
-            max_tokens: request.maxTokens
+            max_tokens: request.maxTokens,
+            response_format: request.responseFormat === 'json' ? { type: 'json_object' } : undefined
         });
 
         return {

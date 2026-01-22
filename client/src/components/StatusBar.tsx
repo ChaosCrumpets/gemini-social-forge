@@ -125,7 +125,7 @@ function StatusStep({ label, isComplete, isCurrent, isPending, isClickable, wasR
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          {badge}
+          <span>{badge}</span>
         </TooltipTrigger>
         <TooltipContent>
           <p>Click to go back to {label}</p>

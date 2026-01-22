@@ -80,8 +80,8 @@ export default function ProjectsPage() {
   const formatDate = (dateStr: string | Date | null | undefined) => {
     if (!dateStr) return "Unknown";
     return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
+      month: "2-digit",
+      day: "2-digit",
       year: "numeric",
     });
   };

@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import { firestore } from "../db";
 
+const DEBUG = process.env.DEBUG_LOGS === "true";
+
 /**
  * Middleware to ensure a Firestore user document exists for authenticated users
  * This runs AFTER Firebase token verification (which sets req.user)
@@ -14,7 +16,7 @@ export async function ensureUserExists(
     try {
         // Development mode bypass - inject mock DB user
         if (process.env.NODE_ENV === 'development' && process.env.DISABLE_AUTH === 'true') {
-            console.log('[UserProvisioning] Development mode - injecting mock DB user');
+            if (DEBUG) console.log('[UserProvisioning] Development mode - injecting mock DB user');
             (req as any).dbUser = {
                 id: 'dev-user-123',
                 uid: 'dev-user-123',
@@ -42,13 +44,13 @@ export async function ensureUserExists(
 
         // Skip if no authenticated user (some routes are public)
         if (!req.user || !req.user.uid) {
-            console.log('[UserProvisioning] No authenticated user, skipping user provisioning');
+            if (DEBUG) console.log('[UserProvisioning] No authenticated user, skipping user provisioning');
             next();
             return;
         }
 
         const uid = req.user.uid;
-        console.log(`[UserProvisioning] Checking/creating user document for UID: ${uid}`);
+        if (DEBUG) console.log(`[UserProvisioning] Checking/creating user document for UID: ${uid}`);
 
         // Check if user document exists in Firestore
         const userRef = firestore.collection('users').doc(uid);
@@ -56,7 +58,7 @@ export async function ensureUserExists(
 
         if (!userDoc.exists) {
             // Create new user document
-            console.log(`[UserProvisioning] Creating new user document for ${req.user.email}`);
+            if (DEBUG) console.log(`[UserProvisioning] Creating new user document for ${req.user.email}`);
 
             const newUser = {
                 id: uid,
@@ -77,7 +79,7 @@ export async function ensureUserExists(
 
             // Attach to request
             (req as any).dbUser = newUser;
-            console.log(`[UserProvisioning] ✅ New user created: ${req.user.email}`);
+            if (DEBUG) console.log(`[UserProvisioning] ✅ New user created: ${req.user.email}`);
         } else {
             // User exists, attach to request
             const userData = userDoc.data();
@@ -85,7 +87,7 @@ export async function ensureUserExists(
                 id: uid,
                 ...userData
             };
-            console.log(`[UserProvisioning] ✅ Existing user found: ${req.user.email}`);
+            if (DEBUG) console.log(`[UserProvisioning] ✅ Existing user found: ${req.user.email}`);
         }
 
         next();

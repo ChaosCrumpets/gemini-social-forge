@@ -11,6 +11,7 @@ import {
   generateVerbalHooks,
   generateVisualHooks,
   generateContentFromMultiHooks,
+  generateEnhancedContentFromMultiHooks,
   editContent,
   generateDiscoveryQuestions,
   getQueryDatabaseCategories,
@@ -26,11 +27,19 @@ import { registerSchema, loginSchema, upgradeSchema, SubscriptionTier, TierInfo 
 import * as firestoreUtils from "./lib/firestore";
 import bcrypt from "bcryptjs";
 import { Timestamp } from "firebase-admin/firestore";
+import { evaluateChatQuality } from "./lib/quality-evaluator";
+import { detectNiche } from "./lib/enrichment/nicheDetector";
+import { getKnowledgeBase, enrichInputs } from "./lib/enrichment/knowledgeRetrieval";
+import { inferMissingContext } from "./lib/enrichment/intelligentInference";
+
+const DEBUG = process.env.DEBUG_LOGS === "true";
 
 // DEBUG: Verify this file is loading
-console.log('🔥🔥🔥 ROUTES.TS LOADING - TIMESTAMP:', new Date().toISOString());
-console.log('🔥🔥🔥 optionalFirebaseAuth type:', typeof optionalFirebaseAuth);
-console.log('🔥🔥🔥 verifyFirebaseToken type:', typeof verifyFirebaseToken);
+if (DEBUG) {
+  console.log('🔥🔥🔥 ROUTES.TS LOADING - TIMESTAMP:', new Date().toISOString());
+  console.log('🔥🔥🔥 optionalFirebaseAuth type:', typeof optionalFirebaseAuth);
+  console.log('🔥🔥🔥 verifyFirebaseToken type:', typeof verifyFirebaseToken);
+}
 
 
 export async function registerRoutes(
@@ -48,7 +57,7 @@ export async function registerRoutes(
   app.post('/api/health', (req: Request, res: Response) => {
     requestCount++;
     const timestamp = new Date().toISOString();
-    console.log(`✅ Health check #${requestCount} - ${timestamp}`);
+    if (DEBUG) console.log(`✅ Health check #${requestCount} - ${timestamp}`);
     res.json({
       status: 'alive',
       startTime: serverStartTime,
@@ -233,7 +242,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Inputs are required" });
       }
 
-      console.log('[generate-text-hooks] Generating text hooks...');
+      if (DEBUG) console.log('[generate-text-hooks] Generating text hooks...');
       const response = await generateTextHooks(inputs);
 
       res.json(response);
@@ -251,36 +260,44 @@ export async function registerRoutes(
     const startTime = Date.now();
     const requestId = `vhooks-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    console.log(`\n┌─────────────────────────────────────────────────────────────`);
-    console.log(`│ [VISUAL HOOKS] Request Start - ID: ${requestId}`);
-    console.log(`│ Timestamp: ${new Date().toISOString()}`);
-    console.log(`│ User: ${req.user?.email || 'unknown'}`);
-    console.log(`└─────────────────────────────────────────────────────────────`);
+    if (DEBUG) {
+      console.log(`\n┌─────────────────────────────────────────────────────────────`);
+      console.log(`│ [VISUAL HOOKS] Request Start - ID: ${requestId}`);
+      console.log(`│ Timestamp: ${new Date().toISOString()}`);
+      console.log(`│ User: ${req.user?.email || 'unknown'}`);
+      console.log(`└─────────────────────────────────────────────────────────────`);
+    }
 
     try {
       const { inputs, visualContext } = req.body;
 
-      console.log(`[${requestId}] 📥 Request Body:`);
-      console.log(`  - Inputs:`, JSON.stringify(inputs, null, 2));
-      console.log(`  - Visual Context:`, JSON.stringify(visualContext, null, 2));
+      if (DEBUG) {
+        console.log(`[${requestId}] 📥 Request Body:`);
+        console.log(`  - Inputs:`, JSON.stringify(inputs, null, 2));
+        console.log(`  - Visual Context:`, JSON.stringify(visualContext, null, 2));
+      }
 
       if (!inputs) {
         console.log(`[${requestId}] ❌ Validation failed: Missing inputs`);
         return res.status(400).json({ error: "Inputs are required" });
       }
 
-      console.log(`[${requestId}] ✅ Validation passed`);
-      console.log(`[${requestId}] 🔄 Calling generateVisualHooks...`);
+      if (DEBUG) {
+        console.log(`[${requestId}] ✅ Validation passed`);
+        console.log(`[${requestId}] 🔄 Calling generateVisualHooks...`);
+      }
 
       try {
         const response = await generateVisualHooks(inputs, visualContext || {});
         const duration = Date.now() - startTime;
 
-        console.log(`[${requestId}] ✅ API Success - Duration: ${duration}ms`);
-        console.log(`[${requestId}] 📤 Response:`, JSON.stringify(response, null, 2));
-        console.log(`┌─────────────────────────────────────────────────────────────`);
-        console.log(`│ [VISUAL HOOKS] Request Complete - ${duration}ms`);
-        console.log(`└─────────────────────────────────────────────────────────────\n`);
+        if (DEBUG) {
+          console.log(`[${requestId}] ✅ API Success - Duration: ${duration}ms`);
+          console.log(`[${requestId}] 📤 Response:`, JSON.stringify(response, null, 2));
+          console.log(`┌─────────────────────────────────────────────────────────────`);
+          console.log(`│ [VISUAL HOOKS] Request Complete - ${duration}ms`);
+          console.log(`└─────────────────────────────────────────────────────────────\n`);
+        }
 
         res.json(response);
       } catch (apiError: any) {
@@ -358,7 +375,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Inputs are required" });
       }
 
-      console.log('[generate-verbal-hooks] Generating verbal hooks...');
+      if (DEBUG) console.log('[generate-verbal-hooks] Generating verbal hooks...');
       const response = await generateVerbalHooks(inputs);
 
       res.json(response);
@@ -376,31 +393,72 @@ export async function registerRoutes(
     const startTime = Date.now();
     const requestId = `content-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    console.log(`\n┌─────────────────────────────────────────────────────────────`);
-    console.log(`│ [CONTENT GENERATION] Request Start - ID: ${requestId}`);
-    console.log(`│ Timestamp: ${new Date().toISOString()}`);
-    console.log(`│ User: ${req.user?.email || 'unknown'}`);
-    console.log(`└─────────────────────────────────────────────────────────────`);
+    if (DEBUG) {
+      console.log(`\n┌─────────────────────────────────────────────────────────────`);
+      console.log(`│ [CONTENT GENERATION] Request Start - ID: ${requestId}`);
+      console.log(`│ Timestamp: ${new Date().toISOString()}`);
+      console.log(`│ User: ${req.user?.email || 'unknown'}`);
+      console.log(`└─────────────────────────────────────────────────────────────`);
+    }
 
     try {
-      const { inputs, selectedTextHook, selectedVisualHook, selectedVerbalHook } = req.body;
+      let { inputs, selectedTextHook, selectedVisualHook, selectedVerbalHook } = req.body;
 
-      console.log(`[${requestId}] 📥 Request Body Inspection:`);
-      console.log(`  - Inputs: ${inputs ? 'PROVIDED' : '❌ MISSING'}`);
-      console.log(`  - Text Hook: ${selectedTextHook ? 'PROVIDED' : '❌ MISSING'}`);
-      console.log(`  - Visual Hook: ${selectedVisualHook ? 'PROVIDED' : '❌ MISSING'}`);
-      console.log(`  - Verbal Hook: ${selectedVerbalHook ? 'PROVIDED' : '❌ MISSING'}`);
+      // --- INTELLIGENT INPUT ENRICHMENT ---
+      try {
+        if (inputs && inputs.topic) {
+          if (DEBUG) console.log(`[${requestId}] 🧠 Starting Intelligent Enrichment for topic: "${inputs.topic}"...`);
 
-      console.log(`[${requestId}] 📊 Full Request Data:`);
-      console.log(JSON.stringify({ inputs, selectedTextHook, selectedVisualHook, selectedVerbalHook }, null, 2));
+          // 1. Detect Niche
+          const nicheDetection = detectNiche(inputs);
+
+          if (nicheDetection.confidence > 0) {
+            if (DEBUG) console.log(`[${requestId}] 🎯 Detected Niche: ${nicheDetection.nicheId} (${nicheDetection.confidence})`);
+
+            // 2. Retrieve Knowledge Base
+            const knowledgeBase = await getKnowledgeBase(nicheDetection.nicheId);
+
+            // 3. Infer Missing Context (if needed) - Non-blocking soft fail
+            let inferredContext = {};
+            try {
+              inferredContext = await inferMissingContext(inputs, nicheDetection, knowledgeBase);
+            } catch (infError) {
+              if (DEBUG) console.warn(`[${requestId}] ⚠️ Inference failed, skipping:`, infError);
+            }
+
+            // 4. Enrich Inputs (Non-destructive merge)
+            const inputsWithInference = { ...inputs, ...inferredContext };
+            inputs = enrichInputs(inputsWithInference, knowledgeBase, nicheDetection);
+
+            if (DEBUG) console.log(`[${requestId}] ✨ Enrichment Complete. Input size increased.`);
+          } else {
+            if (DEBUG) console.log(`[${requestId}] ℹ️ No specific niche detected, skipping enrichment.`);
+          }
+        }
+      } catch (enrichError) {
+        if (DEBUG) console.error(`[${requestId}] ⚠️ Critical Enrichment Error (Safety Fallback):`, enrichError);
+        // Fallback to original inputs - nothing to do as inputs variable preserves original state if enrichInputs didn't complete
+      }
+      // --- END ENRICHMENT ---
+
+      if (DEBUG) {
+        console.log(`[${requestId}] 📥 Request Body Inspection:`);
+        console.log(`  - Inputs: ${inputs ? 'PROVIDED' : '❌ MISSING'}`);
+        console.log(`  - Text Hook: ${selectedTextHook ? 'PROVIDED' : '❌ MISSING'}`);
+        console.log(`  - Visual Hook: ${selectedVisualHook ? 'PROVIDED' : '❌ MISSING'}`);
+        console.log(`  - Verbal Hook: ${selectedVerbalHook ? 'PROVIDED' : '❌ MISSING'}`);
+
+        console.log(`[${requestId}] 📊 Full Request Data:`);
+        console.log(JSON.stringify({ inputs, selectedTextHook, selectedVisualHook, selectedVerbalHook }, null, 2));
+      }
 
       if (!inputs || !selectedTextHook || !selectedVisualHook || !selectedVerbalHook) {
         console.log(`[${requestId}] ❌ Validation Failed`);
         return res.status(400).json({ error: "All hooks must be selected" });
       }
 
-      console.log(`[${requestId}] ✅ Validation passed - Calling API...`);
-      const response = await generateContentFromMultiHooks(
+      if (DEBUG) console.log(`[${requestId}] ✅ Validation passed - Calling API...`);
+      const response = await generateEnhancedContentFromMultiHooks(
         inputs,
         {
           text: selectedTextHook,
@@ -410,7 +468,7 @@ export async function registerRoutes(
       );
 
       const duration = Date.now() - startTime;
-      console.log(`[${requestId}] ✅ Success - ${duration}ms`);
+      if (DEBUG) console.log(`[${requestId}] ✅ Success - ${duration}ms`);
       res.json(response);
     } catch (error: any) {
       console.error("[generate-content-multi] Error:", error);
@@ -481,6 +539,7 @@ export async function registerRoutes(
 
 
 
+
   // --- RESTORED ROUTES ---
   app.post("/api/chat", async (req, res) => {
     try {
@@ -509,6 +568,14 @@ export async function registerRoutes(
       }
 
       res.json(response);
+
+      // ASYNC QUALITY CHECK (Fire and forget)
+      // We don't await this so the user gets a response immediately
+      // The log will appear in the console a few seconds later
+      evaluateChatQuality(message, response.message || '', JSON.stringify(inputs || {})).catch(err => {
+        if (DEBUG) console.error('[Quality Check Error]', err);
+      });
+
     } catch (error) {
       console.error("Chat error:", error);
       res.status(500).json({
@@ -646,7 +713,38 @@ export async function registerRoutes(
       const response = await generateContent(inputs, selectedHook);
 
       if (projectId && response.output) {
-        await storage.setOutput(projectId, response.output);
+        let finalOutput: any = response.output;
+
+        // Only run legacy adapter if new schema is missing
+        if (!(response.output as any).cinematography) {
+          // Adapt legacy output to new schema structure
+          finalOutput = {
+            ...response.output,
+            cinematography: {
+              techSpecs: {
+                lighting: [],
+                cameraVideo: [
+                  `Resolution: ${response.output.techSpecs?.resolution || '1080p'}`,
+                  `Frame Rate: ${response.output.techSpecs?.frameRate || '30fps'}`
+                ],
+                audio: [
+                  `Format: ${response.output.techSpecs?.audioFormat || 'Stereo'}`
+                ],
+                platformOptimizations: response.output.techSpecs?.platforms || [],
+                exportSettings: [
+                  `Export Format: ${response.output.techSpecs?.exportFormat || 'MP4'}`,
+                  `Target Duration: ${response.output.techSpecs?.duration || '60s'}`
+                ],
+                soundDesign: [],
+                colorGrade: [],
+                equipment: [],
+                composition: []
+              },
+              storyboard: response.output.storyboard || []
+            }
+          };
+        }
+        await storage.setOutput(projectId, finalOutput);
       }
 
       // Increment script count for Bronze users using their free script
@@ -953,7 +1051,7 @@ export async function registerRoutes(
       }
 
       const userId = req.user?.uid || "anonymous";
-      const message = await sessionStorage.addMessage(id, userId, role, content, false);
+      const message = await sessionStorage.addMessage(id, role, content, false);
       res.json(message);
     } catch (error) {
       console.error("Message creation error:", error);
@@ -962,13 +1060,16 @@ export async function registerRoutes(
   });
 
 
-  // Admin Routes (Protected by adminRequired)
-  // ============================================
+  /*
+  // TODO: MIGRATE TO FIREBASE
+  // These routes rely on Drizzle/Postgres which has been replaced by Firebase.
+  // Commenting out to resolve compilation errors. Re-implement using Firestore if needed.
 
   app.get("/api/admin/users", requireAuth, requireAdmin, async (req, res) => {
     try {
-      const allUsers = await db.select().from(users);
-      res.json(allUsers);
+      // const allUsers = await db.select().from(users);
+      // res.json(allUsers);
+      res.status(501).json({ error: "Not implemented" });
     } catch (error) {
       console.error("Admin users fetch error:", error);
       res.status(500).json({ error: "Failed to fetch users" });
@@ -976,161 +1077,21 @@ export async function registerRoutes(
   });
 
   app.patch("/api/admin/users/:id/premium", requireAuth, requireAdmin, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { isPremium } = req.body;
-
-      const [updatedUser] = await db.update(users)
-        .set({
-          isPremium: isPremium,
-          subscriptionEndDate: isPremium ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) : null,
-          updatedAt: new Date()
-        })
-        .where(eq(users.id, id))
-        .returning();
-
-      if (!updatedUser) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      res.json(updatedUser);
-    } catch (error) {
-      console.error("Admin toggle premium error:", error);
-      res.status(500).json({ error: "Failed to update user premium status" });
-    }
+     res.status(501).json({ error: "Not implemented" });
   });
 
   app.patch("/api/admin/users/:id/role", requireAuth, requireAdmin, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { role } = req.body;
-
-      if (role !== "user" && role !== "admin") {
-        return res.status(400).json({ error: "Invalid role. Must be 'user' or 'admin'" });
-      }
-
-      const [updatedUser] = await db.update(users)
-        .set({ role, updatedAt: new Date() })
-        .where(eq(users.id, id))
-        .returning();
-
-      if (!updatedUser) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      res.json(updatedUser);
-    } catch (error) {
-      console.error("Admin toggle role error:", error);
-      res.status(500).json({ error: "Failed to update user role" });
-    }
+     res.status(501).json({ error: "Not implemented" });
   });
 
-  // ============================================
-  // Stripe Payment Routes
-  // ============================================
-
   app.post("/api/create-checkout-session", requireAuth, async (req, res) => {
-    try {
-      const user = await getUserFromSession(req);
-      if (!user) {
-        return res.status(401).json({ error: "User not found" });
-      }
-
-      const stripeKey = process.env.STRIPE_SECRET_KEY;
-      if (!stripeKey) {
-        return res.status(500).json({ error: "Stripe not configured" });
-      }
-
-      const stripe = await import("stripe").then(m => new m.default(stripeKey));
-
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card"],
-        mode: "subscription",
-        customer_email: user.email || undefined,
-        line_items: [
-          {
-            price_data: {
-              currency: "usd",
-              product_data: {
-                name: "C.A.L. Premium",
-                description: "Unlimited content generation with all features"
-              },
-              unit_amount: 1999,
-              recurring: {
-                interval: "month"
-              }
-            },
-            quantity: 1
-          }
-        ],
-        success_url: `${req.protocol}://${req.get("host")}/upgrade/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${req.protocol}://${req.get("host")}/upgrade`,
-        metadata: {
-          userId: user.id
-        }
-      });
-
-      res.json({ url: session.url });
-    } catch (error) {
-      console.error("Checkout session error:", error);
-      res.status(500).json({ error: "Failed to create checkout session" });
-    }
+      res.status(501).json({ error: "Not implemented" });
   });
 
   app.post("/api/webhook/stripe", async (req, res) => {
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-    if (!stripeKey) {
-      return res.status(500).json({ error: "Stripe not configured" });
-    }
-
-    try {
-      const stripe = await import("stripe").then(m => new m.default(stripeKey));
-
-      let event;
-
-      if (webhookSecret) {
-        const sig = req.headers["stripe-signature"] as string;
-        event = stripe.webhooks.constructEvent(req.rawBody as Buffer, sig, webhookSecret);
-      } else {
-        event = req.body;
-      }
-
-      if (event.type === "checkout.session.completed") {
-        const session = event.data.object;
-        const userId = session.metadata?.userId;
-
-        if (userId) {
-          await db.update(users)
-            .set({
-              isPremium: true,
-              stripeCustomerId: session.customer as string,
-              stripeSubscriptionId: session.subscription as string,
-              subscriptionEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              updatedAt: new Date()
-            })
-            .where(eq(users.id, userId));
-        }
-      } else if (event.type === "customer.subscription.deleted") {
-        const subscription = event.data.object;
-        const customerId = subscription.customer as string;
-
-        await db.update(users)
-          .set({
-            isPremium: false,
-            subscriptionEndDate: null,
-            updatedAt: new Date()
-          })
-          .where(eq(users.stripeCustomerId, customerId));
-      }
-
-      res.json({ received: true });
-    } catch (error) {
-      console.error("Webhook error:", error);
-      res.status(400).json({ error: "Webhook error" });
-    }
+     res.status(501).json({ error: "Not implemented" });
   });
+  */
 
   app.get("/api/upgrade/success", requireAuth, async (req, res) => {
     try {

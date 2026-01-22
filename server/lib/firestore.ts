@@ -13,6 +13,8 @@ import type {
 } from "@shared/schema";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
+const DEBUG = process.env.DEBUG_LOGS === "true";
+
 // Type for user documents in Firestore
 export interface FirestoreUser {
     id: string;
@@ -208,7 +210,7 @@ export async function getFirestoreIdFromNumeric(numericId: number): Promise<stri
     }
 
     // Fallback: Query sessions collection by numericId (handles race condition)
-    console.log(`[Firestore] ID mapping not found for ${numericId}, querying sessions collection...`);
+    if (DEBUG) console.log(`[Firestore] ID mapping not found for ${numericId}, querying sessions collection...`);
     const sessionsQuery = await firestore.collection("sessions")
         .where("numericId", "==", numericId)
         .limit(1)
@@ -216,7 +218,7 @@ export async function getFirestoreIdFromNumeric(numericId: number): Promise<stri
 
     if (!sessionsQuery.empty) {
         const sessionDoc = sessionsQuery.docs[0];
-        console.log(`[Firestore] Found session ${sessionDoc.id} for numericId ${numericId}`);
+        if (DEBUG) console.log(`[Firestore] Found session ${sessionDoc.id} for numericId ${numericId}`);
         return sessionDoc.id;
     }
 
@@ -242,26 +244,26 @@ export async function getSession(id: string): Promise<FirestoreSession | null> {
 }
 
 export async function listSessions(userId?: string): Promise<FirestoreSession[]> {
-    console.log('[Firestore] listSessions called with userId:', userId);
+    if (DEBUG) console.log('[Firestore] listSessions called with userId:', userId);
 
     let query = firestore.collection("sessions");
 
     if (userId) {
-        console.log('[Firestore] Filtering by userId:', userId);
+        if (DEBUG) console.log('[Firestore] Filtering by userId:', userId);
         query = query.where("userId", "==", userId) as any;
     } else {
-        console.log('[Firestore] No userId filter - fetching ALL sessions');
+        if (DEBUG) console.log('[Firestore] No userId filter - fetching ALL sessions');
     }
 
     // REMOVED: Firestore orderBy (requires index that may not be ready)
     // Instead, sort in memory after fetching
 
     const snapshot = await query.get();
-    console.log('[Firestore] Query returned', snapshot.size, 'documents');
+    if (DEBUG) console.log('[Firestore] Query returned', snapshot.size, 'documents');
 
     const sessions = snapshot.docs.map((doc) => {
         const data = doc.data() as FirestoreSession;
-        console.log('[Firestore] Session doc:', doc.id, 'hasUserId:', !!data.userId, 'hasNumericId:', !!data.numericId);
+        if (DEBUG) console.log('[Firestore] Session doc:', doc.id, 'hasUserId:', !!data.userId, 'hasNumericId:', !!data.numericId);
         return data;
     });
 
@@ -278,13 +280,15 @@ export async function listSessions(userId?: string): Promise<FirestoreSession[]>
     });
 
     // DEBUG: Show first 5 sessions with their timestamps
-    console.log('[Firestore] Sorted Session List (Top 5):');
-    sessions.slice(0, 5).forEach((s, i) => {
-        const uDate = s.updatedAt?.toDate?.();
-        const cDate = s.createdAt?.toDate?.();
-        const effective = uDate || cDate;
-        console.log(`  ${i + 1}. [${s.title}] Effective: ${effective?.toISOString()} (Updated: ${!!uDate}, Created: ${cDate?.toISOString()})`);
-    });
+    if (DEBUG) {
+        console.log('[Firestore] Sorted Session List (Top 5):');
+        sessions.slice(0, 5).forEach((s, i) => {
+            const uDate = s.updatedAt?.toDate?.();
+            const cDate = s.createdAt?.toDate?.();
+            const effective = uDate || cDate;
+            console.log(`  ${i + 1}. [${s.title}] Effective: ${effective?.toISOString()} (Updated: ${!!uDate}, Created: ${cDate?.toISOString()})`);
+        });
+    }
 
     return sessions;
 }
@@ -417,7 +421,7 @@ export async function clearMessages(sessionId: string): Promise<void> {
 
     if (snapshot.docs.length > 0) {
         await batch.commit();
-        console.log(`[Firestore] Cleared ${snapshot.docs.length} messages from session ${sessionId}`);
+        if (DEBUG) console.log(`[Firestore] Cleared ${snapshot.docs.length} messages from session ${sessionId}`);
     }
 }
 

@@ -477,6 +477,11 @@ export default function AssemblyLine() {
   }, [project, setLoading, setVisualContext, setAgents, updateAgent, setVisualHooks]);
 
   const fetchDiscoveryQuestions = useCallback(async (topic: string, intent?: string) => {
+    if (!topic || !topic.trim()) {
+      console.log('ℹ️ Skipping discovery questions - topic is empty');
+      return false;
+    }
+
     setIsLoadingDiscovery(true);
     try {
       const response = await apiRequest('POST', '/api/generate-discovery-questions', {
@@ -629,7 +634,11 @@ export default function AssemblyLine() {
         // Fetch discovery questions
         const topic = updatedInputs.topic || (project.inputs as UserInputs).topic || '';
         const intent = updatedInputs.goal || (project.inputs as UserInputs).goal;
-        await fetchDiscoveryQuestions(topic, intent);
+        if (topic) {
+          await fetchDiscoveryQuestions(topic, intent);
+        } else {
+          console.log('ℹ️ Skipping discovery questions - no topic identified yet');
+        }
       }
     } catch (error) {
       console.error('Chat error:', error);

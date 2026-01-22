@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Film, Settings, Video, MessageSquare, Camera, ImageIcon, Clapperboard, Copy, Check, Download, FileSpreadsheet, Subtitles, FileDown, Lock, Share2, Zap, Mic, Sun, Smartphone, HardDrive } from 'lucide-react';
+import { FileText, Film, Settings, Video, MessageSquare, Camera, ImageIcon, Clapperboard, Copy, Check, Download, FileSpreadsheet, Subtitles, FileDown, Lock, Share2, Zap, Mic, Sun, Smartphone, HardDrive, Music, Palette, Aperture, Frame } from 'lucide-react';
 import { FloatingRemixMenu } from './FloatingRemixMenu';
 import { exportToCSV, exportToSRT, exportToPDF } from '@/lib/exports';
 import { useUser } from '@/hooks/use-user';
@@ -43,8 +43,33 @@ export function OutputPanels({ output, onOutputUpdate, projectTitle = 'Script' }
 
     if (hasLegacyStoryboard || hasLegacyTechSpecs) {
       // Transform legacy data to new schema format
+      const rawTechSpecs = legacyOutput.techSpecs || {};
+
+      // Adapt flat legacy specs to new hierarchical structure
+      const adaptedTechSpecs = {
+        cameraVideo: [
+          rawTechSpecs.resolution ? `Resolution: ${rawTechSpecs.resolution}` : null,
+          rawTechSpecs.frameRate ? `Frame Rate: ${rawTechSpecs.frameRate}` : null,
+          rawTechSpecs.aspectRatio ? `Aspect Ratio: ${rawTechSpecs.aspectRatio}` : null
+        ].filter(Boolean),
+        audio: [
+          rawTechSpecs.audioFormat ? `Format: ${rawTechSpecs.audioFormat}` : null
+        ].filter(Boolean),
+        soundDesign: [], // Retrofill empty
+        colorGrade: [], // Retrofill empty
+        equipment: [], // Retrofill empty
+        composition: [], // Retrofill empty
+        lighting: [], // Legacy didn't have lighting
+        platformOptimizations: rawTechSpecs.platforms || [],
+        exportSettings: [
+          rawTechSpecs.exportFormat ? `Format: ${rawTechSpecs.exportFormat}` : null,
+          rawTechSpecs.duration ? `Target Duration: ${rawTechSpecs.duration}` : null
+        ].filter(Boolean)
+      };
+
       return {
-        techSpecs: hasLegacyTechSpecs ? legacyOutput.techSpecs : undefined,
+        techSpecs: adaptedTechSpecs,
+        // Ensure storyboard is passed correctly
         storyboard: hasLegacyStoryboard ? legacyOutput.storyboard : undefined
       } as Cinematography;
     }
@@ -98,8 +123,11 @@ export function OutputPanels({ output, onOutputUpdate, projectTitle = 'Script' }
         <TabsList className="bg-transparent h-auto p-0 gap-1">
           <TabButton value="script" icon={FileText} label="Script" />
           <TabButton value="cinematography" icon={Camera} label="Cinematography" />
-          <TabButton value="broll" icon={Video} label="B-Roll" />
-          <TabButton value="captions" icon={MessageSquare} label="Captions" />
+          {/* Conditional B-Roll: Only show if NOT explicitly on camera */}
+          {(!localOutput?.cinematography?.techSpecs?.cameraVideo &&
+            (localOutput as any).bRoll?.length > 0) && (
+              <TabButton value="broll" icon={Video} label="B-Roll" />
+            )}
           <TabButton value="deployment" icon={Share2} label="Deployment" />
         </TabsList>
 
@@ -168,10 +196,6 @@ export function OutputPanels({ output, onOutputUpdate, projectTitle = 'Script' }
 
             <TabsContent value="broll" className="mt-0">
               <BRollPanel items={localOutput.bRoll || []} />
-            </TabsContent>
-
-            <TabsContent value="captions" className="mt-0">
-              <CaptionsPanel captions={localOutput.captions} />
             </TabsContent>
 
             <TabsContent value="deployment" className="mt-0">
@@ -470,31 +494,7 @@ function BRollPanel({ items }: { items: BRollItem[] }) {
   );
 }
 
-function CaptionsPanel({ captions }: { captions: Caption[] }) {
-  return (
-    <div data-testid="panel-captions">
-      <PanelHeader title="Captions" count={captions.length} unit="segments" />
 
-      <div className="space-y-3 mt-6">
-        {captions.map((caption) => (
-          <div key={caption.id} className="flex gap-4 py-2">
-            <span className="font-mono text-xs text-muted-foreground shrink-0 w-16">
-              {caption.timestamp}
-            </span>
-            <p className="text-sm leading-snug flex-1">
-              {caption.text}
-            </p>
-            {caption.style && (
-              <Badge variant="outline" className="text-xs shrink-0">
-                {caption.style}
-              </Badge>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function CinematographyPanel({ cinematography }: { cinematography?: Cinematography }) {
   if (!cinematography) {
@@ -514,9 +514,12 @@ function CinematographyPanel({ cinematography }: { cinematography?: Cinematograp
     <div data-testid="panel-cinematography">
       <PanelHeader title="Cinematography & Technical Director Notes" />
 
-      {/* Technical Specifications - Accordion Style */}
+
+
+      {/* Technical Specifications - Secondary View */}
       {techSpecs && Object.keys(techSpecs).length > 0 ? (
         <div className="mt-6">
+          <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-4">Technical Specifications</h4>
           <Accordion type="multiple" className="space-y-2">
             {techSpecs.cameraVideo && techSpecs.cameraVideo.length > 0 && (
               <AccordionItem value="camera" className="border border-border rounded-lg px-4 bg-card">
@@ -595,7 +598,7 @@ function CinematographyPanel({ cinematography }: { cinematography?: Cinematograp
                 </AccordionTrigger>
                 <AccordionContent>
                   <ul className="space-y-1 mt-2">
-                    {techSpecs.platformOptimizations.map((spec: string, idx: number) => (
+                    {(techSpecs.platformOptimizations || []).map((spec: string, idx: number) => (
                       <li key={idx} className="text-sm flex items-start gap-2">
                         <span className="text-primary mt-1">•</span>
                         <span>{spec}</span>
@@ -606,488 +609,566 @@ function CinematographyPanel({ cinematography }: { cinematography?: Cinematograp
               </AccordionItem>
             )}
 
-            {techSpecs.exportSettings && techSpecs.exportSettings.length > 0 && (
-              <AccordionItem value="export" className="border border-border rounded-lg px-4 bg-card">
+
+
+            {techSpecs.soundDesign && techSpecs.soundDesign.length > 0 && (
+              <AccordionItem value="sound" className="border border-border rounded-lg px-4 bg-card">
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center gap-2">
-                    <HardDrive className="w-4 h-4 text-primary" />
-                    <span className="font-medium text-sm">Export Settings</span>
-                    <Badge variant="secondary" className="ml-2 text-xs">{techSpecs.exportSettings.length}</Badge>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <ul className="space-y-1 mt-2">
-                    {techSpecs.exportSettings.map((spec: string, idx: number) => (
-                      <li key={idx} className="text-sm flex items-start gap-2">
-                        <span className="text-primary mt-1">•</span>
-                        <span>{spec}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </AccordionContent>
-              </AccordionItem>
-            )}
-          </Accordion>
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground mt-6">No technical specifications available</p>
-      )}
+                    <Music className="w-4 h-4 text-primary" />
+                    <span className="font-medium text-sm">Sound Design & Mix</span>
+                    {techSpecs ? (
+                      <div className="mt-6 mb-8">
+                        <h4 className="text-sm font-medium uppercase tracking-wide mb-3">CONSOLIDATED TECH SPECS</h4>
+                        <Accordion type="single" collapsible className="w-full">
 
-      {/* Storyboard - Card-based Grid */}
-      {storyboard && storyboard.length > 0 && (
-        <>
-          <Separator className="my-8" />
-          <div className="mt-8">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-medium uppercase tracking-wide">Storyboard</h4>
-              <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
-                {storyboard.length} Frames
-              </span>
-            </div>
+                          {/* 1. Camera & Video (Merged) */}
+                          {techSpecs.cameraVideo && techSpecs.cameraVideo.length > 0 && (
+                            <AccordionItem value="cameraVideo" className="border border-border rounded-lg px-4 bg-card mb-2">
+                              <AccordionTrigger className="hover:no-underline py-2">
+                                <div className="flex items-center gap-2">
+                                  <Video className="w-4 h-4 text-primary" />
+                                  <span className="font-medium text-sm">Camera, Video & Lighting</span>
+                                  <Badge variant="secondary" className="ml-2 text-xs">{techSpecs.cameraVideo.length}</Badge>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <ul className="space-y-1 mt-2">
+                                  {techSpecs.cameraVideo?.filter(Boolean).map((spec: any, idx: number) => (
+                                    <li key={idx} className="text-sm flex items-start gap-2">
+                                      <span className="text-primary mt-1">•</span>
+                                      <span>{spec}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </AccordionContent>
+                            </AccordionItem>
+                          )}
 
-            <div className="space-y-3">
-              {storyboard.map((frame: any, idx: number) => (
-                <Card key={idx} className="p-4 border-card-border hover:border-primary/20 transition-colors">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
-                        <span className="text-xs font-mono font-semibold text-muted-foreground">
-                          {(frame.frameNumber || idx + 1).toString().padStart(2, '0')}
-                        </span>
+                          {/* 2. Audio & Sound (Merged) */}
+                          {techSpecs.audioSound && techSpecs.audioSound.length > 0 && (
+                            <AccordionItem value="audioSound" className="border border-border rounded-lg px-4 bg-card mb-2">
+                              <AccordionTrigger className="hover:no-underline py-2">
+                                <div className="flex items-center gap-2">
+                                  <Music className="w-4 h-4 text-primary" />
+                                  <span className="font-medium text-sm">Audio & Sound Design</span>
+                                  <Badge variant="secondary" className="ml-2 text-xs">{techSpecs.audioSound.length}</Badge>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <ul className="space-y-1 mt-2">
+                                  {techSpecs.audioSound?.filter(Boolean).map((spec: any, idx: number) => (
+                                    <li key={idx} className="text-sm flex items-start gap-2">
+                                      <span className="text-primary mt-1">•</span>
+                                      <span>{spec}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </AccordionContent>
+                            </AccordionItem>
+                          )}
+
+                          {/* 3. exportSettings */}
+                          {techSpecs.exportSettings && techSpecs.exportSettings.length > 0 && (
+                            <AccordionItem value="exportSettings" className="border border-border rounded-lg px-4 bg-card mb-2">
+                              <AccordionTrigger className="hover:no-underline py-2">
+                                <div className="flex items-center gap-2">
+                                  <Share2 className="w-4 h-4 text-primary" />
+                                  <span className="font-medium text-sm">Export Settings</span>
+                                  <Badge variant="secondary" className="ml-2 text-xs">{techSpecs.exportSettings.length}</Badge>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <ul className="space-y-1 mt-2">
+                                  {techSpecs.exportSettings?.filter(Boolean).map((spec: any, idx: number) => (
+                                    <li key={idx} className="text-sm flex items-start gap-2">
+                                      <span className="text-primary mt-1">•</span>
+                                      <span>{spec}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </AccordionContent>
+                            </AccordionItem>
+                          )}
+
+                          {/* 4. Equipment */}
+                          {techSpecs.equipment && techSpecs.equipment.length > 0 && (
+                            <AccordionItem value="equipment" className="border border-border rounded-lg px-4 bg-card mb-2">
+                              <AccordionTrigger className="hover:no-underline py-2">
+                                <div className="flex items-center gap-2">
+                                  <Aperture className="w-4 h-4 text-primary" />
+                                  <span className="font-medium text-sm">Equipment List</span>
+                                  <Badge variant="secondary" className="ml-2 text-xs">{techSpecs.equipment.length}</Badge>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <ul className="space-y-1 mt-2">
+                                  {techSpecs.equipment?.filter(Boolean).map((spec: any, idx: number) => (
+                                    <li key={idx} className="text-sm flex items-start gap-2">
+                                      <span className="text-primary mt-1">•</span>
+                                      <span>{spec}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </AccordionContent>
+                            </AccordionItem>
+                          )}
+
+                        </Accordion>
                       </div>
-                    </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground mt-6">No technical specifications available</p>
+                    )
+                    }
 
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="secondary" className="text-xs uppercase font-mono">
-                          {frame.shotType || 'N/A'}
-                        </Badge>
-                        {frame.timing && (
-                          <span className="text-xs text-muted-foreground font-mono">
-                            {frame.timing}
-                          </span>
-                        )}
-                        {frame.cameraMovement && frame.cameraMovement !== 'STATIC' && (
-                          <Badge variant="outline" className="text-xs">
-                            {frame.cameraMovement}
-                          </Badge>
-                        )}
-                        {frame.transition && frame.transition !== 'CUT' && (
-                          <Badge className="text-xs">
-                            {frame.transition}
-                          </Badge>
-                        )}
-                      </div>
+                    <Separator className="my-8" />
 
-                      <p className="text-sm leading-relaxed">
-                        {frame.visualDescription || frame.description || 'No description'}
-                      </p>
+                    {/* Storyboard - PRIORITY VIEW (Requested at Bottom) */}
+                    {storyboard && storyboard.length > 0 && (
+                      <>
+                        <div className="mt-8 mb-8">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-sm font-medium uppercase tracking-wide">Storyboard</h4>
+                            <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
+                              {storyboard.length} Frames
+                            </span>
+                          </div>
 
-                      {frame.audioVO && (
-                        <p className="text-xs text-muted-foreground italic">
-                          🎙️ {frame.audioVO}
-                        </p>
-                      )}
+                          <div className="space-y-3">
+                            {storyboard.map((frame: any, idx: number) => (
+                              <Card key={idx} className="p-4 border-card-border hover:border-primary/20 transition-colors">
+                                <div className="flex items-start gap-4">
 
-                      {frame.notes && (
-                        <p className="text-xs text-muted-foreground">
-                          📝 {frame.notes}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
+                                  {/* Frame Number */}
+                                  <div className="flex-shrink-0">
+                                    <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
+                                      <span className="text-xs font-mono font-semibold text-muted-foreground">
+                                        {(frame.frameNumber || idx + 1).toString().padStart(2, '0')}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Content */}
+                                  <div className="flex-1 min-w-0 space-y-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <Badge variant="secondary" className="text-xs uppercase font-mono">
+                                        {frame.shotType || 'N/A'}
+                                      </Badge>
+
+                                      {frame.timestamp && (
+                                        <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
+                                          {frame.timestamp}
+                                        </span>
+                                      )}
+
+                                      {frame.duration && (
+                                        <span className="text-xs text-muted-foreground font-mono">
+                                          {frame.duration}s
+                                        </span>
+                                      )}
+
+                                      {frame.transitionTo && (
+                                        <Badge variant="outline" className="text-xs ml-auto">
+                                          {frame.transitionTo}
+                                        </Badge>
+                                      )}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                      <div>
+                                        <span className="text-[10px] uppercase text-muted-foreground font-bold block mb-1">Visual</span>
+                                        <p className="text-sm leading-relaxed text-foreground">
+                                          {frame.visual || frame.description || frame.visualDescription || 'No description'}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <span className="text-[10px] uppercase text-muted-foreground font-bold block mb-1">Audio/Sync</span>
+                                        <p className="text-sm leading-relaxed text-muted-foreground italic">
+                                          {frame.audioSync || frame.audioVO || 'No audio'}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {frame.action && (
+                                      <div className="mt-2 pt-2 border-t border-border/50">
+                                        <span className="text-[10px] uppercase text-muted-foreground font-bold inline-block mr-2">Action:</span>
+                                        <span className="text-xs text-foreground">{frame.action}</span>
+                                      </div>
+                                    )}
+
+                                    {(frame.textOverlay || frame.visualNotes) && (
+                                      <div className="flex flex-wrap gap-4 mt-1">
+                                        {frame.textOverlay && (
+                                          <span className="text-xs text-blue-400">
+                                            📺 GFX: {frame.textOverlay}
+                                          </span>
+                                        )}
+                                        {frame.visualNotes && (
+                                          <span className="text-xs text-muted-foreground">
+                                            📝 {frame.visualNotes}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                  </div >
+                  );
 }
 
-function DeploymentPanel({ strategy }: { strategy?: DeploymentStrategy }) {
+                  function DeploymentPanel({strategy}: {strategy ?: DeploymentStrategy}) {
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
 
   const copyToClipboard = async (text: string, id: string) => {
     try {
-      await navigator.clipboard.writeText(text);
-      setCopiedItem(id);
+                    await navigator.clipboard.writeText(text);
+                  setCopiedItem(id);
       setTimeout(() => setCopiedItem(null), 2000);
     } catch (error) {
-      console.error('Failed to copy', error);
+                    console.error('Failed to copy', error);
     }
   };
 
-  if (!strategy) {
+                  if (!strategy) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center space-y-2">
-          <Share2 className="w-12 h-12 mx-auto text-muted-foreground opacity-20" />
-          <p className="text-sm text-muted-foreground">Deployment strategy not available</p>
-        </div>
-      </div>
-    );
+                  <div className="flex items-center justify-center min-h-[400px]">
+                    <div className="text-center space-y-2">
+                      <Share2 className="w-12 h-12 mx-auto text-muted-foreground opacity-20" />
+                      <p className="text-sm text-muted-foreground">Deployment strategy not available</p>
+                    </div>
+                  </div>
+                  );
   }
 
-  const {
-    postingSchedule = {},
-    hashtagStrategy = { tier1_broad: [], tier2_niche: [], tier3_micro: [], recommended: [] },
-    captionCopy = {},
-    engagementTactics = { firstHour: [], first24Hours: [], ongoing: [] },
-    crossPromotion = [],
-    analyticsTracking = { keyMetrics: {}, successBenchmarks: {} }
-  } = strategy;
+                  const {
+                    postingSchedule = {},
+                    hashtagStrategy = { tier1_broad: [], tier2_niche: [], tier3_micro: [], recommended: [] },
+                    engagementTactics = { firstHour: [], first24Hours: [], ongoing: [] },
+                    crossPlatformStrategy = {},
+                    analyticsTracking = { keyMetrics: {}, successBenchmarks: {} }
+                  } = strategy;
 
-  return (
-    <div data-testid="panel-deployment">
-      <PanelHeader title="Social Deployment Strategy" />
-      <section>
-        <h4 className="text-lg font-bold border-b-2 border-gray-300 pb-2 mb-4 flex items-center">
-          <span className="mr-2">📅</span>Posting Schedule
-        </h4>
-        {Object.keys(postingSchedule).length === 0 ? (
-          <p className="text-sm text-gray-500 italic">No posting schedule data available</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Object.entries(postingSchedule).map(([platform, schedule]: [string, any]) => (
-              <Card key={platform} className="p-4 hover:shadow-md transition-shadow">
-                <h5 className="font-bold capitalize mb-3 text-sm text-gray-800 border-b pb-2">{platform}</h5>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <strong className="text-gray-700">Best Times:</strong>
-                    <p className="text-gray-600 mt-1">{schedule?.bestTimes?.join(', ') || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <strong className="text-gray-700">Frequency:</strong>
-                    <p className="text-gray-600 mt-1">{schedule?.frequency || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <strong className="text-gray-700">Peak Days:</strong>
-                    <p className="text-gray-600 mt-1">{schedule?.peakDays?.join(', ') || 'Not specified'}</p>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
+                  return (
+                  <div data-testid="panel-deployment">
+                    <PanelHeader title="Social Deployment Strategy" />
 
-      <Separator className="my-8" />
+                    {/* 1. Cross-Platform Strategy (NEW) */}
+                    <section className="mt-8 mb-8">
+                      <h4 className="text-lg font-bold border-b-2 border-gray-300 pb-2 mb-4 flex items-center">
+                        <span className="mr-2">🌐</span>Cross-Platform Strategy
+                      </h4>
+                      {Object.keys(crossPlatformStrategy).length === 0 ? (
+                        <p className="text-sm text-gray-500 italic">No cross-platform data available</p>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-4">
+                          {Object.entries(crossPlatformStrategy).map(([platform, strategyText]: [string, any]) => (
+                            <Card key={platform} className="p-4 bg-card border-card-border hover:shadow-md transition-shadow">
+                              <div className="flex items-start gap-4">
+                                <div className="min-w-[100px] font-bold capitalize text-sm text-primary">
+                                  {platform.replace('_', ' ')}
+                                </div>
+                                <p className="text-sm leading-relaxed text-foreground/90">
+                                  {typeof strategyText === 'string' ? strategyText : JSON.stringify(strategyText)}
+                                </p>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </section>
 
-      {/* Hashtag Strategy */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-sm font-medium uppercase tracking-wide">Hashtag Strategy</h4>
-        </div>
+                    <section>
+                      <h4 className="text-lg font-bold border-b-2 border-gray-300 pb-2 mb-4 flex items-center">
+                        <span className="mr-2">📅</span>Posting Schedule
+                      </h4>
+                      {Object.keys(postingSchedule).length === 0 ? (
+                        <p className="text-sm text-gray-500 italic">No posting schedule data available</p>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {Object.entries(postingSchedule).map(([platform, schedule]: [string, any]) => (
+                            <Card key={platform} className="p-4 hover:shadow-md transition-shadow">
+                              <h5 className="font-bold capitalize mb-3 text-sm text-gray-800 border-b pb-2">{platform}</h5>
+                              <div className="space-y-2 text-sm">
+                                <div>
+                                  <strong className="text-gray-700">Best Times:</strong>
+                                  <p className="text-gray-600 mt-1">{schedule?.bestTimes?.join(', ') || 'Not specified'}</p>
+                                </div>
+                                <div>
+                                  <strong className="text-gray-700">Frequency:</strong>
+                                  <p className="text-gray-600 mt-1">{schedule?.frequency || 'Not specified'}</p>
+                                </div>
+                                <div>
+                                  <strong className="text-gray-700">Peak Days:</strong>
+                                  <p className="text-gray-600 mt-1">{schedule?.peakDays?.join(', ') || 'Not specified'}</p>
+                                </div>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </section>
 
-        <div className="space-y-3">
-          <Card className="p-4 bg-card border-border">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="outline" className="text-xs">Tier 1</Badge>
-                  <span className="text-xs text-muted-foreground">Broad Reach (1M+ posts)</span>
-                </div>
-                <p className="text-sm">
-                  {hashtagStrategy.tier1_broad?.length > 0 ? hashtagStrategy.tier1_broad.join(' ') : 'No broad hashtags suggested'}
-                </p>
-              </div>
-              {hashtagStrategy.tier1_broad?.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => copyToClipboard(hashtagStrategy.tier1_broad.join(' '), 'hashtags-tier1')}
-                >
-                  {copiedItem === 'hashtags-tier1' ? (
-                    <Check className="w-4 h-4 text-green-500" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </Button>
-              )}
-            </div>
-          </Card>
+                    <Separator className="my-8" />
 
-          <Card className="p-4 bg-card border-border">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="outline" className="text-xs">Tier 2</Badge>
-                  <span className="text-xs text-muted-foreground">Niche (100K-1M posts)</span>
-                </div>
-                <p className="text-sm">
-                  {hashtagStrategy.tier2_niche?.length > 0 ? hashtagStrategy.tier2_niche.join(' ') : 'No niche hashtags suggested'}
-                </p>
-              </div>
-              {hashtagStrategy.tier2_niche?.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => copyToClipboard(hashtagStrategy.tier2_niche.join(' '), 'hashtags-tier2')}
-                >
-                  {copiedItem === 'hashtags-tier2' ? (
-                    <Check className="w-4 h-4 text-green-500" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </Button>
-              )}
-            </div>
-          </Card>
+                    {/* Hashtag Strategy */}
+                    <div className="mt-8">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-sm font-medium uppercase tracking-wide">Hashtag Strategy</h4>
+                      </div>
 
-          <Card className="p-4 bg-card border-border">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="outline" className="text-xs">Tier 3</Badge>
-                  <span className="text-xs text-muted-foreground">Micro (10K-100K posts)</span>
-                </div>
-                <p className="text-sm">
-                  {hashtagStrategy.tier3_micro?.length > 0 ? hashtagStrategy.tier3_micro.join(' ') : 'No micro hashtags suggested'}
-                </p>
-              </div>
-              {hashtagStrategy.tier3_micro?.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => copyToClipboard(hashtagStrategy.tier3_micro.join(' '), 'hashtags-tier3')}
-                >
-                  {copiedItem === 'hashtags-tier3' ? (
-                    <Check className="w-4 h-4 text-green-500" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </Button>
-              )}
-            </div>
-          </Card>
+                      <div className="space-y-3">
+                        <Card className="p-4 bg-card border-border">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline" className="text-xs">Tier 1</Badge>
+                                <span className="text-xs text-muted-foreground">Broad Reach (1M+ posts)</span>
+                              </div>
+                              <p className="text-sm">
+                                {hashtagStrategy.tier1_broad?.length > 0 ? hashtagStrategy.tier1_broad.join(' ') : 'No broad hashtags suggested'}
+                              </p>
+                            </div>
+                            {hashtagStrategy.tier1_broad?.length > 0 && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => copyToClipboard(hashtagStrategy.tier1_broad.join(' '), 'hashtags-tier1')}
+                              >
+                                {copiedItem === 'hashtags-tier1' ? (
+                                  <Check className="w-4 h-4 text-green-500" />
+                                ) : (
+                                  <Copy className="w-4 h-4" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        </Card>
 
-          {hashtagStrategy.recommended?.length > 0 && (
-            <Card className="p-4 bg-card border-l-4 border-l-primary">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge className="text-xs">Recommended</Badge>
-                    <span className="text-xs text-muted-foreground">Best performing combination</span>
-                  </div>
-                  <p className="text-sm font-medium">
-                    {hashtagStrategy.recommended.join(' ')}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => copyToClipboard(hashtagStrategy.recommended.join(' '), 'hashtags-recommended')}
-                >
-                  {copiedItem === 'hashtags-recommended' ? (
-                    <Check className="w-4 h-4 text-green-500" />
-                  ) : (
-                    <Copy className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
-            </Card>
-          )}
-        </div>
-      </div>
+                        <Card className="p-4 bg-card border-border">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline" className="text-xs">Tier 2</Badge>
+                                <span className="text-xs text-muted-foreground">Niche (100K-1M posts)</span>
+                              </div>
+                              <p className="text-sm">
+                                {hashtagStrategy.tier2_niche?.length > 0 ? hashtagStrategy.tier2_niche.join(' ') : 'No niche hashtags suggested'}
+                              </p>
+                            </div>
+                            {hashtagStrategy.tier2_niche?.length > 0 && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => copyToClipboard(hashtagStrategy.tier2_niche.join(' '), 'hashtags-tier2')}
+                              >
+                                {copiedItem === 'hashtags-tier2' ? (
+                                  <Check className="w-4 h-4 text-green-500" />
+                                ) : (
+                                  <Copy className="w-4 h-4" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        </Card>
 
-      <Separator className="my-8" />
+                        <Card className="p-4 bg-card border-border">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline" className="text-xs">Tier 3</Badge>
+                                <span className="text-xs text-muted-foreground">Micro (10K-100K posts)</span>
+                              </div>
+                              <p className="text-sm">
+                                {hashtagStrategy.tier3_micro?.length > 0 ? hashtagStrategy.tier3_micro.join(' ') : 'No micro hashtags suggested'}
+                              </p>
+                            </div>
+                            {hashtagStrategy.tier3_micro?.length > 0 && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => copyToClipboard(hashtagStrategy.tier3_micro.join(' '), 'hashtags-tier3')}
+                              >
+                                {copiedItem === 'hashtags-tier3' ? (
+                                  <Check className="w-4 h-4 text-green-500" />
+                                ) : (
+                                  <Copy className="w-4 h-4" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        </Card>
 
-      {/* Platform-Specific Captions */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-sm font-medium uppercase tracking-wide">Platform-Specific Captions</h4>
-        </div>
-
-        {Object.keys(captionCopy).length === 0 ? (
-          <p className="text-sm text-muted-foreground">No caption copy available</p>
-        ) : (
-          <div className="space-y-3">
-            {Object.entries(captionCopy).map(([platform, caption]) => (
-              <Card key={platform} className="p-4 bg-card border-border">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="secondary" className="text-xs capitalize">{platform}</Badge>
+                        {hashtagStrategy.recommended?.length > 0 && (
+                          <Card className="p-4 bg-card border-l-4 border-l-primary">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge className="text-xs">Recommended</Badge>
+                                  <span className="text-xs text-muted-foreground">Best performing combination</span>
+                                </div>
+                                <p className="text-sm font-medium">
+                                  {hashtagStrategy.recommended.join(' ')}
+                                </p>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => copyToClipboard(hashtagStrategy.recommended.join(' '), 'hashtags-recommended')}
+                              >
+                                {copiedItem === 'hashtags-recommended' ? (
+                                  <Check className="w-4 h-4 text-green-500" />
+                                ) : (
+                                  <Copy className="w-4 h-4" />
+                                )}
+                              </Button>
+                            </div>
+                          </Card>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm leading-relaxed">{caption as string}</p>
+
+                    <Separator className="my-8" />
+
+                    {/* Engagement Tactics */}
+                    <div className="mt-8">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-sm font-medium uppercase tracking-wide">Engagement Tactics</h4>
+                      </div>
+
+                      <div className="space-y-3">
+                        <Card className="p-4 bg-card border-l-4 border-l-red-500">
+                          <h5 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                            <Badge variant="destructive" className="text-xs">Critical</Badge>
+                            <span>First Hour</span>
+                          </h5>
+                          {engagementTactics.firstHour?.length > 0 ? (
+                            <ul className="space-y-1.5">
+                              {engagementTactics.firstHour.map((tactic: string, idx: number) => (
+                                <li key={idx} className="text-sm flex items-start gap-2">
+                                  <span className="text-red-500 mt-1">•</span>
+                                  <span>{tactic}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic">No tactics specified</p>
+                          )}
+                        </Card>
+
+                        <Card className="p-4 bg-card border-l-4 border-l-orange-500">
+                          <h5 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">Important</Badge>
+                            <span>First 24 Hours</span>
+                          </h5>
+                          {engagementTactics.first24Hours?.length > 0 ? (
+                            <ul className="space-y-1.5">
+                              {engagementTactics.first24Hours.map((tactic: string, idx: number) => (
+                                <li key={idx} className="text-sm flex items-start gap-2">
+                                  <span className="text-orange-500 mt-1">•</span>
+                                  <span>{tactic}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic">No tactics specified</p>
+                          )}
+                        </Card>
+
+                        <Card className="p-4 bg-card border-l-4 border-l-blue-500">
+                          <h5 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs">Ongoing</Badge>
+                            <span>Long-term Strategy</span>
+                          </h5>
+                          {engagementTactics.ongoing?.length > 0 ? (
+                            <ul className="space-y-1.5">
+                              {engagementTactics.ongoing.map((tactic: string, idx: number) => (
+                                <li key={idx} className="text-sm flex items-start gap-2">
+                                  <span className="text-blue-500 mt-1">•</span>
+                                  <span>{tactic}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic">No tactics specified</p>
+                          )}
+                        </Card>
+                      </div>
+                    </div>
+
+                    <Separator className="my-8" />
+
+                    <Separator className="my-8" />
+
+                    {/* Analytics Tracking */}
+                    <div className="mt-8">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-sm font-medium uppercase tracking-wide">Analytics Tracking</h4>
+                      </div>
+
+                      <div className="space-y-4">
+                        <Card className="p-4 bg-card border-border">
+                          <h5 className="font-semibold text-sm mb-3">Key Metrics by Platform</h5>
+                          {Object.keys(analyticsTracking.keyMetrics || {}).length > 0 ? (
+                            <div className="space-y-2">
+                              {Object.entries(analyticsTracking.keyMetrics).map(([platform, metrics]: [string, any]) => (
+                                <div key={platform} className="flex items-start gap-3 border-l-2 border-primary pl-3">
+                                  <Badge variant="outline" className="text-xs capitalize shrink-0">{platform}</Badge>
+                                  <span className="text-sm">{metrics?.join(', ')}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic">No metrics specified</p>
+                          )}
+                        </Card>
+
+                        <Card className="p-4 bg-card border-l-4 border-l-green-500">
+                          <h5 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                            <Badge className="text-xs">Success Benchmarks</Badge>
+                          </h5>
+                          {Object.keys(analyticsTracking.successBenchmarks || {}).length > 0 ? (
+                            <div className="space-y-2">
+                              {Object.entries(analyticsTracking.successBenchmarks).map(([platform, benchmark]) => (
+                                <div key={platform} className="flex items-start gap-3">
+                                  <Badge variant="secondary" className="text-xs capitalize shrink-0">{platform}</Badge>
+                                  <span className="text-sm font-medium">{benchmark as string}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic">No benchmarks specified</p>
+                          )}
+                        </Card>
+                      </div>
+                    </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => copyToClipboard(caption as string, `caption-${platform}`)}
-                  >
-                    {copiedItem === `caption-${platform}` ? (
-                      <Check className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <Separator className="my-8" />
-
-      {/* Engagement Tactics */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-sm font-medium uppercase tracking-wide">Engagement Tactics</h4>
-        </div>
-
-        <div className="space-y-3">
-          <Card className="p-4 bg-card border-l-4 border-l-red-500">
-            <h5 className="font-semibold text-sm mb-3 flex items-center gap-2">
-              <Badge variant="destructive" className="text-xs">Critical</Badge>
-              <span>First Hour</span>
-            </h5>
-            {engagementTactics.firstHour?.length > 0 ? (
-              <ul className="space-y-1.5">
-                {engagementTactics.firstHour.map((tactic: string, idx: number) => (
-                  <li key={idx} className="text-sm flex items-start gap-2">
-                    <span className="text-red-500 mt-1">•</span>
-                    <span>{tactic}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">No tactics specified</p>
-            )}
-          </Card>
-
-          <Card className="p-4 bg-card border-l-4 border-l-orange-500">
-            <h5 className="font-semibold text-sm mb-3 flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">Important</Badge>
-              <span>First 24 Hours</span>
-            </h5>
-            {engagementTactics.first24Hours?.length > 0 ? (
-              <ul className="space-y-1.5">
-                {engagementTactics.first24Hours.map((tactic: string, idx: number) => (
-                  <li key={idx} className="text-sm flex items-start gap-2">
-                    <span className="text-orange-500 mt-1">•</span>
-                    <span>{tactic}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">No tactics specified</p>
-            )}
-          </Card>
-
-          <Card className="p-4 bg-card border-l-4 border-l-blue-500">
-            <h5 className="font-semibold text-sm mb-3 flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">Ongoing</Badge>
-              <span>Long-term Strategy</span>
-            </h5>
-            {engagementTactics.ongoing?.length > 0 ? (
-              <ul className="space-y-1.5">
-                {engagementTactics.ongoing.map((tactic: string, idx: number) => (
-                  <li key={idx} className="text-sm flex items-start gap-2">
-                    <span className="text-blue-500 mt-1">•</span>
-                    <span>{tactic}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">No tactics specified</p>
-            )}
-          </Card>
-        </div>
-      </div>
-
-      <Separator className="my-8" />
-
-      {/* Cross-Promotion */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-sm font-medium uppercase tracking-wide">Cross-Promotion Strategy</h4>
-        </div>
-
-        {crossPromotion?.length > 0 ? (
-          <Card className="p-4 bg-card border-border">
-            <ul className="space-y-2">
-              {crossPromotion.map((strategyItem: string, idx: number) => (
-                <li key={idx} className="text-sm flex items-start gap-2">
-                  <span className="text-primary mt-1">•</span>
-                  <span>{strategyItem}</span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        ) : (
-          <p className="text-sm text-muted-foreground">No cross-promotion strategies</p>
-        )}
-      </div>
-
-      <Separator className="my-8" />
-
-      {/* Analytics Tracking */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-sm font-medium uppercase tracking-wide">Analytics Tracking</h4>
-        </div>
-
-        <div className="space-y-4">
-          <Card className="p-4 bg-card border-border">
-            <h5 className="font-semibold text-sm mb-3">Key Metrics by Platform</h5>
-            {Object.keys(analyticsTracking.keyMetrics || {}).length > 0 ? (
-              <div className="space-y-2">
-                {Object.entries(analyticsTracking.keyMetrics).map(([platform, metrics]: [string, any]) => (
-                  <div key={platform} className="flex items-start gap-3 border-l-2 border-primary pl-3">
-                    <Badge variant="outline" className="text-xs capitalize shrink-0">{platform}</Badge>
-                    <span className="text-sm">{metrics?.join(', ')}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">No metrics specified</p>
-            )}
-          </Card>
-
-          <Card className="p-4 bg-card border-l-4 border-l-green-500">
-            <h5 className="font-semibold text-sm mb-3 flex items-center gap-2">
-              <Badge className="text-xs">Success Benchmarks</Badge>
-            </h5>
-            {Object.keys(analyticsTracking.successBenchmarks || {}).length > 0 ? (
-              <div className="space-y-2">
-                {Object.entries(analyticsTracking.successBenchmarks).map(([platform, benchmark]) => (
-                  <div key={platform} className="flex items-start gap-3">
-                    <Badge variant="secondary" className="text-xs capitalize shrink-0">{platform}</Badge>
-                    <span className="text-sm font-medium">{benchmark as string}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">No benchmarks specified</p>
-            )}
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
+                  );
 }
 
-interface PanelHeaderProps {
-  title: string;
-  count?: number;
-  unit?: string;
+                  interface PanelHeaderProps {
+                    title: string;
+                  count?: number;
+                  unit?: string;
 }
 
-function PanelHeader({ title, count, unit }: PanelHeaderProps) {
+                  function PanelHeader({title, count, unit}: PanelHeaderProps) {
   return (
-    <div className="flex items-center justify-between mb-4">
-      <h3 className="text-lg font-medium uppercase tracking-wide">
-        {title}
-      </h3>
-      {count !== undefined && unit && (
-        <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
-          {count} {unit}
-        </span>
-      )}
-    </div>
-  );
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium uppercase tracking-wide">
+                      {title}
+                    </h3>
+                    {count !== undefined && unit && (
+                      <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
+                        {count} {unit}
+                      </span>
+                    )}
+                  </div>
+                  );
 }

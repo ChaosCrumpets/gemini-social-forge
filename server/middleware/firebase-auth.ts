@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import { auth } from "../db";
 
+const DEBUG = process.env.DEBUG_LOGS === "true";
+
 // Extend Express Request to include user
 declare global {
     namespace Express {
@@ -27,10 +29,10 @@ export async function verifyFirebaseToken(
         // DISABLE_AUTH removed - always enforce authentication for production-ready security
 
         const authHeader = req.headers.authorization;
-        console.log(`[Auth] Verifying token. Header present: ${!!authHeader}`);
+        if (DEBUG) console.log(`[Auth] Verifying token. Header present: ${!!authHeader}`);
 
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            console.log("[Auth] No Bearer token found in header");
+            if (DEBUG) console.log("[Auth] No Bearer token found in header");
             res.status(401).json({ message: "Unauthorized: No token provided" });
             return;
         }
@@ -38,7 +40,7 @@ export async function verifyFirebaseToken(
         const token = authHeader.split("Bearer ")[1];
 
         if (!token) {
-            console.log("[Auth] Token is empty");
+            if (DEBUG) console.log("[Auth] Token is empty");
             res.status(401).json({ message: "Unauthorized: Invalid token format" });
             return;
         }
@@ -46,7 +48,7 @@ export async function verifyFirebaseToken(
         // Verify the Firebase ID token
         // console.log(`[Auth] Verifying token: ${token.substring(0, 10)}...`);
         const decodedToken = await auth.verifyIdToken(token);
-        console.log(`[Auth] Token verified for UID: ${decodedToken.uid}`);
+        if (DEBUG) console.log(`[Auth] Token verified for UID: ${decodedToken.uid}`);
 
         // Attach user information to request
         req.user = {
@@ -82,17 +84,17 @@ export async function optionalFirebaseAuth(
     res: Response,
     next: NextFunction
 ): Promise<void> {
-    console.log('[OptionalAuth] START - Method:', req.method, 'URL:', req.url);
+    if (DEBUG) console.log('[OptionalAuth] START - Method:', req.method, 'URL:', req.url);
 
     try {
         // DISABLE_AUTH removed - always attempt proper authentication
 
         const authHeader = req.headers.authorization;
-        console.log('[OptionalAuth] Auth header present:', !!authHeader);
+        if (DEBUG) console.log('[OptionalAuth] Auth header present:', !!authHeader);
 
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
             // No token, continue without user (this is normal for optional auth)
-            console.log('[OptionalAuth] No Bearer token - calling next() without user');
+            if (DEBUG) console.log('[OptionalAuth] No Bearer token - calling next() without user');
             next();
             return;
         }
@@ -100,12 +102,12 @@ export async function optionalFirebaseAuth(
         const token = authHeader.split("Bearer ")[1];
 
         if (!token) {
-            console.log('[OptionalAuth] Empty token - calling next() without user');
+            if (DEBUG) console.log('[OptionalAuth] Empty token - calling next() without user');
             next();
             return;
         }
 
-        console.log('[OptionalAuth] Token found, length:', token.length);
+        if (DEBUG) console.log('[OptionalAuth] Token found, length:', token.length);
 
         // Verify Firebase Admin is initialized
         if (!auth) {
@@ -116,14 +118,14 @@ export async function optionalFirebaseAuth(
 
         // Try to verify the token
         try {
-            console.log('[OptionalAuth] Attempting token verification...');
+            if (DEBUG) console.log('[OptionalAuth] Attempting token verification...');
             const decodedToken = await auth.verifyIdToken(token);
             req.user = {
                 ...decodedToken,
                 uid: decodedToken.uid,
                 email: decodedToken.email,
             };
-            console.log(`[OptionalAuth] ✅ Token verified for user: ${decodedToken.email || decodedToken.uid} - calling next()`);
+            if (DEBUG) console.log(`[OptionalAuth] ✅ Token verified for user: ${decodedToken.email || decodedToken.uid} - calling next()`);
         } catch (error: any) {
             // Invalid/expired token - log detailed error for diagnosis
             console.error("╔════════════════════════════════════════════════════════════╗");
@@ -139,7 +141,7 @@ export async function optionalFirebaseAuth(
         }
 
         // CRITICAL: Always call next(), never return error response
-        console.log('[OptionalAuth] END - calling next()');
+        if (DEBUG) console.log('[OptionalAuth] END - calling next()');
         next();
     } catch (error: any) {
         // Unexpected error in middleware - log and continue

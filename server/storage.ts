@@ -17,6 +17,8 @@ import type {
   VisualContext
 } from "@shared/schema";
 
+const DEBUG = process.env.DEBUG_LOGS === "true";
+
 export interface IStorage {
   createProject(): Promise<Project>;
   getProject(id: string): Promise<Project | undefined>;
@@ -179,17 +181,17 @@ export const sessionStorage = {
 
   async getSession(id: number): Promise<Session | undefined> {
     try {
-      console.log(`[SessionStorage.getSession] 🔍 Looking up session: ${id}`);
+      if (DEBUG) console.log(`[SessionStorage.getSession] 🔍 Looking up session: ${id}`);
 
       // Look up the actual Firestore ID from our mapping
       const firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
-      console.log(`[SessionStorage.getSession] Mapping lookup: ${id} → ${firestoreId || 'NOT FOUND'}`);
+      if (DEBUG) console.log(`[SessionStorage.getSession] Mapping lookup: ${id} → ${firestoreId || 'NOT FOUND'}`);
 
       let firestoreSession;
 
       if (!firestoreId) {
         // FALLBACK: Try using the numeric ID directly as document ID
-        console.warn(`[SessionStorage.getSession] ⚠️  No mapping found, trying direct lookup: ${id}`);
+        if (DEBUG) console.warn(`[SessionStorage.getSession] ⚠️  No mapping found, trying direct lookup: ${id}`);
         firestoreSession = await firestoreUtils.getSession(id.toString());
 
         if (!firestoreSession) {
@@ -197,7 +199,7 @@ export const sessionStorage = {
           return undefined;
         }
 
-        console.log(`[SessionStorage.getSession] ✅ Direct lookup succeeded for ${id}!`);
+        if (DEBUG) console.log(`[SessionStorage.getSession] ✅ Direct lookup succeeded for ${id}!`);
       } else {
         // Normal path: use the mapped Firestore ID
         firestoreSession = await firestoreUtils.getSession(firestoreId);
@@ -217,7 +219,7 @@ export const sessionStorage = {
         ? firestoreSession.updatedAt.toDate()
         : new Date();
 
-      console.log(`[SessionStorage.getSession] ✅ Session ${id} loaded successfully`);
+      if (DEBUG) console.log(`[SessionStorage.getSession] ✅ Session ${id} loaded successfully`);
       return {
         id,
         userId: firestoreSession.userId || null,
@@ -247,7 +249,7 @@ export const sessionStorage = {
     // Try to get Firestore ID from mapping, fallback to using numeric ID directly
     let firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
     if (!firestoreId) {
-      console.warn(`[SessionStorage.getSessionWithMessages] No mapping for ${id}, trying direct lookup`);
+      if (DEBUG) console.warn(`[SessionStorage.getSessionWithMessages] No mapping for ${id}, trying direct lookup`);
       firestoreId = id.toString();
     }
 
@@ -282,10 +284,10 @@ export const sessionStorage = {
   },
 
   async listSessions(userId?: string): Promise<Session[]> {
-    console.log('🔍 [SessionStorage.listSessions] Fetching sessions for:', userId || 'ALL (dev mode)');
+    if (DEBUG) console.log('🔍 [SessionStorage.listSessions] Fetching sessions for:', userId || 'ALL (dev mode)');
 
     const firestoreSessions = await firestoreUtils.listSessions(userId);
-    console.log('📊 [SessionStorage.listSessions] Found', firestoreSessions.length, 'raw sessions');
+    if (DEBUG) console.log('📊 [SessionStorage.listSessions] Found', firestoreSessions.length, 'raw sessions');
 
     const processed = firestoreSessions
       .map((fs, index) => {
@@ -295,12 +297,12 @@ export const sessionStorage = {
 
           if (fs.numericId !== undefined) {
             sessionId = fs.numericId;
-            console.log(`  ✅ Session ${index}: Using numericId ${sessionId}`);
+            if (DEBUG) console.log(`  ✅ Session ${index}: Using numericId ${sessionId}`);
           } else {
             // Try parsing document ID as number, or use timestamp
             const parsedId = parseInt(fs.id);
             sessionId = isNaN(parsedId) ? Date.now() + index : parsedId;
-            console.warn(`  ⚠️  Session ${index}: No numericId, generated ${sessionId} from ID "${fs.id}"`);
+            if (DEBUG) console.warn(`  ⚠️  Session ${index}: No numericId, generated ${sessionId} from ID "${fs.id}"`);
           }
 
           return {
@@ -330,7 +332,7 @@ export const sessionStorage = {
       })
       .filter((s): s is Session => s !== null);
 
-    console.log('✅ [SessionStorage.listSessions] Returning', processed.length, 'sessions');
+    if (DEBUG) console.log('✅ [SessionStorage.listSessions] Returning', processed.length, 'sessions');
     return processed;
   },
 
@@ -338,7 +340,7 @@ export const sessionStorage = {
   async getFirestoreId(id: number): Promise<string | undefined> {
     let firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
     if (!firestoreId) {
-      console.warn(`[SessionStorage.getFirestoreId] No mapping for ${id}, trying direct lookup`);
+      if (DEBUG) console.warn(`[SessionStorage.getFirestoreId] No mapping for ${id}, trying direct lookup`);
       firestoreId = id.toString();
       // Verify if a session with this direct ID actually exists
       const sessionExists = await firestoreUtils.getSession(firestoreId);
@@ -351,7 +353,7 @@ export const sessionStorage = {
 
   async updateSession(id: number, updates: Record<string, unknown>): Promise<Session | undefined> {
     try {
-      console.log(`[Storage] updateSession called for ${id} with keys:`, Object.keys(updates));
+      if (DEBUG) console.log(`[Storage] updateSession called for ${id} with keys:`, Object.keys(updates));
 
       const firestoreId = await this.getFirestoreId(id);
       if (!firestoreId) {
@@ -372,14 +374,14 @@ export const sessionStorage = {
         }
       });
 
-      console.log(`[Storage] Updating session fields for ${id}:`, Object.keys(sanitizedUpdates));
+      if (DEBUG) console.log(`[Storage] Updating session fields for ${id}:`, Object.keys(sanitizedUpdates));
 
       // Update session fields
       const updatedRaw = await firestoreUtils.updateSession(firestoreId, sanitizedUpdates);
 
       // Save messages to subcollection if provided
       if (messages && Array.isArray(messages) && messages.length > 0) {
-        console.log(`[Storage] Saving ${messages.length} messages for session ${id}`);
+        if (DEBUG) console.log(`[Storage] Saving ${messages.length} messages for session ${id}`);
 
         // Clear existing messages first to avoid duplicates
         await firestoreUtils.clearMessages(firestoreId);
@@ -396,7 +398,7 @@ export const sessionStorage = {
           }
         }
 
-        console.log(`[Storage] ✅ Saved ${messages.length} messages for session ${id}`);
+        if (DEBUG) console.log(`[Storage] ✅ Saved ${messages.length} messages for session ${id}`);
       }
 
       if (!updatedRaw) {
@@ -404,7 +406,7 @@ export const sessionStorage = {
         return undefined;
       }
 
-      console.log(`[Storage] Update successful for ${id}, returning mapped object directly`);
+      if (DEBUG) console.log(`[Storage] Update successful for ${id}, returning mapped object directly`);
 
       // Manually map to Session to ensure we return the latest data without re-fetching
       // safely handling timestamp conversions
@@ -478,7 +480,7 @@ export const sessionStorage = {
         return undefined;
       }
 
-      console.log(`[Storage] Adding ${role} message to session ${sessionId}`);
+      if (DEBUG) console.log(`[Storage] Adding ${role} message to session ${sessionId}`);
 
       const firestoreMessage = await firestoreUtils.addMessage(
         firestoreId,
@@ -489,7 +491,8 @@ export const sessionStorage = {
 
       // Convert Firestore message to SessionMessage
       return {
-        id: firestoreMessage.id,
+        id: Date.now(), // Legacy ID compatibility
+        sessionId,
         role: firestoreMessage.role as 'user' | 'assistant',
         content: firestoreMessage.content,
         isEditMessage: firestoreMessage.isEditMessage || false,
@@ -517,7 +520,7 @@ export const sessionStorage = {
     // Try to get Firestore ID from mapping, fallback to using numeric ID directly
     let firestoreId = await firestoreUtils.getFirestoreIdFromNumeric(id);
     if (!firestoreId) {
-      console.warn(`[SessionStorage.deleteSession] No mapping for ${id}, trying direct lookup`);
+      if (DEBUG) console.warn(`[SessionStorage.deleteSession] No mapping for ${id}, trying direct lookup`);
       firestoreId = id.toString();
     }
 

@@ -5,6 +5,16 @@ import { queryDatabase, getAllCategories } from "./queryDatabase";
 import type { ContentOutput } from "@shared/schema";
 import { validateContentOutput } from './utils/contentValidator';
 import { buildEnhancedContext } from './utils/contextBuilder';
+import { log } from "./utils/logger";
+import {
+  calculateWordCount,
+  calculateShotCount,
+  validateScript,
+  validateStoryboard,
+  getExpectedBeats
+} from './lib/contentValidator';
+import { buildScriptSystemPrompt } from './prompts/scriptGeneration';
+import { buildStoryboardSystemPrompt } from './prompts/storyboardGeneration';
 
 // const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" }); // Replaced by router
 
@@ -107,191 +117,106 @@ async function retryWithBackoff<T>(
 }
 
 export const DISCOVERY_AND_INPUT_PROCESSOR = `
-You are the Content Assembly Line (C.A.L.) Discovery System, designed to extract maximum value from user input while preserving their creative vision as the PRIMARY source.
+You are the Content Assembly Line (C.A.L.) Discovery System. Your goal is to get the user to "Ready for Hooks" as FAST as possible.
 
 ═══════════════════════════════════════════════════════════════════
-🧠 CORE DIRECTIVE: USER INPUT PRIMACY
+🚀 CORE DIRECTIVE: PROACTIVE DRIVER & CONTEXT TRACKER
 ═══════════════════════════════════════════════════════════════════
-
-HIERARCHY OF TRUTH:
-1. User's explicit statements = TIER 1 (absolute priority)
-2. User's implicit patterns/style = TIER 2 (preserve and enhance)
-3. AI research/recommendations = TIER 3 (fill gaps only)
-
-IF user provides script → USE IT VERBATIM, enhance formatting only
-IF user provides storyboard → BUILD FROM IT, don't replace
-IF user provides UAV/SPCL → ANCHOR all output to it
-IF user provides examples → MIRROR their style/tone
+1. NEVER "wait" for the user to be ready.
+2. IF user gives a "Context Dump" (detailed input), PARSE EVERYTHING and MOVE ON.
+3. IF user says "make it up", DO NOT ASK QUESTIONS. Auto-fill and proceed.
+4. TRACK CONTEXT: Never ask for information you already have.
 
 ═══════════════════════════════════════════════════════════════════
-📊 STEP 1: INPUT DIAGNOSIS (4-LEVEL CLASSIFICATION)
+📝 STEP 1: CONTEXT STATE TRACKING
 ═══════════════════════════════════════════════════════════════════
+Maintain a mental checklist. Mark items as [CAPTURED] if user stated them OR if you can infer them.
 
-Analyze user's first message and classify as ONE of these levels:
+REQUIRED CHECKLIST:
+[ ] Topic          (Subject/Niche)
+[ ] Goal           (Educate/Entertain/Sell)
+[ ] Audience       (Who is watching?)
+[ ] Platforms      (Where is it posting?)
+[ ] On Camera?     (Yes/No/Maybe)
 
-LEVEL 1: COLD (High Entropy)
-- Indicators: Topic only, no context, vague desire
-- Example: "make a video about AI" / "productivity tips"
-- Required Discovery: 5-6 questions minimum
-- UAV/SPCL: Must be extracted through indirect questioning
-
-LEVEL 2: UNSTRUCTURED (Medium Entropy)
-- Indicators: Topic + some context, partial audience/goal
-- Example: "TikTok about productivity for students, I want to educate"
-- Required Discovery: 3-4 questions
-- UAV/SPCL: Some markers present, need clarification
-
-LEVEL 3: INTUITIVE (Low Entropy)
-- Indicators: Clear structure, specific examples, defined outcome
-- Example: "Hook: burnout problem. Context: my struggle. Conflict: tried everything. Solution: new method. CTA: sign up"
-- Required Discovery: 1-2 questions for refinement
-- UAV/SPCL: Likely present, verify and extract
-
-LEVEL 4: ARCHITECTED (Minimal Entropy)
-- Indicators: Complete narrative beats, neurobiology terms, explicit UAV/SPCL
-- Example: "RAS trigger hook about cold calling. Mirror neuron activation in conflict. Dopamine-driven resolution. UAV: 15 years sales experience. SPCL: Status (closed $10M deals)"
-- Required Discovery: 0-1 questions, proceed to hooks immediately
-- UAV/SPCL: Explicitly provided
-
-DIAGNOSTIC OUTPUT (internal reasoning, not shown to user):
-\`\`\`
-INPUT LEVEL: [1-4]
-REASONING: [Why this classification]
-MISSING ELEMENTS: [List what's not provided]
-DISCOVERY PLAN: [Number and type of questions needed]
-\`\`\`
+RULE: Once an item is [CAPTURED], YOU ARE FORBIDDEN FROM ASKING ABOUT IT.
 
 ═══════════════════════════════════════════════════════════════════
-🎯 STEP 2: ADAPTIVE DISCOVERY PROTOCOL
+🧠 STEP 2: INTELLIGENT BYPASS PROTOCOLS
 ═══════════════════════════════════════════════════════════════════
 
-EFFICIENCY RULES:
-- Extract ALL information from current message before asking questions
-- Batch related questions (ask 2-3 at once if needed)
-- NEVER ask yes/no questions → Ask open-ended or provide smart defaults
-- After 3 questions, offer: "Continue refining (better output) or Generate hooks now?"
+PROTOCOL A: "MAKE IT UP" / "ANYTHING"
+IF user says "make it up", "random", or "you decide" for ANY missing field:
+-> IMMEDIATELY pick a smart default based on the Topic.
+-> DO NOT ask for confirmation.
+-> Mark that field as [CAPTURED].
 
-DISCOVERY TARGETS (extract in this order):
+PROTOCOL B: "CONTEXT DUMP" (Rich Input)
+IF user provides a long/detailed input (>30 words):
+-> Assume they want to move fast.
+-> INFER missing minor details strategies (e.g., if "IG Reels", assume "9:16").
+-> If 4/5 items are [CAPTURED], guess the 5th and set readyForHooks = TRUE.
 
-1. CONTENT FUNDAMENTALS:
-   - topic: Main subject (extract even from vague input)
-   - goal: educate | entertain | promote | inspire | inform (infer if not stated)
-   - platforms: tiktok | instagram | youtube_shorts | twitter | linkedin (ask if truly unclear)
-   - targetAudience: Specific demographic (extract from context clues)
-   - tone: professional | casual | humorous | dramatic | inspiring (infer from topic/goal)
-   - duration: 15s | 30s | 60s | 90s (ask if platform/goal unclear)
-
-2. VISUAL CONTEXT:
-   - onCameraToggle: boolean (ASK EXPLICITLY: "Will you be appearing on camera in this video?")
-     → TRUE = Appearing on camera = NO B-Roll panel generated
-     → FALSE = Not on camera = B-Roll panel generated
-   - visualStyle: minimalist | cinematic | fast-paced | documentary (infer from platform/tone)
-
-3. UAV/SPCL MARKERS (extract via indirect questions):
-
-UAV (Unique Added Value) - What makes this creator/content uniquely credible?
-INDIRECT QUESTIONS TO EXTRACT:
-- "What's your background in [topic]?" → Experience/expertise
-- "What results have you achieved in [domain]?" → Proven outcomes
-- "What makes your approach different?" → Unique methodology
-- "Why should viewers trust you on this topic?" → Authority markers
-
-SPCL FRAMEWORK (extract markers for):
-- Status: Achievements, titles, recognition in niche
-- Power: Influence, reach, ability to impact outcomes
-- Credibility: Expertise, experience, proven track record
-- Likeness: Relatability, shared struggles, authenticity
-
-EXTRACTION EXAMPLE:
-User: "I want to make a video about cold calling for B2B sales"
-Discovery Q1: "What's your background in B2B sales?"
-User: "I've been in sales for 15 years, closed over $10M in deals"
-EXTRACTED UAV: "15 years sales experience, $10M closed deals"
-EXTRACTED SPCL: Status (sales tenure), Power ($10M deals), Credibility (proven results)
+PROTOCOL C: "ALREADY PROVIDED"
+Before asking a question, check conversation history.
+IF user already said it 2 turns ago -> DO NOT ASK AGAIN.
 
 ═══════════════════════════════════════════════════════════════════
-📋 STEP 3: PROGRESSION GATES
+📊 STEP 3: INPUT DIAGNOSIS & DECISION
 ═══════════════════════════════════════════════════════════════════
 
-SET readyForDiscovery = true WHEN:
-- Topic + Goal identified, OR
-- Topic + Platform identified, OR
-- User provides enough context (Level 2-4 input)
+Assess current state of the Checklist.
 
-SET readyForHooks = true WHEN:
-- All required fields extracted (topic, goal, platforms, targetAudience, tone, duration)
-- UAV/SPCL markers identified (even if partial)
-- onCameraToggle determined
-- User confirms ready OR answers 3+ discovery questions
+CASE 1: MISSING CRITICAL INFO
+-> Ask ONLY for the missing [ ] items.
+-> Batch questions (max 3).
+-> Numbered list format.
 
-FORCED PROGRESSION (prevent infinite loops):
-- After 6 questions total: Auto-set readyForHooks = true
-- If user types gibberish/blank: Ask "Could you clarify what you'd like to create?"
-- If user says "skip" or "continue": Set readyForHooks = true immediately
+CASE 2: "MAKE IT UP" TRIGGERED
+-> Set readyForHooks = TRUE.
+-> Message: "Understood. I've filled in the gaps. Initializing..."
+
+CASE 3: ALL [CAPTURED] OR INFERRED
+-> Set readyForHooks = TRUE.
+-> Stop asking questions.
 
 ═══════════════════════════════════════════════════════════════════
 💬 RESPONSE GUIDELINES
 ═══════════════════════════════════════════════════════════════════
+TONE: Efficient, Corporate-Casual, "Get it done".
 
-TONE:
-- Brief, action-oriented, encouraging
-- Avoid robotic phrasing ("I'll help you create...")
-- Use natural language ("Great! Let's make this work...")
+IF readyForHooks = FALSE:
+"I have [List what you have]. I just need:
+1. [Missing Item A]
+2. [Missing Item B]"
 
-EFFICIENCY EXAMPLES:
-
-❌ BAD (slow, yes/no):
-"What topic would you like to create content about?"
-[wait for response]
-"Who is your target audience?"
-[wait for response]
-"What platform will you use?"
-
-✅ GOOD (fast, batched):
-"I see you want to make content about [extracted topic]. Quick questions to optimize this:
-1. Who's your target audience for this?
-2. Will you be appearing on camera?
-3. What platform(s) are you targeting?"
+IF readyForHooks = TRUE:
+"Perfect. I have everything I need.
+Topic: [Summary]
+Audience: [Summary]
+Initializing Strategy..."
 
 ═══════════════════════════════════════════════════════════════════
 📤 OUTPUT FORMAT (ALWAYS VALID JSON)
 ═══════════════════════════════════════════════════════════════════
-
 {
-  "message": "Your conversational response (keep brief, max 2-3 sentences)",
+  "message": "Your response string",
   "extractedInputs": {
-    "topic": "string or null",
-    "goal": "educate|entertain|promote|inspire|inform or null",
-    "platforms": ["tiktok", "instagram", etc.] or null,
-    "targetAudience": "string or null",
-    "tone": "professional|casual|humorous|dramatic|inspiring or null",
-    "duration": "15s|30s|60s|90s or null",
-    "onCameraToggle": true|false or null,
-    "uavMarkers": "string describing UAV or null",
-    "spclMarkers": {
-      "status": "string or null",
-      "power": "string or null",
-      "credibility": "string or null",
-      "likeness": "string or null"
-    }
+    "topic": "string | null",
+    "goal": "string | null",
+    "platforms": ["string"] | null,
+    "targetAudience": "string | null",
+    "tone": "string | null",
+    "duration": "string | null",
+    "onCameraToggle": true | false | null,
+    "uavMarkers": "string | null",
+    "spclMarkers": { ... }
   },
   "inputLevel": 1|2|3|4,
   "readyForDiscovery": boolean,
   "readyForHooks": boolean,
-  "discoveryQuestionsAsked": number (track count)
+  "discoveryQuestionsAsked": number
 }
-
-═══════════════════════════════════════════════════════════════════
-🔍 CRITICAL REMINDERS
-═══════════════════════════════════════════════════════════════════
-
-1. USER INPUT = PRIMARY SOURCE (never discard, always preserve)
-2. Extract maximum info from EACH message (batch questions)
-3. Infer intelligently (don't ask what you can deduce)
-4. Ask onCameraToggle EXPLICITLY (affects B-Roll generation)
-5. Extract UAV/SPCL indirectly (don't use those terms with user)
-6. Progress efficiently (2-6 questions max, not 20)
-7. Return ONLY valid JSON (no markdown, no preamble)
 
 BEGIN DISCOVERY.
 `;
@@ -1479,7 +1404,7 @@ User message: ${userMessage}`;
       }
     ];
 
-    console.log('[chat] Sending request to LLM Router with', messages.length, 'messages');
+    log.info(`[chat] Sending request to LLM Router with ${messages.length} messages`);
 
     const response = await llmRouter.generate({
       messages,
@@ -1495,7 +1420,13 @@ User message: ${userMessage}`;
     try {
       // robust JSON extraction using bracket counting
       // This handles "mixed" content where the model chats before/after the JSON
-      const jsonString = extractJsonBlock(text) || text;
+      let jsonString = extractJsonBlock(text) || text;
+
+      // Clean up any trailing text after the last closing brace
+      const lastBrace = jsonString.lastIndexOf('}');
+      if (lastBrace !== -1) {
+        jsonString = jsonString.substring(0, lastBrace + 1);
+      }
 
       const parsed = JSON.parse(jsonString);
       return {
@@ -1510,16 +1441,16 @@ User message: ${userMessage}`;
       // Fallback: If parsing fails, use the raw text as the message
       // But check if it looks like JSON that failed to parse
       let fallbackMessage = text;
-      if (text.trim().startsWith('{') && text.includes('"message":')) {
-        // Try one more desperate regex to get the message field
-        const msgMatch = text.match(/"message":\s*"([^"]*)"/);
-        if (msgMatch && msgMatch[1]) {
-          fallbackMessage = msgMatch[1];
-        }
+
+      // Try to extract just the message part if it exists
+      const msgMatch = text.match(/"message":\s*"([^"]*)"/);
+      if (msgMatch && msgMatch[1]) {
+        fallbackMessage = msgMatch[1];
       }
 
       return {
-        message: fallbackMessage || "I'm here to help you create amazing content. What topic would you like to explore?",
+        message: fallbackMessage,
+        extractedInputs: undefined,
         readyForDiscovery: false,
         readyForHooks: false
       };
@@ -1531,44 +1462,54 @@ User message: ${userMessage}`;
 }
 
 // Helper to extract the first valid JSON block by counting braces
+/**
+ * Helper to extract JSON from a string that might contain markdown code blocks.
+ * Handles ```json ... ```, ``` ... ```, or just raw JSON.
+ */
 function extractJsonBlock(text: string): string | null {
-  const startIndex = text.indexOf('{');
-  if (startIndex === -1) return null;
+  try {
+    if (!text) return null;
 
-  let braceCount = 0;
-  let inString = false;
-  let isEscaped = false;
-
-  for (let i = startIndex; i < text.length; i++) {
-    const char = text[i];
-
-    if (isEscaped) {
-      isEscaped = false;
-      continue;
+    // 1. Try to find markdown JSON block
+    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (jsonMatch && jsonMatch[1]) {
+      return jsonMatch[1].trim();
     }
 
-    if (char === '\\') {
-      isEscaped = true;
-      continue;
-    }
+    // 2. If no code block, try to find the outermost valid JSON object or array
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    const firstBracket = text.indexOf('[');
+    const lastBracket = text.lastIndexOf(']');
 
-    if (char === '"') {
-      inString = !inString;
-      continue;
-    }
+    // Check which one comes first and has a matching pair
+    let start = -1;
+    let end = -1;
 
-    if (!inString) {
-      if (char === '{') {
-        braceCount++;
-      } else if (char === '}') {
-        braceCount--;
-        if (braceCount === 0) {
-          return text.substring(startIndex, i + 1);
-        }
+    // Prioritize object '{}' if it appears before array '[]' or if array is not found
+    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+      if (lastBrace !== -1 && lastBrace > firstBrace) {
+        start = firstBrace;
+        end = lastBrace;
       }
     }
+    // Otherwise try array '[]'
+    else if (firstBracket !== -1) {
+      if (lastBracket !== -1 && lastBracket > firstBracket) {
+        start = firstBracket;
+        end = lastBracket;
+      }
+    }
+
+    if (start !== -1 && end !== -1) {
+      return text.substring(start, end + 1).trim();
+    }
+
+    // 3. Last resort: return trimmed text if it looks like it might be JSON (mostly for strict start/end cases handled above implicitly, but good fallback)
+    return null;
+  } catch (e) {
+    return null;
   }
-  return null;
 }
 
 export async function generateHooks(
@@ -1732,7 +1673,9 @@ Generate 6 text hooks with unique ranks (1-6, where 1 is best):`;
       responseFormat: 'json'
     });
 
-    const parsed = JSON.parse(response.text || '');
+    const text = response.text || '';
+    const jsonString = extractJsonBlock(text) || text;
+    const parsed = JSON.parse(jsonString);
 
     if (!parsed.textHooks || !Array.isArray(parsed.textHooks)) {
       throw new Error('Invalid text hooks response');
@@ -1785,7 +1728,9 @@ Generate 6 verbal hooks with unique ranks (1-6, where 1 is best):`;
       responseFormat: 'json'
     });
 
-    const parsed = JSON.parse(response.text || '');
+    const text = response.text || '';
+    const jsonString = extractJsonBlock(text) || text;
+    const parsed = JSON.parse(jsonString);
 
     if (!parsed.verbalHooks || !Array.isArray(parsed.verbalHooks)) {
       throw new Error('Invalid verbal hooks response');
@@ -1844,7 +1789,9 @@ Generate 6 visual hooks optimized for the user's production setup. Each must inc
       responseFormat: 'json'
     });
 
-    const parsed = JSON.parse(response.text || '');
+    const text = response.text || '';
+    const jsonString = extractJsonBlock(text) || text;
+    const parsed = JSON.parse(jsonString);
 
     if (!parsed.visualHooks || !Array.isArray(parsed.visualHooks)) {
       throw new Error('Invalid visual hooks response');
@@ -1953,19 +1900,16 @@ export async function generateContentFromMultiHooks(
     // VALIDATE OUTPUT
     const validation = validateContentOutput(parsed.output, inputs);
 
-    console.log('📊 [VALIDATION] Quality Score:', validation.score, '/100');
-    console.log('📊 [VALIDATION] Word Count:', validation.metrics.wordCount);
-    console.log('📊 [VALIDATION] Expected:', validation.metrics.expectedWordCount);
-    console.log('📊 [VALIDATION] Topic Mentioned:', validation.metrics.topicMentioned ? 'YES ✅' : 'NO ❌');
-    console.log('📊 [VALIDATION] UAV Incorporated:', validation.metrics.uavIncorporated ? 'YES ✅' : 'NO ❌');
-    console.log('📊 [VALIDATION] Passed:', validation.passed ? 'YES ✅' : 'NO ❌');
-
-    if (!validation.passed) {
-      console.warn('⚠️ [VALIDATION] Issues found:', validation.issues);
-      console.warn('💡 [VALIDATION] Suggestions:', validation.suggestions);
-    }
-
-    console.log('═══════════════════════════════════════════════\n');
+    // Quality Report
+    log.quality({
+      score: validation.score,
+      model: response.model,
+      provider: response.provider,
+      duration: elapsed,
+      passed: validation.passed,
+      issues: validation.issues,
+      tokens: response.tokensUsed
+    });
 
     // Return with validation metadata
     return {
@@ -2119,19 +2063,16 @@ export async function generateContent(
     // VALIDATE OUTPUT
     const validation = validateContentOutput(parsed.output, inputs);
 
-    console.log('📊 [VALIDATION] Quality Score:', validation.score, '/100');
-    console.log('📊 [VALIDATION] Word Count:', validation.metrics.wordCount);
-    console.log('📊 [VALIDATION] Expected:', validation.metrics.expectedWordCount);
-    console.log('📊 [VALIDATION] Topic Mentioned:', validation.metrics.topicMentioned ? 'YES ✅' : 'NO ❌');
-    console.log('📊 [VALIDATION] UAV Incorporated:', validation.metrics.uavIncorporated ? 'YES ✅' : 'NO ❌');
-    console.log('📊 [VALIDATION] Passed:', validation.passed ? 'YES ✅' : 'NO ❌');
-
-    if (!validation.passed) {
-      console.warn('⚠️ [VALIDATION] Issues found:', validation.issues);
-      console.warn('💡 [VALIDATION] Suggestions:', validation.suggestions);
-    }
-
-    console.log('═══════════════════════════════════════════════\n');
+    // Quality Report
+    log.quality({
+      score: validation.score,
+      model: response.model,
+      provider: response.provider,
+      duration: elapsed,
+      passed: validation.passed,
+      issues: validation.issues,
+      tokens: response.tokensUsed
+    });
 
     // Return with validation metadata
     return {
@@ -2201,7 +2142,8 @@ export async function generateDiscoveryQuestions(
     });
 
     const text = response.text || '';
-    const parsed = JSON.parse(text);
+    const jsonString = extractJsonBlock(text) || text;
+    const parsed = JSON.parse(jsonString);
 
     return {
       category: parsed.category || 'identity',
@@ -2269,3 +2211,265 @@ OUTPUT ONLY THE REWRITTEN TEXT:`;
     throw new Error('Failed to remix text');
   }
 }
+
+/**
+ * Enhanced Content Generation (Multi-Step Chain)
+ * 
+ * Uses specialized prompts for Script and Storyboard to ensure high quality,
+ * then assembles the full package with a final generation step.
+ */
+export async function generateEnhancedContentFromMultiHooks(
+  inputs: Record<string, unknown>,
+  selectedHooks: {
+    text?: { content: string; type: string };
+    verbal?: { content: string; type: string };
+    visual?: { fiyGuide: string; genAiPrompt: string; type: string };
+  }
+): Promise<ContentResponse> {
+  console.log('\n═══════════════════════════════════════════════');
+  console.log('🚀 [ENHANCED GENERATION] Starting multi-step generation');
+  console.log('═══════════════════════════════════════════════');
+
+  try {
+    // 1. Calculate Constraints
+    const duration = parseInt(String(inputs.duration || '30').replace(/\D/g, '')) || 30;
+    const style = ((inputs.energyLevel === 'conversational') ? 'conversational' : 'high-energy') as 'conversational' | 'high-energy';
+    const onCamera = inputs.onCameraToggle !== false && inputs.onCameraToggle !== 'false';
+
+    const wordCountReqs = calculateWordCount(duration, style);
+    const shotCountReqs = calculateShotCount(duration);
+    const expectedBeats = getExpectedBeats(duration);
+
+    console.log(`🎯 [TARGETS] Words: ${wordCountReqs.targetWords}, Shots: ${shotCountReqs.targetShots}`);
+
+    // 2. Generate SCRIPT (Step 1)
+    console.log('✍️ [STEP 1] Generating Script...');
+    const scriptParams = {
+      duration,
+      style,
+      topic: (inputs.topic as string) || 'content creation',
+      audience: (inputs.targetAudience as string) || 'general audience',
+      goal: (inputs.goal as string) || 'engage viewers',
+      uav: (inputs.uav as string) || (inputs.uavMarkers as string) || 'unique added value',
+      minWords: wordCountReqs.minWords,
+      maxWords: wordCountReqs.maxWords,
+      targetWords: wordCountReqs.targetWords,
+      expectedBeats
+    };
+
+    // Inject selected verbal hook into the prompt context if available
+    if (selectedHooks.verbal?.content) {
+      scriptParams.uav = `${scriptParams.uav}. MUST START WITH HOOK: "${selectedHooks.verbal.content}"`;
+    }
+
+    const scriptSystemPrompt = buildScriptSystemPrompt(scriptParams);
+
+    const scriptResponse = await llmRouter.generate({
+      messages: [{ role: 'user', content: `GENERATE SCRIPT NOW. Topic: ${scriptParams.topic}` }],
+      systemInstruction: scriptSystemPrompt,
+      category: 'content',
+      responseFormat: 'text', // Script prompt returns text block
+      maxTokens: 4000
+    });
+
+    const generatedScriptText = scriptResponse.text || '';
+
+    // Validate Script
+    const scriptValidation = validateScript(generatedScriptText, scriptParams);
+    console.log(`🔍 [VALIDATION] Script Score: ${scriptValidation.score}/100. Issues: ${scriptValidation.issues.length}`);
+    if (!scriptValidation.passed) console.warn('⚠️ [VALIDATION] Scripts issues:', scriptValidation.issues);
+
+    // 2. Storyboard Generation (Step 2)
+    // onCamera is already defined above
+
+
+    const storyboardParams = {
+      duration,
+      script: generatedScriptText,
+      visualContext: {
+        location: (inputs.location as string) || 'studio',
+        lighting: (inputs.lighting as string) || 'natural',
+        onCamera: onCamera
+      },
+      minShots: shotCountReqs.minShots,
+      maxShots: shotCountReqs.maxShots,
+      targetShots: shotCountReqs.targetShots,
+      minShotTypes: 5
+    };
+
+    const enhancedStoryboardPrompt = buildStoryboardSystemPrompt(storyboardParams);
+
+    console.log('🎬 [STEP 2] Generating visual storyboard...');
+    const storyboardResponse = await llmRouter.generate({
+      messages: [{ role: 'user', content: `GENERATE STORYBOARD JSON NOW based on the script.` }],
+      systemInstruction: enhancedStoryboardPrompt,
+      category: 'content',
+      responseFormat: 'json',
+      maxTokens: 8000
+    });
+
+    const storyboardJsonText = extractJsonBlock(storyboardResponse.text);
+    if (!storyboardJsonText) {
+      console.error('❌ [STORYBOARD] Failed to extract JSON from response');
+      throw new Error('Invalid storyboard JSON response');
+    }
+    const storyboardJson = JSON.parse(storyboardJsonText);
+    const generatedShots = storyboardJson.shots || [];
+
+    // Validate Storyboard
+    const storyboardValidation = validateStoryboard(generatedShots, storyboardParams);
+    console.log(`✅ [STEP 2] Storyboard generated. Quality Score: ${storyboardValidation.score}/100`);
+
+    // 4. Transform and Assemble (Step 3)
+    console.log('🔧 [STEP 3] Assembling full package...');
+
+    const assemblyPrompt = `
+CRITICAL: OUTPUT ONLY JSON. NO CONVERSATIONAL TEXT. NO "I will help you...". NO MARKDOWN BLOCK. JUST THE RAW JSON OBJECT STARTING WITH "{".
+
+You are a master content assembler. ...
+You are the C.A.L. Content Assembler.
+
+I have generated the SCRIPT and STORYBOARD for a ${duration}s video.
+Your job is to generate the remaining components and assemble the final JSON.
+
+INPUTS:
+${JSON.stringify(inputs)}
+
+GENERATED SCRIPT (Use this exact text, but parse into lines):
+${generatedScriptText}
+
+GENERATED STORYBOARD (Use these exact shots):
+${JSON.stringify(generatedShots)}
+
+REQUIRED OUTPUT:
+1. Parse the Script into the "script" array format (lineNumber, text, timing, notes).
+2. Map the Storyboard shots to the "storyboard" array format.
+   CRITICAL: You MUST generate a FULL storyboard covering the ENTIRE duration of the video.
+   - Every significant visual change or text overlay gets a frame.
+   
+   CRITICAL PERFORMANCE OVERRIDE: 
+   DO NOT GENERATE THE FULL STORYBOARD HERE. IT IS TOO LARGE.
+   Simply return an empty array: "storyboard": []
+   (I will inject the pre-generated storyboard in the code)
+
+3. Generate "techSpecs" as a CONSOLIDATED NESTED OBJECT (4 Categories).
+   - cameraVideo: ["Resolution: 4K", "Color: Teal & Orange", "Key Light: Softbox"] (Merge Camera, Video, Lighting, Color)
+   - audioSound: ["Mic: Shotgun", "SFX: Whoosh", "Music: Lo-Fi"] (Merge Audio, Sound Design)
+   - equipment: ["Camera: Sony A7SIII", "Lens: 24-70mm GM"]
+   - exportSettings: ["Bitrate: 50Mbps", "Codec: H.264"] 
+   (REMOVE composition, platformOptimizations - they are moved or deleted)
+
+4. Generate "bRoll" items IF onCameraToggle is false (otherwise empty array).
+5. Generate "deploymentStrategy" with DETAILED content including Cross-Platform logic.
+
+OUTPUT FORMAT (JSON):
+{
+  "output": {
+    "script": [{lineNumber, text, timing, notes, speaker}],
+    "cinematography": {
+       "storyboard": [],
+       "techSpecs": {
+          "cameraVideo": [],
+          "audioSound": [],
+          "equipment": [],
+          "exportSettings": []
+       }
+    },
+    "bRoll": [{id, description, source, timestamp, videoPrompt}],
+    "deploymentStrategy": {
+      "crossPlatformStrategy": {
+        "instagram": "Specific formatting and caption strategy...",
+        "tiktok": "Specific hooks and trends strategy...",
+        "youtube_shorts": "SEO title strategy..."
+      },
+      "postingSchedule": {
+        "instagram": { "bestTimes": ["09:00", "18:00"], "frequency": "Daily", "peakDays": ["Mon", "Wed"] },
+        "tiktok": { "bestTimes": ["12:00", "20:00"], "frequency": "2x Daily", "peakDays": ["Tue", "Fri"] }
+      },
+      "hashtagStrategy": {
+        "tier1_broad": ["#contentcreator", "#marketing"],
+        "tier2_niche": ["#aitools", "#productivity"],
+        "tier3_micro": ["#geminisocial", "#workflowtips"],
+        "recommended": ["#cal", "#forge"]
+      },
+      "engagementTactics": {
+        "firstHour": ["Reply to all comments", "Share to stories"],
+        "first24Hours": ["Pin best comment", "Engage with similar tags"],
+        "ongoing": ["Weekly recap", "User generated content"]
+      }
+    }
+  }
+}
+`;
+
+    const assemblyResponse = await llmRouter.generate({
+      messages: [{ role: 'user', content: assemblyPrompt }],
+      category: 'logic',
+      responseFormat: 'json',
+      maxTokens: 8000
+    });
+
+    let parsedAssemblyText = extractJsonBlock(assemblyResponse.text);
+    if (!parsedAssemblyText) {
+      console.error('❌ [ASSEMBLY] Failed to extract JSON from response. Raw text preview:', assemblyResponse.text.substring(0, 500) + '...');
+
+      // Fallback: try aggressive brace matching if strict extraction failed
+      const firstBrace = assemblyResponse.text.indexOf('{');
+      const lastBrace = assemblyResponse.text.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        parsedAssemblyText = assemblyResponse.text.substring(firstBrace, lastBrace + 1);
+        console.log('⚠️ [ASSEMBLY] Recovered JSON using fallback brace matching.');
+      } else {
+        throw new Error('Invalid assembly JSON response');
+      }
+    }
+    const parsedAssembly = JSON.parse(parsedAssemblyText);
+
+    if (!parsedAssembly.output) {
+      throw new Error('Failed to assemble content');
+    }
+
+    let finalOutput = parsedAssembly.output;
+
+    // ─────────────────────────────────────────────────────────────
+    // STRATEGIC MERGE: Combine Step 2 Storyboard + Step 3 Specs
+    // ─────────────────────────────────────────────────────────────
+    // We intentionally told Step 3 to return an empty storyboard to save tokens.
+    // Now we merge the high-fidelity detailed storyboard from Step 2.
+    if (generatedShots && generatedShots.length > 0) {
+      console.log(`🔗 [ASSEMBLY] Injecting ${generatedShots.length} high-fidelity shots from Step 2`);
+
+      // Ensure structure exists
+      if (!finalOutput.cinematography) finalOutput.cinematography = {};
+
+      // STRICT INJECTION: No "checking if shorter", just Always Inject
+      finalOutput.cinematography.storyboard = generatedShots.map((shot: any) => ({
+        frameNumber: shot.shotNumber || shot.frameNumber,
+        shotType: shot.type || shot.shotType,
+        visualDescription: shot.visual || shot.visualDescription,
+        visualNotes: shot.action || shot.visualNotes,
+        duration: shot.duration?.toString(),
+        cameraMovement: shot.cameraMovement,
+        audioVO: shot.audioVO || shot.audioSync, // Handle prompt alias
+        transition: shot.transitionTo || shot.transition
+      }));
+    } else {
+      console.warn('⚠️ [ASSEMBLY] No Step 2 storyboard found to inject!');
+    }
+
+    // Attach validation metadata to the response for the frontend to display
+    return {
+      output: finalOutput,
+      validation: {
+        script: scriptValidation,
+        storyboard: storyboardValidation
+      }
+    } as any;
+
+  } catch (error) {
+    console.error('❌ [ENHANCED GENERATION] Error:', error);
+    throw new Error('Failed to generate enhanced content');
+  }
+}
+
+
