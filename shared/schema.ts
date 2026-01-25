@@ -192,13 +192,14 @@ export type Caption = z.infer<typeof captionSchema>;
 // NEW: Cinematography schema (merged tech specs + storyboard)
 export const cinematographyTechSpecsSchema = z.object({
   cameraVideo: z.array(z.string()),
-  audio: z.array(z.string()),
-  lighting: z.array(z.string()),
-  soundDesign: z.array(z.string().optional()).optional().default([]),
+  audioSound: z.array(z.string()), // Added
+  audio: z.array(z.string()).optional().default([]), // Keep for backward compat
+  lighting: z.array(z.string()).optional().default([]), // Keep for backward compat
+  soundDesign: z.array(z.string().optional()).optional().default([]), // Keep for backward compat
   colorGrade: z.array(z.string().optional()).optional().default([]),
   equipment: z.array(z.string().optional()).optional().default([]),
   composition: z.array(z.string().optional()).optional().default([]),
-  platformOptimizations: z.array(z.string()),
+  platformOptimizations: z.array(z.string()).optional().default([]), // Make optional since we use Deployment now is separate
   exportSettings: z.array(z.string())
 });
 
@@ -211,7 +212,23 @@ export const cinematographySchema = z.object({
 
 export type Cinematography = z.infer<typeof cinematographySchema>;
 
-// NEW: Deployment Strategy schema
+// NEW: Alternative Caption schema (platform-specific captions)
+export const alternativeCaptionSchema = z.object({
+  id: z.string(),
+  platform: z.enum(["tiktok", "instagram", "youtube", "twitter", "linkedin"]),
+  caption: z.string(),
+  hook: z.string(),
+  body: z.string(),
+  cta: z.string().optional(),
+  hashtags: z.array(z.string()),
+  characterCount: z.number(),
+  estimatedEngagement: z.enum(["low", "medium", "high", "viral"]).optional(),
+  researchSource: z.string().optional()
+});
+
+export type AlternativeCaption = z.infer<typeof alternativeCaptionSchema>;
+
+// Deployment Strategy schema
 export const deploymentStrategySchema = z.object({
   postingSchedule: z.record(z.string(), z.object({
     bestTimes: z.array(z.string()),
@@ -222,18 +239,32 @@ export const deploymentStrategySchema = z.object({
     tier1_broad: z.array(z.string()),
     tier2_niche: z.array(z.string()),
     tier3_micro: z.array(z.string()),
-    recommended: z.array(z.string())
+    recommended: z.array(z.string()),
+    platformSpecific: z.record(z.string(), z.array(z.string())).optional()
   }),
+  captionGuidelines: z.record(z.string(), z.object({
+    structure: z.string(),
+    tone: z.string(),
+    example: z.string(),
+    cta: z.string().optional()
+  })).optional(),
   engagementTactics: z.object({
     firstHour: z.array(z.string()),
     first24Hours: z.array(z.string()),
     ongoing: z.array(z.string())
   }),
-  crossPromotion: z.array(z.string()),
+  crossPromotion: z.array(z.string()).optional().default([]),
+  crossPlatformStrategy: z.record(z.string(), z.any()).optional(),
+  // NEW: Alternative Captions (replaces Analytics Tracking)
+  alternativeCaptions: z.record(
+    z.string(),
+    z.array(alternativeCaptionSchema)
+  ).optional(),
+  // DEPRECATED: Keep for backward compatibility
   analyticsTracking: z.object({
     keyMetrics: z.record(z.string(), z.array(z.string())),
     successBenchmarks: z.record(z.string(), z.string())
-  })
+  }).optional()
 });
 
 export type DeploymentStrategy = z.infer<typeof deploymentStrategySchema>;

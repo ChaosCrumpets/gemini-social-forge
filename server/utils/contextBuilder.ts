@@ -62,6 +62,58 @@ UNIQUE VALUE (UAV): "${extractedInputs.uavMarkers || 'Not provided'}"
 → Mention this in Hook or Context beat
 → Make it natural, not forced
 
+${extractedInputs._enrichment ? `
+═══════════════════════════════════════════════════════════════
+🧠 INTELLIGENT ENRICHMENT DATA
+═══════════════════════════════════════════════════════════════
+NICHE: ${extractedInputs._enrichment.nicheDisplayName} (${extractedInputs._enrichment.nicheId})
+AUDIENCE DESIRES: ${JSON.stringify(extractedInputs._enrichment.audienceEnrichment?.psychographics?.aspirations || [])}
+AUDIENCE PAIN: ${JSON.stringify(extractedInputs._enrichment.audienceEnrichment?.psychographics?.frustrations || [])}
+PROVEN ANGLES: ${JSON.stringify(extractedInputs._enrichment.contentAngles || [])}
+` : ''}
+
+${extractedInputs._ideation ? `
+═══════════════════════════════════════════════════════════════
+💡 IDEATION BRIEF
+═══════════════════════════════════════════════════════════════
+CONSOLIDATED INTENT: ${extractedInputs._ideation.brief || 'N/A'}
+FOCUS AREAS: ${(extractedInputs._ideation.focusAreas || []).join(', ') || 'N/A'}
+` : ''}
+
+${extractedInputs._research ? `
+═══════════════════════════════════════════════════════════════
+🔎 LIVE RESEARCH DATA
+═══════════════════════════════════════════════════════════════
+Use this verified information to enhance credibility and relevance:
+
+${extractedInputs._research.facts?.length > 0 ? `
+📊 VERIFIED FACTS:
+${extractedInputs._research.facts.slice(0, 3).map((f: string) => `• ${f.substring(0, 200)}`).join('\n')}
+` : ''}
+
+${extractedInputs._research.trends?.length > 0 ? `
+📈 TRENDING TOPICS:
+${extractedInputs._research.trends.slice(0, 3).map((t: string) => `• ${t}`).join('\n')}
+` : ''}
+
+${extractedInputs._research.hooks?.length > 0 ? `
+🎣 VIRAL HOOK EXAMPLES:
+${extractedInputs._research.hooks.slice(0, 3).map((h: string) => `• "${h}"`).join('\n')}
+` : ''}
+
+${extractedInputs._research.vocabulary?.length > 0 ? `
+💬 AUDIENCE VOCABULARY:
+${extractedInputs._research.vocabulary.slice(0, 2).map((v: string) => `• ${v.substring(0, 150)}`).join('\n')}
+` : ''}
+
+${extractedInputs._research.platformTips?.length > 0 ? `
+📱 PLATFORM BEST PRACTICES:
+${extractedInputs._research.platformTips.slice(0, 2).map((p: string) => `• ${p}`).join('\n')}
+` : ''}
+
+RESEARCH STATUS: ${extractedInputs._research.successRate || 'N/A'}
+` : ''}
+
 ${userProvidedContent
             ? `
 USER-PROVIDED CONTENT (USE VERBATIM):

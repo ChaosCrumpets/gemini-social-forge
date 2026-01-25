@@ -31,6 +31,9 @@ import { evaluateChatQuality } from "./lib/quality-evaluator";
 import { detectNiche } from "./lib/enrichment/nicheDetector";
 import { getKnowledgeBase, enrichInputs } from "./lib/enrichment/knowledgeRetrieval";
 import { inferMissingContext } from "./lib/enrichment/intelligentInference";
+import { researchService } from "./lib/research/researcher";
+import { consolidateInputs, ideateResearchTopics } from "./lib/pipeline/consolidator";
+import { executeResearchPlan, type AggregatedResearch } from "./lib/pipeline/researchOrchestrator";
 
 const DEBUG = process.env.DEBUG_LOGS === "true";
 
@@ -434,6 +437,63 @@ export async function registerRoutes(
           } else {
             if (DEBUG) console.log(`[${requestId}] ℹ️ No specific niche detected, skipping enrichment.`);
           }
+
+          // ═══════════════════════════════════════════════════════════════════
+          // ENHANCED RESEARCH PIPELINE (Consolidation → Ideation → Research)
+          // ═══════════════════════════════════════════════════════════════════
+
+          let aggregatedResearch: AggregatedResearch | null = null;
+
+          try {
+            // Stage 1: Consolidation & Ideation
+            if (DEBUG) console.log(`[${requestId}] 🧠 Stage 1: Consolidation & Ideation...`);
+            const consolidated = await consolidateInputs(inputs);
+            const platforms = Array.isArray(inputs.platforms) ? inputs.platforms : ['tiktok'];
+            const ideation = await ideateResearchTopics(consolidated, platforms);
+
+            // Attach ideation context for later use
+            inputs._ideation = {
+              brief: consolidated.unifiedBrief,
+              focusAreas: ideation.focusAreas,
+              queries: ideation.queries.map(q => ({ type: q.type, query: q.query }))
+            };
+
+            if (DEBUG) {
+              console.log(`[${requestId}] 💡 Ideation complete: ${ideation.queries.length} queries generated`);
+              ideation.queries.forEach(q => console.log(`     - [${q.priority}] ${q.type}: "${q.query.substring(0, 50)}..."`));
+            }
+
+            // Stage 2: Research Execution
+            if (ideation.queries.length > 0) {
+              if (DEBUG) console.log(`[${requestId}] 🔎 Stage 2: Executing research plan...`);
+              aggregatedResearch = await executeResearchPlan(ideation);
+
+              if (DEBUG) {
+                console.log(`[${requestId}] ✅ Research complete: ${aggregatedResearch.successCount}/${aggregatedResearch.results.length} succeeded in ${aggregatedResearch.totalExecutionTimeMs}ms`);
+              }
+            }
+          } catch (pipelineError: any) {
+            if (DEBUG) console.warn(`[${requestId}] ⚠️ Pipeline error (graceful fallback):`, pipelineError.message);
+            // Continue without research - non-blocking
+          }
+
+          // Inject research results if available
+          if (aggregatedResearch && aggregatedResearch.successCount > 0) {
+            inputs._research = {
+              source: 'pipeline',
+              facts: aggregatedResearch.facts,
+              trends: aggregatedResearch.trends,
+              hooks: aggregatedResearch.hooks,
+              vocabulary: aggregatedResearch.vocabulary,
+              platformTips: aggregatedResearch.platformTips,
+              totalQueries: aggregatedResearch.results.length,
+              successRate: `${aggregatedResearch.successCount}/${aggregatedResearch.results.length}`
+            };
+          }
+          // ═══════════════════════════════════════════════════════════════════
+          // END ENHANCED PIPELINE
+          // ═══════════════════════════════════════════════════════════════════
+
         }
       } catch (enrichError) {
         if (DEBUG) console.error(`[${requestId}] ⚠️ Critical Enrichment Error (Safety Fallback):`, enrichError);

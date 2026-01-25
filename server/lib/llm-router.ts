@@ -6,6 +6,7 @@
  * - Automatic failover on provider failure
  * - Rate limit tracking per provider
  * - Task-specific model selection (logic vs content)
+ * - Per-provider max token clamping for reliability
  */
 
 import { GoogleGenAI } from '@google/genai';
@@ -16,6 +17,15 @@ import { providers, type LLMProvider } from './llm-providers';
 import { log } from '../utils/logger';
 
 export type TaskCategory = 'logic' | 'content';
+
+// Maximum output tokens supported by each provider (researched limits)
+const MAX_OUTPUT_TOKENS: Record<string, number> = {
+    gemini: 65536,      // Gemini 2.x supports up to 65k output
+    claude: 8192,       // Claude 3.5 Sonnet max output
+    deepseek: 8192,     // DeepSeek chat max output
+    groq: 32768,        // Groq Llama 3.3 max output
+    openrouter: 16384   // Conservative limit for OpenRouter
+};
 
 export interface LLMRequest {
     messages: Array<{ role: 'user' | 'model' | 'assistant' | 'system'; content: string }>;
@@ -59,6 +69,15 @@ class LLMRouter {
         apiKey: process.env.OPENROUTER_API_KEY || '',
         baseURL: 'https://openrouter.ai/api/v1'
     });
+
+    /**
+     * Clamp maxTokens to provider's supported limit
+     */
+    private clampTokens(providerName: string, requestedTokens?: number): number {
+        const providerMax = MAX_OUTPUT_TOKENS[providerName] || 4096;
+        const requested = requestedTokens || 4096;
+        return Math.min(requested, providerMax);
+    }
 
     /**
      * Round-robin provider selection with rate limit awareness
@@ -159,7 +178,7 @@ class LLMRouter {
     }
 
     /**
-     * Call specific provider
+     * Call specific provider with token clamping
      */
     private async callProvider(
         provider: LLMProvider,
@@ -169,17 +188,21 @@ class LLMRouter {
             ? provider.logicModel
             : provider.contentModel;
 
+        // Clamp tokens to provider's max to prevent errors
+        const clampedTokens = this.clampTokens(provider.name, request.maxTokens);
+        const clampedRequest = { ...request, maxTokens: clampedTokens };
+
         switch (provider.name) {
             case 'gemini':
-                return await this.callGemini(model, request);
+                return await this.callGemini(model, clampedRequest);
             case 'claude':
-                return await this.callClaude(model, request);
+                return await this.callClaude(model, clampedRequest);
             case 'deepseek':
-                return await this.callDeepSeek(model, request);
+                return await this.callDeepSeek(model, clampedRequest);
             case 'groq':
-                return await this.callGroq(model, request);
+                return await this.callGroq(model, clampedRequest);
             case 'openrouter':
-                return await this.callOpenRouter(model, request);
+                return await this.callOpenRouter(model, clampedRequest);
             default:
                 throw new Error(`Unknown provider: ${provider.name}`);
         }

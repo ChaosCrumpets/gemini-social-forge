@@ -1012,21 +1012,51 @@ TikTok → Instagram Reels (same content, different caption)
 LinkedIn → Twitter (professional excerpt)
 Instagram → Stories (teaser clip)
 
-6. ANALYTICS TRACKING:
+6. ALTERNATIVE CAPTIONS (PLATFORM-SPECIFIC):
 
-Key Metrics by Platform:
-TikTok: Watch time %, completion rate, shares
-Instagram: Reach, saves, shares (not likes)
-YouTube: Click-through rate, average view duration
-LinkedIn: Engagement rate, post clicks
-Twitter: Retweets, quote tweets, profile clicks
+Generate 4-6 caption variations FOR EACH PLATFORM the user selected.
 
-Success Benchmarks:
-TikTok: >50% watch time, >5% engagement rate
-Instagram: >10% engagement rate, >5% saves
-YouTube: >50% average view duration, >10% CTR
-LinkedIn: >5% engagement rate
-Twitter: >2% engagement rate
+PLATFORM BEST PRACTICES (RESEARCH-BACKED):
+
+TIKTOK Captions:
+- Max length: 150 characters
+- Hashtags: 5 max (trending + niche mix)
+- Emoji: Encouraged (1-3 max)
+- Tone: Casual, punchy, trend-aware
+- Hook: Question or bold statement
+- CTA: "Follow for more", "Save this", "Try it!"
+
+INSTAGRAM Captions:
+- Max length: 2200 characters (first 125 visible before "...more")
+- Hashtags: Up to 30 (in comment or hidden)
+- Emoji: Encouraged
+- Tone: Story-driven, authentic, relatable
+- Hook: First line must grab attention
+- CTA: "Save for later", "Share with a friend"
+
+YOUTUBE Shorts Captions:
+- Max length: 200 characters
+- Hashtags: 3 max
+- Emoji: Avoid
+- Tone: SEO-focused, descriptive, searchable
+- Hook: Title-style with keywords
+- CTA: "Subscribe", "Like & Comment"
+
+X (TWITTER) Captions:
+- Max length: 280 characters
+- Hashtags: 2 max
+- Emoji: Allowed
+- Tone: Ultra-concise, quotable, shareable
+- Hook: Hot take or insight
+- CTA: "RT if you agree", "Quote tweet your take"
+
+LINKEDIN Captions:
+- Max length: 3000 characters
+- Hashtags: 3 max
+- Emoji: Avoid
+- Tone: Professional, thought-leadership, insightful
+- Hook: Pattern interrupt + professional insight
+- CTA: "Agree? Comment below", "Share your experience"
 
 ═══════════════════════════════════════════════════════════════════
 📤 OUTPUT FORMAT (RETURN ONLY VALID JSON)
@@ -1188,23 +1218,43 @@ Twitter: >2% engagement rate
         "Instagram → Stories (15-second teaser clip)"
       ],
       
-      "analyticsTracking": {
-        "keyMetrics": {
-          "tiktok": ["Watch time %", "Completion rate", "Shares"],
-          "instagram": ["Reach", "Saves", "Shares (not likes)"],
-          "youtube": ["Click-through rate", "Average view duration"],
-          "linkedin": ["Engagement rate", "Post clicks"]
-        },
-        "successBenchmarks": {
-          "tiktok": ">50% watch time, >5% engagement rate",
-          "instagram": ">10% engagement rate, >5% saves",
-          "youtube": ">50% avg view duration, >10% CTR",
-          "linkedin": ">5% engagement rate"
-        }
+      "alternativeCaptions": {
+        "tiktok": [
+          {
+            "id": "tiktok-1",
+            "platform": "tiktok",
+            "caption": "Stop making this mistake 🛑 Here's what works... #saleslife #coldcalling",
+            "hook": "Stop making this mistake 🛑",
+            "body": "Here's what works...",
+            "cta": "Follow for more!",
+            "hashtags": ["#saleslife", "#coldcalling", "#b2bsales"],
+            "characterCount": 85,
+            "estimatedEngagement": "high",
+            "researchSource": "Uses pattern interrupt + trending format"
+          }
+          // ... 3-5 more variations
+        ],
+        "instagram": [
+          {
+            "id": "instagram-1",
+            "platform": "instagram",
+            "caption": "I made 1000 cold calls in 30 days. Here's what actually worked...\\n\\n(long form story with line breaks)\\n\\n🔖 Save this for later\\n\\n#coldcalling #sales #b2b",
+            "hook": "I made 1000 cold calls in 30 days",
+            "body": "Here's what actually worked...",
+            "cta": "Save for later",
+            "hashtags": ["#coldcalling", "#sales", "#b2b"],
+            "characterCount": 180,
+            "estimatedEngagement": "high",
+            "researchSource": "Story-driven hook + save CTA"
+          }
+          // ... 3-5 more variations
+        ]
+        // Only include platforms the user selected
       }
     }
   }
 }
+
 
 ═══════════════════════════════════════════════════════════════════
 🔍 CRITICAL REMINDERS
@@ -1885,7 +1935,7 @@ export async function generateContentFromMultiHooks(
       messages: [{ role: 'user', content: prompt }],
       category: 'content',
       responseFormat: 'json',
-      maxTokens: 8000 // CRITICAL - Must be high for quality content
+      maxTokens: 12000 // CRITICAL - Must be high for quality content
     });
 
     const elapsed = Date.now() - startTime;
@@ -2047,7 +2097,7 @@ export async function generateContent(
       messages: [{ role: 'user', content: prompt }],
       category: 'content',
       responseFormat: 'json',
-      maxTokens: 8000 // CRITICAL - Must be high for quality content
+      maxTokens: 12000 // CRITICAL - Must be high for quality content
     });
 
     const elapsed = Date.now() - startTime;
@@ -2264,12 +2314,31 @@ export async function generateEnhancedContentFromMultiHooks(
 
     const scriptSystemPrompt = buildScriptSystemPrompt(scriptParams);
 
+    // CRITICAL: Merge system prompt INTO user message for Groq/Llama compatibility
+    // Llama models don't follow systemInstruction as strictly as GPT/Claude
+    const fullScriptPrompt = `${scriptSystemPrompt}
+
+---
+GENERATE THE COMPLETE SCRIPT NOW FOR: "${scriptParams.topic}"
+Target audience: "${scriptParams.audience}"
+Duration: ${scriptParams.duration} seconds
+Goal: "${scriptParams.goal}"
+
+⚠️ CRITICAL REQUIREMENTS:
+- MINIMUM WORD COUNT: ${scriptParams.minWords} words
+- MAXIMUM WORD COUNT: ${scriptParams.maxWords} words
+- TARGET WORD COUNT: ${scriptParams.targetWords} words
+
+You MUST generate ALL ${scriptParams.expectedBeats} beats with timestamps.
+DO NOT generate a short summary. Generate the FULL script.
+
+OUTPUT THE COMPLETE SCRIPT WITH ALL BEATS NOW:`;
+
     const scriptResponse = await llmRouter.generate({
-      messages: [{ role: 'user', content: `GENERATE SCRIPT NOW. Topic: ${scriptParams.topic}` }],
-      systemInstruction: scriptSystemPrompt,
+      messages: [{ role: 'user', content: fullScriptPrompt }],
       category: 'content',
-      responseFormat: 'text', // Script prompt returns text block
-      maxTokens: 4000
+      responseFormat: 'text',
+      maxTokens: 12000  // Increased for quality content
     });
 
     const generatedScriptText = scriptResponse.text || '';
@@ -2305,7 +2374,7 @@ export async function generateEnhancedContentFromMultiHooks(
       systemInstruction: enhancedStoryboardPrompt,
       category: 'content',
       responseFormat: 'json',
-      maxTokens: 8000
+      maxTokens: 12000
     });
 
     const storyboardJsonText = extractJsonBlock(storyboardResponse.text);
@@ -2323,6 +2392,13 @@ export async function generateEnhancedContentFromMultiHooks(
     // 4. Transform and Assemble (Step 3)
     console.log('🔧 [STEP 3] Assembling full package...');
 
+    // Determine Target Platforms (default to core 3 if not specified)
+    // We look for 'platforms' array or comma string in inputs
+    const rawPlatforms = (inputs.platforms as string[]) || (inputs.platform as string) || "instagram, tiktok, youtube_shorts";
+    const targetPlatforms = Array.isArray(rawPlatforms)
+      ? rawPlatforms.join(', ')
+      : String(rawPlatforms);
+
     const assemblyPrompt = `
 CRITICAL: OUTPUT ONLY JSON. NO CONVERSATIONAL TEXT. NO "I will help you...". NO MARKDOWN BLOCK. JUST THE RAW JSON OBJECT STARTING WITH "{".
 
@@ -2335,6 +2411,9 @@ Your job is to generate the remaining components and assemble the final JSON.
 INPUTS:
 ${JSON.stringify(inputs)}
 
+TARGET PLATFORMS: ${targetPlatforms}
+(Generate Deployment Strategy ONLY for these platforms)
+
 GENERATED SCRIPT (Use this exact text, but parse into lines):
 ${generatedScriptText}
 
@@ -2345,7 +2424,6 @@ REQUIRED OUTPUT:
 1. Parse the Script into the "script" array format (lineNumber, text, timing, notes).
 2. Map the Storyboard shots to the "storyboard" array format.
    CRITICAL: You MUST generate a FULL storyboard covering the ENTIRE duration of the video.
-   - Every significant visual change or text overlay gets a frame.
    
    CRITICAL PERFORMANCE OVERRIDE: 
    DO NOT GENERATE THE FULL STORYBOARD HERE. IT IS TOO LARGE.
@@ -2353,14 +2431,20 @@ REQUIRED OUTPUT:
    (I will inject the pre-generated storyboard in the code)
 
 3. Generate "techSpecs" as a CONSOLIDATED NESTED OBJECT (4 Categories).
-   - cameraVideo: ["Resolution: 4K", "Color: Teal & Orange", "Key Light: Softbox"] (Merge Camera, Video, Lighting, Color)
-   - audioSound: ["Mic: Shotgun", "SFX: Whoosh", "Music: Lo-Fi"] (Merge Audio, Sound Design)
+   - cameraVideo: ["Resolution: 4K", "Color: Teal & Orange", "Key Light: Softbox"]
+   - audioSound: ["Mic: Shotgun", "SFX: Whoosh"]
    - equipment: ["Camera: Sony A7SIII", "Lens: 24-70mm GM"]
    - exportSettings: ["Bitrate: 50Mbps", "Codec: H.264"] 
-   (REMOVE composition, platformOptimizations - they are moved or deleted)
 
 4. Generate "bRoll" items IF onCameraToggle is false (otherwise empty array).
-5. Generate "deploymentStrategy" with DETAILED content including Cross-Platform logic.
+
+5. Generate "deploymentStrategy" with ROBUST content for [${targetPlatforms}]:
+   - postingSchedule: Best times/frequency per platform.
+   - captionGuidelines: (Object with keys: structure, tone, example, cta) per platform.
+   - crossPlatformStrategy: Nuanced differences for each platform.
+   - hashtagStrategy: 
+      - tier1, tier2, tier3 (General)
+      - platformSpecific: { "instagram": ["#reels", ...], "tiktok": ["#fyp", ...] } (Specific tags per platform)
 
 OUTPUT FORMAT (JSON):
 {
@@ -2377,25 +2461,30 @@ OUTPUT FORMAT (JSON):
     },
     "bRoll": [{id, description, source, timestamp, videoPrompt}],
     "deploymentStrategy": {
-      "crossPlatformStrategy": {
-        "instagram": "Specific formatting and caption strategy...",
-        "tiktok": "Specific hooks and trends strategy...",
-        "youtube_shorts": "SEO title strategy..."
-      },
       "postingSchedule": {
-        "instagram": { "bestTimes": ["09:00", "18:00"], "frequency": "Daily", "peakDays": ["Mon", "Wed"] },
-        "tiktok": { "bestTimes": ["12:00", "20:00"], "frequency": "2x Daily", "peakDays": ["Tue", "Fri"] }
+        "instagram": { "bestTimes": ["09:00", "18:00"], "frequency": "Daily", "peakDays": ["Mon", "Wed"] }
+      },
+      "captionGuidelines": {
+        "instagram": { "structure": "Hook - Value - Story - CTA", "tone": "Personal", "example": "...", "cta": "Save this for later!" }
+      },
+      "crossPlatformStrategy": {
+        "instagram": "Strategy...",
+        "tiktok": "Strategy..."
       },
       "hashtagStrategy": {
-        "tier1_broad": ["#contentcreator", "#marketing"],
-        "tier2_niche": ["#aitools", "#productivity"],
-        "tier3_micro": ["#geminisocial", "#workflowtips"],
-        "recommended": ["#cal", "#forge"]
+        "tier1_broad": [],
+        "tier2_niche": [],
+        "tier3_micro": [],
+        "recommended": [],
+        "platformSpecific": {
+            "instagram": ["#insta", "#reels"],
+            "tiktok": ["#fyp"]
+        }
       },
       "engagementTactics": {
-        "firstHour": ["Reply to all comments", "Share to stories"],
-        "first24Hours": ["Pin best comment", "Engage with similar tags"],
-        "ongoing": ["Weekly recap", "User generated content"]
+        "firstHour": [],
+        "first24Hours": [],
+        "ongoing": []
       }
     }
   }
@@ -2406,7 +2495,7 @@ OUTPUT FORMAT (JSON):
       messages: [{ role: 'user', content: assemblyPrompt }],
       category: 'logic',
       responseFormat: 'json',
-      maxTokens: 8000
+      maxTokens: 12000
     });
 
     let parsedAssemblyText = extractJsonBlock(assemblyResponse.text);
