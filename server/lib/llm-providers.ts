@@ -22,8 +22,8 @@ export const providers: LLMProvider[] = [
     name: 'claude',
     apiKey: process.env.ANTHROPIC_API_KEY || '',
     rpm: 50,
-    logicModel: 'claude-3-5-sonnet-20240620',
-    contentModel: 'claude-3-5-sonnet-20240620',
+    logicModel: 'claude-sonnet-4-20250514',
+    contentModel: 'claude-sonnet-4-20250514',
     enabled: !!process.env.ANTHROPIC_API_KEY,
     priority: 2
   },

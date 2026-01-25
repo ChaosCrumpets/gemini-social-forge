@@ -74,7 +74,15 @@ const baseHookSchema = z.object({
 export const textHookSchema = baseHookSchema.extend({
   modality: z.literal("text"),
   content: z.string(),
-  placement: z.string().optional()
+  placement: z.string().optional(),
+  // Enhanced metadata for UI display
+  category: z.enum([
+    "bold_statement", "listicle", "question",
+    "contrast", "secret", "result"
+  ]).optional(),
+  description: z.string().optional(),
+  neurobiologyTrigger: z.string().optional(),
+  researchSource: z.string().optional()
 });
 
 export type TextHook = z.infer<typeof textHookSchema>;
@@ -84,7 +92,15 @@ export const verbalHookSchema = baseHookSchema.extend({
   modality: z.literal("verbal"),
   content: z.string(),
   emotionalTrigger: z.string().optional(),
-  retentionTrigger: z.string().optional()
+  retentionTrigger: z.string().optional(),
+  // Enhanced metadata for UI display
+  category: z.enum([
+    "effort_condensed", "failure", "credibility_arbitrage",
+    "shared_emotion", "pattern_interrupt", "direct_question"
+  ]).optional(),
+  description: z.string().optional(),
+  neurobiologyTrigger: z.string().optional(),
+  researchSource: z.string().optional()
 });
 
 export type VerbalHook = z.infer<typeof verbalHookSchema>;
@@ -94,7 +110,15 @@ export const visualHookSchema = baseHookSchema.extend({
   modality: z.literal("visual"),
   fiyGuide: z.string(),
   genAiPrompt: z.string(),
-  sceneDescription: z.string().optional()
+  sceneDescription: z.string().optional(),
+  // Enhanced metadata for UI display
+  category: z.enum([
+    "dynamic_movement", "close_up_reveal", "environment_establish",
+    "action_in_progress", "contrast_cut", "text_focused"
+  ]).optional(),
+  description: z.string().optional(),
+  neurobiologyTrigger: z.string().optional(),
+  researchSource: z.string().optional()
 });
 
 export type VisualHook = z.infer<typeof visualHookSchema>;

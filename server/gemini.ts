@@ -503,11 +503,13 @@ RECOMMENDATION LOGIC:
       "type": "bold_statement|listicle|question|contrast|secret|result",
       "content": "3-8 word text hook",
       "placement": "thumbnail|title_card|caption_overlay",
+      "category": "bold_statement|listicle|question|contrast|secret|result",
+      "description": "Why this hook works (1 sentence explaining the psychology)",
       "neurobiologyTrigger": "RAS|mirror_neurons|dopamine|amygdala",
+      "researchSource": "Pattern origin (e.g., 'Hook database: controversy pattern' or 'Viral TikTok format')",
       "rank": 1-6,
       "isRecommended": true|false
     }
-    // ... 5 more
   ],
   "verbalHooks": [
     {
@@ -520,7 +522,6 @@ RECOMMENDATION LOGIC:
       "rank": 1-6,
       "isRecommended": true|false
     }
-    // ... 5 more
   ],
   "visualHooks": [
     {
@@ -533,7 +534,6 @@ RECOMMENDATION LOGIC:
       "rank": 1-6,
       "isRecommended": true|false
     }
-    // ... 5 more
   ]
 }
 
@@ -1562,6 +1562,47 @@ function extractJsonBlock(text: string): string | null {
   }
 }
 
+/**
+ * Repair common JSON issues from LLM output
+ */
+function repairJson(text: string): string {
+  let repaired = text;
+
+  // Remove JavaScript-style comments (// and /* */)
+  repaired = repaired.replace(/\/\/[^\n]*\n/g, '\n');
+  repaired = repaired.replace(/\/\*[\s\S]*?\*\//g, '');
+
+  // Remove trailing commas before ] or }
+  repaired = repaired.replace(/,(\s*[}\]])/g, '$1');
+
+  // Fix unquoted keys (basic attempt)
+  repaired = repaired.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
+
+  return repaired;
+}
+
+/**
+ * Safe JSON parse with repair attempt
+ */
+export function safeJsonParse<T>(text: string): T | null {
+  const jsonString = extractJsonBlock(text);
+  if (!jsonString) return null;
+
+  // First try direct parse
+  try {
+    return JSON.parse(jsonString);
+  } catch {
+    // Try with repair
+    try {
+      const repaired = repairJson(jsonString);
+      return JSON.parse(repaired);
+    } catch (e) {
+      console.error('[JSON Parse] Failed even after repair:', (e as Error).message);
+      return null;
+    }
+  }
+}
+
 export async function generateHooks(
   inputs: Record<string, unknown>
 ): Promise<HooksResponse> {
@@ -1724,14 +1765,13 @@ Generate 6 text hooks with unique ranks (1-6, where 1 is best):`;
     });
 
     const text = response.text || '';
-    const jsonString = extractJsonBlock(text) || text;
-    const parsed = JSON.parse(jsonString);
+    const parsed = safeJsonParse<{ textHooks: any[] }>(text);
 
-    if (!parsed.textHooks || !Array.isArray(parsed.textHooks)) {
+    if (!parsed || !parsed.textHooks || !Array.isArray(parsed.textHooks)) {
       throw new Error('Invalid text hooks response');
     }
 
-    return { textHooks: validateAndRankHooks(parsed.textHooks, 'text') };
+    return { textHooks: validateAndRankHooks(parsed.textHooks, 'text') as any };
   } catch (error) {
     console.error('Text hooks error:', error);
     throw new Error('Failed to generate text hooks');
@@ -1779,14 +1819,13 @@ Generate 6 verbal hooks with unique ranks (1-6, where 1 is best):`;
     });
 
     const text = response.text || '';
-    const jsonString = extractJsonBlock(text) || text;
-    const parsed = JSON.parse(jsonString);
+    const parsed = safeJsonParse<{ verbalHooks: any[] }>(text);
 
-    if (!parsed.verbalHooks || !Array.isArray(parsed.verbalHooks)) {
+    if (!parsed || !parsed.verbalHooks || !Array.isArray(parsed.verbalHooks)) {
       throw new Error('Invalid verbal hooks response');
     }
 
-    return { verbalHooks: validateAndRankHooks(parsed.verbalHooks, 'verbal') };
+    return { verbalHooks: validateAndRankHooks(parsed.verbalHooks, 'verbal') as any };
   } catch (error) {
     console.error('Verbal hooks error:', error);
     throw new Error('Failed to generate verbal hooks');
@@ -1840,14 +1879,13 @@ Generate 6 visual hooks optimized for the user's production setup. Each must inc
     });
 
     const text = response.text || '';
-    const jsonString = extractJsonBlock(text) || text;
-    const parsed = JSON.parse(jsonString);
+    const parsed = safeJsonParse<{ visualHooks: any[] }>(text);
 
-    if (!parsed.visualHooks || !Array.isArray(parsed.visualHooks)) {
+    if (!parsed || !parsed.visualHooks || !Array.isArray(parsed.visualHooks)) {
       throw new Error('Invalid visual hooks response');
     }
 
-    return { visualHooks: validateAndRankHooks(parsed.visualHooks, 'visual') };
+    return { visualHooks: validateAndRankHooks(parsed.visualHooks, 'visual') as any };
   } catch (error) {
     console.error('Visual hooks error:', error);
     throw new Error('Failed to generate visual hooks');
@@ -2446,6 +2484,28 @@ REQUIRED OUTPUT:
       - tier1, tier2, tier3 (General)
       - platformSpecific: { "instagram": ["#reels", ...], "tiktok": ["#fyp", ...] } (Specific tags per platform)
 
+6. Generate "alternativeCaptions" with 4-6 UNIQUE caption variations for EACH platform in [${targetPlatforms}]:
+   CRITICAL: This is the MOST IMPORTANT part of the deployment strategy.
+   
+   For EACH platform, generate 4-6 captions following these rules:
+   - tiktok: Short (under 150 chars), punchy, trending hashtags, emojis allowed
+   - instagram: Hook in first line, story-driven, 20-30 hashtags, save CTA
+   - youtube: Title-style, SEO keywords, searchable, subscribe CTA
+   - twitter: Ultra-concise (280 chars), quotable, 1-2 hashtags
+   - linkedin: Professional tone, thought-leadership, minimal hashtags
+   
+   Each caption MUST include:
+   - id: unique string (e.g., "tiktok-1")
+   - platform: the platform name
+   - caption: full text with hashtags
+   - hook: opening line
+   - body: main content
+   - cta: call to action
+   - hashtags: array of hashtags
+   - characterCount: number of chars
+   - estimatedEngagement: "low" | "medium" | "high" | "viral"
+   - researchSource: brief note on why this works
+
 OUTPUT FORMAT (JSON):
 {
   "output": {
@@ -2485,6 +2545,14 @@ OUTPUT FORMAT (JSON):
         "firstHour": [],
         "first24Hours": [],
         "ongoing": []
+      },
+      "alternativeCaptions": {
+        "tiktok": [
+          {"id": "tiktok-1", "platform": "tiktok", "caption": "Caption text with #hashtags", "hook": "Opening line", "body": "Main content", "cta": "Follow for more!", "hashtags": ["#fyp", "#viral"], "characterCount": 85, "estimatedEngagement": "high", "researchSource": "Pattern interrupt technique"}
+        ],
+        "instagram": [
+          {"id": "instagram-1", "platform": "instagram", "caption": "Hook line here...\\n\\nStory content...\\n\\n#hashtags", "hook": "Hook line", "body": "Story content", "cta": "Save for later!", "hashtags": ["#reels", "#inspo"], "characterCount": 150, "estimatedEngagement": "high", "researchSource": "Story-driven format"}
+        ]
       }
     }
   }
