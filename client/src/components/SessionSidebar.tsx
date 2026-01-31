@@ -1,11 +1,16 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Plus, MessageSquare, Trash2, FileText, PanelLeftClose, PanelLeft, Zap, FolderOpen } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, FileText, PanelLeftClose, PanelLeft, Zap, FolderOpen, Pencil, Check, X, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useProjectStore } from '@/lib/store';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { Session, SessionMessage } from '@shared/schema';
 import { useState, useEffect } from 'react';
@@ -25,8 +30,10 @@ interface SessionSidebarProps {
 
 export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProps) {
   const [, setLocation] = useLocation();
-  const { currentSessionId, loadSession, reset, setLoading, setCurrentSessionId } = useProjectStore();
+  const { currentSessionId, loadSession, reset, setLoading, setCurrentSessionId, renameSession } = useProjectStore();
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState('');
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -112,9 +119,34 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
 
   const handleSelectSession = (sessionId: number) => {
     if (currentSessionId === sessionId) return;
+    if (editingId) return; // Don't select while editing
     setCurrentSessionId(sessionId);
     loadSessionMutation.mutate(sessionId);
     if (isMobile) onToggle();
+  };
+
+  const handleStartRename = (e: React.MouseEvent, session: Session) => {
+    e.stopPropagation();
+    setEditingId(session.id);
+    setEditTitle(session.title || 'Untitled Session');
+  };
+
+  const handleSaveRename = async (e: React.MouseEvent, sessionId: number) => {
+    e.stopPropagation();
+    if (!editTitle.trim()) return;
+
+    const success = await renameSession(sessionId, editTitle.trim());
+    if (success) {
+      queryClient.invalidateQueries({ queryKey: ['/api/sessions'] });
+    }
+    setEditingId(null);
+    setEditTitle('');
+  };
+
+  const handleCancelRename = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(null);
+    setEditTitle('');
   };
 
   const formatDate = (date: Date) => {
@@ -181,7 +213,7 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
                 key={session.id}
                 onClick={() => handleSelectSession(session.id)}
                 className={cn(
-                  "group flex items-start gap-2 p-2 rounded-md cursor-pointer transition-colors",
+                  "group grid grid-cols-[auto_1fr_auto] items-center gap-2 p-2 rounded-md cursor-pointer transition-colors",
                   currentSessionId === session.id
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "hover:bg-sidebar-accent/50"
@@ -195,22 +227,111 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
                     <MessageSquare className="h-4 w-4" />
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{session.title}</p>
-                  <p className="text-xs text-sidebar-foreground/60">
-                    {formatDate(session.createdAt)}
-                  </p>
+
+                {/* Content */}
+                <div className="min-w-0 pr-1">
+                  {editingId === session.id ? (
+                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                      <Input
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        className="h-6 text-xs px-1"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveRename(e as any, session.id);
+                          if (e.key === 'Escape') handleCancelRename(e as any);
+                        }}
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-5 w-5 p-0"
+                        onClick={(e) => handleSaveRename(e, session.id)}
+                      >
+                        <Check className="h-3 w-3 text-green-600" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-5 w-5 p-0"
+                        onClick={handleCancelRename}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium truncate">{session.title}</p>
+                      <p className="text-xs text-sidebar-foreground/60">
+                        {formatDate(session.createdAt)}
+                      </p>
+                    </>
+                  )}
                 </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 text-sidebar-foreground"
-                  onClick={(e) => handleDeleteSession(e, session.id)}
-                  disabled={deletingId === session.id}
-                  data-testid={`button-delete-session-${session.id}`}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+
+                {/* Menu Button - Static Flex Item - GUARANTEED VISIBLE */}
+                {editingId !== session.id && (
+                  <div className="relative flex items-center justify-center w-6" onClick={e => e.stopPropagation()}>
+                    <button
+                      className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-sidebar-accent transition-colors text-foreground font-bold z-10"
+                      style={{ minWidth: '24px' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Find the dropdown menu sibling
+                        const parent = e.currentTarget.parentElement;
+                        const menu = parent?.querySelector('.custom-dropdown-menu') as HTMLElement;
+
+                        // Close all other open menus first
+                        document.querySelectorAll('.custom-dropdown-menu').forEach((el) => {
+                          if (el !== menu) (el as HTMLElement).style.display = 'none';
+                        });
+
+                        if (menu) {
+                          const isHidden = menu.style.display === 'none' || menu.style.display === '';
+                          menu.style.display = isHidden ? 'block' : 'none';
+                        }
+                      }}
+                    >
+                      <span className="text-lg leading-none font-bold mb-1">⋮</span>
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    <div
+                      className="custom-dropdown-menu hidden bg-popover text-popover-foreground border border-border rounded-md shadow-md z-50 min-w-[140px] p-1"
+                      style={{
+                        position: 'absolute',
+                        right: 0,
+                        top: '100%',
+                        display: 'none'
+                      }}
+                    >
+                      <div
+                        className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartRename(e as any, session);
+                          (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        <span>Rename</span>
+                      </div>
+                      <div
+                        className="flex items-center gap-2 px-2 py-1.5 text-sm text-destructive hover:bg-destructive/10 rounded-sm cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm('Are you sure you want to delete this session?')) {
+                            handleDeleteSession(e as any, session.id);
+                          }
+                          (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span>Delete</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -229,7 +350,7 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
           <PanelLeftClose className="h-4 w-4" />
         </Button>
       </div>
-    </div>
+    </div >
   );
 
   if (isMobile) {

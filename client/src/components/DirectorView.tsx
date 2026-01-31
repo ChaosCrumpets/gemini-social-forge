@@ -39,7 +39,7 @@ export function DirectorView({ agents, title = 'Assembling Content', partialOutp
   const [expandedSections, setExpandedSections] = useState<Set<keyof ContentOutput>>(new Set());
   const completedCount = agents.filter(a => a.status === 'complete').length;
   const progress = agents.length > 0 ? (completedCount / agents.length) * 100 : 0;
-  
+
   const toggleSection = (section: keyof ContentOutput) => {
     setExpandedSections(prev => {
       const next = new Set(prev);
@@ -73,38 +73,38 @@ export function DirectorView({ agents, title = 'Assembling Content', partialOutp
             <div className="w-16 h-16 rounded-full border-2 border-primary/20 flex items-center justify-center">
               <Loader2 className="w-8 h-8 text-primary animate-spin" />
             </div>
-            <div 
+            <div
               className="absolute inset-0 rounded-full border-2 border-primary transition-all duration-500"
               style={{
                 clipPath: `polygon(0 0, 100% 0, 100% ${progress}%, 0 ${progress}%)`
               }}
             />
           </div>
-          
+
           <h2 className="text-xl font-semibold tracking-tight mb-2 text-center">
             {title}
           </h2>
-          
+
           <p className="text-muted-foreground text-sm mb-6 text-center">
             Watch your content come together in real-time
           </p>
-          
+
           <div className="w-full space-y-3" data-testid="director-agent-list">
             {agents.map((agent) => {
               const section = getAgentSection(agent.name);
               const hasPreview = section && isSectionReady(section);
-              
+
               return (
-                <AgentRow 
-                  key={agent.name} 
-                  agent={agent} 
+                <AgentRow
+                  key={agent.name}
+                  agent={agent}
                   hasPreview={hasPreview}
                   onPreviewClick={hasPreview && section ? () => toggleSection(section) : undefined}
                 />
               );
             })}
           </div>
-          
+
           <div className="mt-6 text-center">
             <span className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
               {completedCount} / {agents.length} Complete
@@ -123,9 +123,9 @@ export function DirectorView({ agents, title = 'Assembling Content', partialOutp
             const Icon = sectionIcons[section];
             const isReady = isSectionReady(section);
             const isExpanded = expandedSections.has(section);
-            
+
             return (
-              <Card 
+              <Card
                 key={section}
                 className={`
                   p-3 transition-all duration-300
@@ -156,7 +156,7 @@ export function DirectorView({ agents, title = 'Assembling Content', partialOutp
                     <Eye className="w-4 h-4 text-muted-foreground" />
                   )}
                 </div>
-                
+
                 {isExpanded && partialOutput && (
                   <div className="mt-3 pt-3 border-t border-border">
                     <SectionPreview section={section} data={partialOutput[section]} />
@@ -179,9 +179,9 @@ interface AgentRowProps {
 
 function AgentRow({ agent, hasPreview, onPreviewClick }: AgentRowProps) {
   const description = agent.task || 'Processing...';
-  
+
   return (
-    <div 
+    <div
       className={`
         flex items-center gap-3 p-3 rounded-lg bg-card/50
         ${hasPreview ? 'cursor-pointer hover-elevate' : ''}
@@ -190,7 +190,7 @@ function AgentRow({ agent, hasPreview, onPreviewClick }: AgentRowProps) {
       data-testid={`director-agent-${agent.name.toLowerCase().replace(/\s+/g, '-')}`}
     >
       <StatusIndicator status={agent.status} />
-      
+
       <div className="flex-1 min-w-0">
         <span className="font-mono text-xs uppercase tracking-widest block">
           {agent.name}
@@ -199,7 +199,7 @@ function AgentRow({ agent, hasPreview, onPreviewClick }: AgentRowProps) {
           {description}
         </span>
       </div>
-      
+
       {hasPreview && (
         <Badge variant="secondary" className="shrink-0">
           <Eye className="w-3 h-3 mr-1" />
@@ -236,7 +236,7 @@ interface SectionPreviewProps {
 
 function SectionPreview({ section, data }: SectionPreviewProps) {
   if (!data) return null;
-  
+
   switch (section) {
     case 'script':
       const scriptLines = data as ScriptLine[];
@@ -255,7 +255,7 @@ function SectionPreview({ section, data }: SectionPreviewProps) {
           </div>
         </ScrollArea>
       );
-      
+
     case 'storyboard':
       const frames = data as StoryboardFrame[];
       return (
@@ -268,7 +268,7 @@ function SectionPreview({ section, data }: SectionPreviewProps) {
           )}
         </div>
       );
-      
+
     case 'techSpecs':
       const specs = data as TechSpecs;
       return (
@@ -278,7 +278,7 @@ function SectionPreview({ section, data }: SectionPreviewProps) {
           <p>Resolution: <span className="text-foreground">{specs.resolution}</span></p>
         </div>
       );
-      
+
     case 'bRoll':
       const broll = data as BRollItem[];
       return (
@@ -289,7 +289,7 @@ function SectionPreview({ section, data }: SectionPreviewProps) {
           )}
         </div>
       );
-      
+
     case 'captions':
       const captions = data as Caption[];
       return (
@@ -297,7 +297,7 @@ function SectionPreview({ section, data }: SectionPreviewProps) {
           <p>{captions.length} captions generated</p>
         </div>
       );
-      
+
     default:
       return null;
   }

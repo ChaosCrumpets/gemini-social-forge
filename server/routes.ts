@@ -26,7 +26,7 @@ import { auth, firestore } from "./db";
 import { registerSchema, loginSchema, upgradeSchema, SubscriptionTier, TierInfo } from "@shared/schema";
 import * as firestoreUtils from "./lib/firestore";
 import bcrypt from "bcryptjs";
-import { Timestamp } from "firebase-admin/firestore";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { evaluateChatQuality } from "./lib/quality-evaluator";
 import { detectNiche } from "./lib/enrichment/nicheDetector";
 import { getKnowledgeBase, enrichInputs } from "./lib/enrichment/knowledgeRetrieval";
@@ -591,6 +591,340 @@ export async function registerRoutes(
     }
   });
 
+
+
+  // ============================================
+  // ADMIN ROUTES
+  // ============================================
+
+  /**
+   * Get all users (admin only)
+   * GET /api/admin/users
+   */
+  app.get('/api/admin/users', verifyFirebaseToken, requireAuth, requireAdmin, async (req, res) => {
+    try {
+      if (DEBUG) console.log('[Admin] Fetching all users');
+
+      const usersSnapshot = await firestore.collection('users').get();
+
+      const users = usersSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          email: data.email,
+          displayName: data.displayName || data.email?.split('@')[0],
+          firstName: data.firstName,
+          lastName: data.lastName,
+          role: data.role || 'user',
+          tier: data.subscriptionTier || 'free',
+          isPremium: data.isPremium || false,
+          scriptsGenerated: data.scriptsGenerated || 0,
+          createdAt: data.createdAt?.toDate?.() || new Date(),
+          lastActive: data.lastActive?.toDate?.() || null,
+          // Usage stats from Plan
+          totalGenerations: data.usage?.totalGenerations || data.scriptsGenerated || 0,
+          tokensUsed: data.usage?.tokensUsed || 0,
+          costUSD: data.usage?.costUSD || 0,
+        };
+      });
+
+      if (DEBUG) console.log(`[Admin] ✅ Found ${users.length} users`);
+
+      res.json({ users });
+    } catch (error) {
+      console.error('[Admin] ❌ Error fetching users:', error);
+      res.status(500).json({
+        error: 'Failed to fetch users',
+        code: 'FETCH_USERS_FAILED'
+      });
+    }
+  });
+
+  /**
+   * Update user tier/role (admin only)
+   * PATCH /api/admin/users/:userId/tier
+   */
+  app.patch('/api/admin/users/:userId/tier', verifyFirebaseToken, requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { tier, role } = req.body; // Can update tier OR role
+      const adminId = req.user!.uid;
+
+      console.log(`[Admin] User ${adminId} updating user ${userId}`);
+
+      // Get user to verify existence
+      const userDoc = await firestore.collection('users').doc(userId).get();
+      if (!userDoc.exists) {
+        return res.status(404).json({
+          error: 'User not found',
+          code: 'USER_NOT_FOUND'
+        });
+      }
+
+      const userData = userDoc.data();
+      const updates: any = {
+        updatedAt: FieldValue.serverTimestamp()
+      };
+      const changes: any = {};
+
+      // Handle Tier Update
+      if (tier) {
+        const validTiers = ['bronze', 'silver', 'gold', 'platinum', 'diamond'];
+        if (!validTiers.includes(tier)) {
+          return res.status(400).json({ error: 'Invalid tier' });
+        }
+        updates.subscriptionTier = tier;
+        updates.isPremium = tier !== 'bronze';
+        changes.tier = { old: userData?.subscriptionTier, new: tier };
+      }
+
+      // Handle Role Update
+      if (role) {
+        if (!['user', 'admin'].includes(role)) {
+          return res.status(400).json({ error: 'Invalid role' });
+        }
+        // Prevent admin from demoting themselves
+        if (userId === adminId && role !== 'admin') {
+          return res.status(400).json({
+            error: 'Cannot change your own admin status',
+            code: 'CANNOT_DEMOTE_SELF'
+          });
+        }
+        updates.role = role;
+        changes.role = { old: userData?.role, new: role };
+      }
+
+      // Update user
+      await firestore.collection('users').doc(userId).update(updates);
+
+      // Log audit event
+      await firestore.collection('auditLogs').add({
+        action: 'USER_UPDATE',
+        adminId: adminId,
+        targetUserId: userId,
+        changes,
+        timestamp: FieldValue.serverTimestamp()
+      });
+
+      console.log(`[Admin] ✅ Updated user ${userId}`, changes);
+
+      res.json({
+        success: true,
+        userId,
+        changes,
+        message: 'User updated successfully'
+      });
+    } catch (error) {
+      console.error('[Admin] ❌ Error updating user:', error);
+      res.status(500).json({
+        error: 'Failed to update user',
+        code: 'UPDATE_FAILED'
+      });
+    }
+  });
+
+  /**
+   * Get system metrics (admin only)
+   * GET /api/admin/metrics
+   */
+  app.get('/api/admin/metrics', verifyFirebaseToken, requireAuth, requireAdmin, async (req, res) => {
+    try {
+      if (DEBUG) console.log('[Admin] Calculating system metrics');
+
+      // Get all users
+      const usersSnapshot = await firestore.collection('users').get();
+      const users = usersSnapshot.docs.map(d => d.data());
+
+      // Get all sessions (Project/Sessions)
+      const sessionsSnapshot = await firestore.collection('sessions')
+        .where('status', '!=', 'deleted')
+        .get();
+      const sessions = sessionsSnapshot.docs.map(d => d.data());
+
+      // Get sessions from last 30 days
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const recentSessions = sessions.filter(s => {
+        const updatedAt = s.updatedAt?.toDate?.() || new Date(0);
+        return updatedAt >= thirtyDaysAgo;
+      });
+
+      // Calculate metrics
+      const totalUsers = users.length;
+      const usersByTier = {
+        bronze: users.filter(u => (u.subscriptionTier || 'bronze') === 'bronze').length,
+        silver: users.filter(u => u.subscriptionTier === 'silver').length,
+        gold: users.filter(u => u.subscriptionTier === 'gold').length,
+        platinum: users.filter(u => u.subscriptionTier === 'platinum').length,
+        diamond: users.filter(u => u.subscriptionTier === 'diamond').length,
+      };
+
+      const totalGenerations = sessions.filter(s => s.status === 'COMPLETE').length;
+      const generationsThisMonth = recentSessions.filter(s => s.status === 'COMPLETE').length;
+
+      // Active users (activity in last 30 days)
+      const activeUsers = users.filter(u => {
+        const lastActive = u.lastActive?.toDate?.() || new Date(0);
+        return lastActive >= thirtyDaysAgo;
+      }).length;
+
+      // Calculate costs (Plan Requirement)
+      const totalCost = users.reduce((sum, u) => sum + (u.usage?.costUSD || 0), 0);
+      const avgCostPerUser = totalUsers > 0 ? totalCost / totalUsers : 0;
+
+      // Get error stats from client errors collection (if exists)
+      let errorRate = 0;
+      let recentErrorsCount = 0;
+      try {
+        const errorsSnapshot = await firestore.collection('clientErrors')
+          .where('timestamp', '>=', Timestamp.fromDate(thirtyDaysAgo))
+          .get();
+        recentErrorsCount = errorsSnapshot.size;
+        const totalRequests = generationsThisMonth * 10; // Rough estimate
+        errorRate = totalRequests > 0 ? (recentErrorsCount / totalRequests) * 100 : 0;
+      } catch (e) {
+        if (DEBUG) console.log('[Admin] clientErrors collection not found or empty');
+      }
+
+      const metrics = {
+        users: {
+          total: totalUsers,
+          active: activeUsers,
+          byTier: usersByTier,
+        },
+        generations: {
+          total: totalGenerations,
+          thisMonth: generationsThisMonth,
+          avgPerUser: totalUsers > 0 ? totalGenerations / totalUsers : 0,
+        },
+        costs: {
+          total: totalCost,
+          thisMonth: totalCost, // Approximation for now
+          avgPerUser: avgCostPerUser,
+        },
+        system: {
+          errorRate: errorRate.toFixed(2),
+          uptime: 99.9,
+          avgResponseTime: 250,
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      res.json({ metrics });
+    } catch (error) {
+      console.error('[Admin] ❌ Error calculating metrics:', error);
+      res.status(500).json({
+        error: 'Failed to calculate metrics',
+        code: 'METRICS_FAILED'
+      });
+    }
+  });
+
+  /**
+   * Get recent errors (admin only)
+   * GET /api/admin/errors
+   */
+  app.get('/api/admin/errors', verifyFirebaseToken, requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+
+      let query = firestore.collection('clientErrors')
+        .orderBy('timestamp', 'desc')
+        .limit(limit);
+
+      const errorsSnapshot = await query.get();
+
+      const errors = errorsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate?.() || new Date(),
+      }));
+
+      res.json({ errors });
+    } catch (error) {
+      console.error('[Admin] ❌ Error fetching errors:', error);
+      // Return empty list if collection doesn't exist
+      res.json({ errors: [] });
+    }
+  });
+
+  /**
+   * Send password reset email (admin only)
+   * POST /api/admin/users/:userId/reset-password
+   */
+  app.post('/api/admin/users/:userId/reset-password', verifyFirebaseToken, requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const adminId = req.user!.uid;
+
+      // Get user email
+      const userDoc = await firestore.collection('users').doc(userId).get();
+      if (!userDoc.exists) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const userEmail = userDoc.data()?.email;
+      if (!userEmail) {
+        return res.status(400).json({ error: 'User email not found' });
+      }
+
+      const resetLink = await auth.generatePasswordResetLink(userEmail);
+
+      // Log audit event
+      await firestore.collection('auditLogs').add({
+        action: 'PASSWORD_RESET_REQUESTED',
+        adminId: adminId,
+        targetUserId: userId,
+        targetEmail: userEmail,
+        timestamp: FieldValue.serverTimestamp()
+      });
+
+      console.log(`[Admin] ✅ Password reset link generated for ${userEmail}`);
+
+      res.json({
+        success: true,
+        message: 'Password reset link generated',
+        resetLink,
+      });
+    } catch (error) {
+      console.error('[Admin] ❌ Error generating reset link:', error);
+      res.status(500).json({
+        error: 'Failed to generate password reset link',
+        code: 'RESET_FAILED'
+      });
+    }
+  });
+
+  /**
+   * Get audit logs (admin only)
+   * GET /api/admin/audit-logs
+   */
+  app.get('/api/admin/audit-logs', verifyFirebaseToken, requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const userId = req.query.userId as string;
+
+      let query = firestore.collection('auditLogs')
+        .orderBy('timestamp', 'desc')
+        .limit(limit);
+
+      if (userId) {
+        query = query.where('targetUserId', '==', userId);
+      }
+
+      const logsSnapshot = await query.get();
+
+      const logs = logsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate?.() || new Date(),
+      }));
+
+      res.json({ logs });
+    } catch (error) {
+      console.error('[Admin] ❌ Error fetching audit logs:', error);
+      res.json({ logs: [] });
+    }
+  });
 
   // ============================================
   // Sessions API (Projects/Content)

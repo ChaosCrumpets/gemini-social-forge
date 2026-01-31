@@ -6,6 +6,7 @@ import type {
   Session, SessionMessage
 } from '@shared/schema';
 import { ProjectStatus } from '@shared/schema';
+import { apiRequest } from './queryClient';
 
 interface ProjectStore {
   project: Project | null;
@@ -39,6 +40,8 @@ interface ProjectStore {
   reset: () => void;
   setCurrentSessionId: (id: number | null) => void;
   loadSession: (session: Session, messages: SessionMessage[], editMessages: SessionMessage[]) => void;
+  deleteSession: (sessionId: number) => Promise<boolean>;
+  renameSession: (sessionId: number, newTitle: string) => Promise<boolean>;
 }
 
 const statusOrder: ProjectStatusType[] = [
@@ -354,6 +357,49 @@ export const useProjectStore = create<ProjectStore>()(
 
       setCurrentSessionId: (id: number | null) => set({ currentSessionId: id }),
 
+      deleteSession: async (sessionId: number) => {
+        try {
+          const response = await apiRequest('DELETE', `/api/sessions/${sessionId}`);
+
+          if (!response.ok) {
+            throw new Error('Failed to delete session');
+          }
+
+          // If we just deleted the current session, reset state
+          const { currentSessionId } = get();
+          if (currentSessionId === sessionId) {
+            set({
+              project: createInitialProject(),
+              currentSessionId: null,
+              editMessages: []
+            });
+          }
+
+          console.log('[Store] ✅ Session deleted:', sessionId);
+          return true;
+        } catch (error) {
+          console.error('[Store] ❌ Delete failed:', error);
+          return false;
+        }
+      },
+
+      renameSession: async (sessionId: number, newTitle: string) => {
+        try {
+          const response = await apiRequest('PATCH', `/api/sessions/${sessionId}/title`, {
+            title: newTitle
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to rename session');
+          }
+
+          console.log('[Store] ✅ Session renamed:', sessionId, newTitle);
+          return true;
+        } catch (error) {
+          console.error('[Store] ❌ Rename failed:', error);
+          return false;
+        }
+      },
 
 
       loadSession: (session: Session, messages: SessionMessage[], editMsgs: SessionMessage[]) => {
