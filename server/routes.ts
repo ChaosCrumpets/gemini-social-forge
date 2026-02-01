@@ -22,6 +22,7 @@ import { queryDatabase } from "./queryDatabase";
 import { verifyFirebaseToken, optionalFirebaseAuth } from "./middleware/firebase-auth";
 import { requireAuth, requirePremium, requireAdmin, getUserFromRequest, incrementScriptCount, incrementUsageCount, checkUsageLimit } from "./middleware/auth-helpers";
 import { ensureUserExists, requireDbUser } from "./middleware/user-provisioning";
+import { authLimiter, apiLimiter } from "./middleware/rate-limiter";
 import { auth, firestore } from "./db";
 import { registerSchema, loginSchema, upgradeSchema, SubscriptionTier, TierInfo } from "@shared/schema";
 import * as firestoreUtils from "./lib/firestore";
@@ -85,7 +86,7 @@ export async function registerRoutes(
   // ============================================
 
   // Register new user (Firebase Auth + Firestore)
-  app.post("/api/register", async (req: Request, res: Response) => {
+  app.post("/api/register", authLimiter, async (req: Request, res: Response) => {
     try {
       const parseResult = registerSchema.safeParse(req.body);
       if (!parseResult.success) {
@@ -132,6 +133,7 @@ export async function registerRoutes(
         isPremium: newUser.isPremium,
         customToken, // Client uses this to sign in
       });
+
     } catch (error: any) {
       console.error("Registration error:", error);
 
@@ -601,7 +603,7 @@ export async function registerRoutes(
    * Get all users (admin only)
    * GET /api/admin/users
    */
-  app.get('/api/admin/users', verifyFirebaseToken, requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/users', verifyFirebaseToken, requireAuth, requireAdmin, authLimiter, async (req, res) => {
     try {
       if (DEBUG) console.log('[Admin] Fetching all users');
 
@@ -980,7 +982,7 @@ export async function registerRoutes(
   });
 
   // Legacy hook generation endpoint (Premium required)
-  app.post("/api/generate-hooks", requireAuth, requirePremium, async (req, res) => {
+  app.post("/api/generate-hooks", requireAuth, requirePremium, apiLimiter, async (req, res) => {
     try {
       const { projectId, inputs } = req.body;
 
@@ -1005,7 +1007,7 @@ export async function registerRoutes(
   });
 
   // New modality-specific hook endpoints (Premium required)
-  app.post("/api/generate-text-hooks", requireAuth, requirePremium, async (req, res) => {
+  app.post("/api/generate-text-hooks", requireAuth, requirePremium, apiLimiter, async (req, res) => {
     try {
       const { inputs } = req.body;
 
@@ -1024,7 +1026,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/generate-verbal-hooks", requireAuth, requirePremium, async (req, res) => {
+  app.post("/api/generate-verbal-hooks", requireAuth, requirePremium, apiLimiter, async (req, res) => {
     try {
       const { inputs } = req.body;
 
@@ -1043,7 +1045,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/generate-visual-hooks", requireAuth, requirePremium, async (req, res) => {
+  app.post("/api/generate-visual-hooks", requireAuth, requirePremium, apiLimiter, async (req, res) => {
     try {
       const { inputs, visualContext } = req.body;
 
@@ -1067,7 +1069,7 @@ export async function registerRoutes(
   });
 
   // New multi-hook content generation endpoint (Premium required)
-  app.post("/api/generate-content-multi", requireAuth, requirePremium, async (req, res) => {
+  app.post("/api/generate-content-multi", requireAuth, requirePremium, apiLimiter, async (req, res) => {
     try {
       const { inputs, selectedHooks } = req.body;
 
@@ -1096,7 +1098,7 @@ export async function registerRoutes(
   });
 
   // Legacy content generation endpoint (Premium required)
-  app.post("/api/generate-content", requireAuth, requirePremium, async (req, res) => {
+  app.post("/api/generate-content", requireAuth, requirePremium, apiLimiter, async (req, res) => {
     try {
       const { projectId, inputs, selectedHook } = req.body;
 
@@ -1156,7 +1158,7 @@ export async function registerRoutes(
   });
 
   // Edit content output via chat
-  app.post("/api/edit-content", requireAuth, requirePremium, async (req, res) => {
+  app.post("/api/edit-content", requireAuth, requirePremium, apiLimiter, async (req, res) => {
     try {
       const { message, currentOutput, messages } = req.body;
 
@@ -1186,7 +1188,7 @@ export async function registerRoutes(
   });
 
   // Remix selected text fragment (with usage limits)
-  app.post("/api/remix", requireAuth, checkUsageLimit, async (req, res) => {
+  app.post("/api/remix", requireAuth, checkUsageLimit, apiLimiter, async (req, res) => {
     try {
       const { selectedText, instruction, context } = req.body;
 
@@ -1251,7 +1253,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/generate-discovery-questions", optionalFirebaseAuth, requireAuth, async (req, res) => {
+  app.post("/api/generate-discovery-questions", optionalFirebaseAuth, requireAuth, apiLimiter, async (req, res) => {
     try {
       const { topic, intent } = req.body;
 
@@ -1458,7 +1460,7 @@ export async function registerRoutes(
   // TODO: MIGRATE TO FIREBASE
   // These routes rely on Drizzle/Postgres which has been replaced by Firebase.
   // Commenting out to resolve compilation errors. Re-implement using Firestore if needed.
-
+  
   app.get("/api/admin/users", requireAuth, requireAdmin, async (req, res) => {
     try {
       // const allUsers = await db.select().from(users);
@@ -1469,19 +1471,19 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to fetch users" });
     }
   });
-
+  
   app.patch("/api/admin/users/:id/premium", requireAuth, requireAdmin, async (req, res) => {
      res.status(501).json({ error: "Not implemented" });
   });
-
+  
   app.patch("/api/admin/users/:id/role", requireAuth, requireAdmin, async (req, res) => {
      res.status(501).json({ error: "Not implemented" });
   });
-
+  
   app.post("/api/create-checkout-session", requireAuth, async (req, res) => {
       res.status(501).json({ error: "Not implemented" });
   });
-
+  
   app.post("/api/webhook/stripe", async (req, res) => {
      res.status(501).json({ error: "Not implemented" });
   });
