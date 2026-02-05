@@ -26,7 +26,16 @@ export async function verifyFirebaseToken(
     next: NextFunction
 ): Promise<void> {
     try {
-        // DISABLE_AUTH removed - always enforce authentication for production-ready security
+        // DISABLE_AUTH bypass for development/testing
+        if (process.env.NODE_ENV === 'development' && process.env.DISABLE_AUTH === 'true') {
+            if (DEBUG) console.log('[Auth] DISABLE_AUTH active - bypassing token verification');
+            req.user = {
+                uid: 'dev-user-123',
+                email: 'admin@test.com'
+            };
+            next();
+            return;
+        }
 
         const authHeader = req.headers.authorization;
         if (DEBUG) console.log(`[Auth] Verifying token. Header present: ${!!authHeader}`);
@@ -87,7 +96,16 @@ export async function optionalFirebaseAuth(
     if (DEBUG) console.log('[OptionalAuth] START - Method:', req.method, 'URL:', req.url);
 
     try {
-        // DISABLE_AUTH removed - always attempt proper authentication
+        // DISABLE_AUTH bypass for development/testing
+        if (process.env.NODE_ENV === 'development' && process.env.DISABLE_AUTH === 'true') {
+            if (DEBUG) console.log('[OptionalAuth] DISABLE_AUTH active - injecting mock user');
+            req.user = {
+                uid: 'dev-user-123',
+                email: 'admin@test.com'
+            };
+            next();
+            return;
+        }
 
         const authHeader = req.headers.authorization;
         if (DEBUG) console.log('[OptionalAuth] Auth header present:', !!authHeader);

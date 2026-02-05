@@ -41,6 +41,11 @@ export interface LLMResponse {
     provider: string;
     model: string;
     tokensUsed?: number;
+    usage?: {
+        input: number;
+        output: number;
+        total: number;
+    };
 }
 
 class LLMRouter {
@@ -229,7 +234,12 @@ class LLMRouter {
         return {
             text: response.text || '',
             provider: 'gemini',
-            model
+            model,
+            usage: {
+                input: response.usageMetadata?.promptTokenCount || 0,
+                output: response.usageMetadata?.candidatesTokenCount || 0,
+                total: response.usageMetadata?.totalTokenCount || 0
+            }
         };
     }
 
@@ -258,7 +268,12 @@ class LLMRouter {
             text,
             provider: 'claude',
             model,
-            tokensUsed: response.usage.input_tokens + response.usage.output_tokens
+            tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
+            usage: {
+                input: response.usage.input_tokens,
+                output: response.usage.output_tokens,
+                total: response.usage.input_tokens + response.usage.output_tokens
+            }
         };
     }
 

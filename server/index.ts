@@ -6,9 +6,19 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { securityHeaders } from "./middleware/security";
 import { globalLimiter } from "./middleware/rate-limiter";
+import { initSentry, Sentry } from "./lib/sentry";
+
+// =============================================
+// SENTRY INITIALIZATION (MUST BE FIRST)
+// =============================================
+initSentry();
 
 const app = express();
 const httpServer = createServer(app);
+
+// Sentry: Request handler is usually auto-instrumented or handled by httpIntegration
+// In v8, we remove explicit request/tracing handlers unless using specific patterns.
+// We will rely on Sentry.init() integrations.
 
 // Security Middleware
 app.use(securityHeaders());
@@ -74,6 +84,9 @@ app.use((req, res, next) => {
 
 (async () => {
   await registerRoutes(httpServer, app);
+
+  // Sentry Error Handler
+  Sentry.setupExpressErrorHandler(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

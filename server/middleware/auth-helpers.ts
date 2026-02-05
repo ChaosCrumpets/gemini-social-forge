@@ -42,6 +42,21 @@ export async function requirePremium(
     next: NextFunction
 ): Promise<void> {
     try {
+        // Development mode bypass
+        if (process.env.NODE_ENV === 'development' && process.env.DISABLE_AUTH === 'true') {
+            console.log('[Auth] requirePremium: Bypassing premium check (DISABLE_AUTH active)');
+            (req as any).dbUser = {
+                id: 'dev-user-123',
+                uid: 'dev-user-123',
+                email: 'admin@test.com',
+                isPremium: true,
+                scriptsGenerated: 0,
+                subscriptionTier: 'gold'
+            };
+            next();
+            return;
+        }
+
         if (!req.user || !req.user.uid) {
             res.status(401).json({ message: "Unauthorized: Authentication required" });
             return;

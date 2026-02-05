@@ -13,7 +13,7 @@ const getIp = (req: Request): string => {
  */
 export const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    limit: 500, // Balanced limit for a rich client app
+    limit: 5000, // Increased for benchmarking/dev
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: "Too many requests, please try again later." },
@@ -27,7 +27,7 @@ export const globalLimiter = rateLimit({
  */
 export const authLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    limit: 20, // Strict but allows for some typos
+    limit: 1000, // Increased for benchmarking
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: "Too many login/register attempts. Please try again in an hour." },
@@ -41,7 +41,7 @@ export const authLimiter = rateLimit({
  */
 export const apiLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    limit: 100, // Generous enough for normal use, prevents abuse
+    limit: 1000, // Increased for benchmarking
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: "Generation limit reached. Please verify your account or try again later." },

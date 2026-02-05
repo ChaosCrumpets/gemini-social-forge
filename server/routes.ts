@@ -35,6 +35,7 @@ import { inferMissingContext } from "./lib/enrichment/intelligentInference";
 import { researchService } from "./lib/research/researcher";
 import { consolidateInputs, ideateResearchTopics } from "./lib/pipeline/consolidator";
 import { executeResearchPlan, type AggregatedResearch } from "./lib/pipeline/researchOrchestrator";
+import { trackUsage } from "./lib/cost-tracker";
 
 const DEBUG = process.env.DEBUG_LOGS === "true";
 
@@ -250,6 +251,16 @@ export async function registerRoutes(
       if (DEBUG) console.log('[generate-text-hooks] Generating text hooks...');
       const response = await generateTextHooks(inputs);
 
+      if (response.usage) {
+        trackUsage({
+          userId: (req as any).dbUser?.id || (req as any).user?.uid || 'anonymous',
+          sessionId: req.body.projectId,
+          inputTokens: response.usage.input,
+          outputTokens: response.usage.output,
+          model: response.model || 'unknown',
+          feature: 'hook_generation'
+        }).catch(err => console.error('[Tracker] Error:', err));
+      }
       res.json(response);
     } catch (error: any) {
       console.error("[generate-text-hooks] Error:", error);
@@ -302,6 +313,17 @@ export async function registerRoutes(
           console.log(`┌─────────────────────────────────────────────────────────────`);
           console.log(`│ [VISUAL HOOKS] Request Complete - ${duration}ms`);
           console.log(`└─────────────────────────────────────────────────────────────\n`);
+        }
+
+        if (response.usage) {
+          trackUsage({
+            userId: (req as any).dbUser?.id || (req as any).user?.uid || 'anonymous',
+            sessionId: req.body.projectId,
+            inputTokens: response.usage.input,
+            outputTokens: response.usage.output,
+            model: response.model || 'unknown',
+            feature: 'hook_generation'
+          }).catch(err => console.error('[Tracker] Error:', err));
         }
 
         res.json(response);
@@ -383,6 +405,16 @@ export async function registerRoutes(
       if (DEBUG) console.log('[generate-verbal-hooks] Generating verbal hooks...');
       const response = await generateVerbalHooks(inputs);
 
+      if (response.usage) {
+        trackUsage({
+          userId: (req as any).dbUser?.id || (req as any).user?.uid || 'anonymous',
+          sessionId: req.body.projectId,
+          inputTokens: response.usage.input,
+          outputTokens: response.usage.output,
+          model: response.model || 'unknown',
+          feature: 'hook_generation'
+        }).catch(err => console.error('[Tracker] Error:', err));
+      }
       res.json(response);
     } catch (error: any) {
       console.error("[generate-verbal-hooks] Error:", error);
@@ -394,7 +426,7 @@ export async function registerRoutes(
   });
 
   // Generate final content from selected hooks
-  app.post("/api/generate-content-multi", requireAuth, async (req, res) => {
+  app.post("/api/generate-content-multi", requireAuth, requirePremium, apiLimiter, async (req, res) => {
     const startTime = Date.now();
     const requestId = `content-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -407,7 +439,14 @@ export async function registerRoutes(
     }
 
     try {
-      let { inputs, selectedTextHook, selectedVisualHook, selectedVerbalHook } = req.body;
+      let { inputs, selectedTextHook, selectedVisualHook, selectedVerbalHook, selectedHooks } = req.body;
+
+      // Unify hook structure: If selectedHooks object is provided (new format), map it to individual variables
+      if (selectedHooks) {
+        selectedTextHook = selectedHooks.text;
+        selectedVerbalHook = selectedHooks.verbal;
+        selectedVisualHook = selectedHooks.visual;
+      }
 
       // --- INTELLIGENT INPUT ENRICHMENT ---
       try {
@@ -514,9 +553,13 @@ export async function registerRoutes(
         console.log(JSON.stringify({ inputs, selectedTextHook, selectedVisualHook, selectedVerbalHook }, null, 2));
       }
 
-      if (!inputs || !selectedTextHook || !selectedVisualHook || !selectedVerbalHook) {
+      if (!inputs) {
+        return res.status(400).json({ error: "Inputs are required" });
+      }
+
+      if (!selectedTextHook && !selectedVisualHook && !selectedVerbalHook) {
         console.log(`[${requestId}] ❌ Validation Failed`);
-        return res.status(400).json({ error: "All hooks must be selected" });
+        return res.status(400).json({ error: "At least one hook must be selected" });
       }
 
       if (DEBUG) console.log(`[${requestId}] ✅ Validation passed - Calling API...`);
@@ -531,6 +574,16 @@ export async function registerRoutes(
 
       const duration = Date.now() - startTime;
       if (DEBUG) console.log(`[${requestId}] ✅ Success - ${duration}ms`);
+      if (response.usage) {
+        trackUsage({
+          userId: (req as any).dbUser?.id || (req as any).user?.uid || 'anonymous',
+          sessionId: req.body.projectId || req.body.sessionId,
+          inputTokens: response.usage.input,
+          outputTokens: response.usage.output,
+          model: response.model || 'unknown',
+          feature: 'content_generation'
+        }).catch(err => console.error('[Tracker] Error:', err));
+      }
       res.json(response);
     } catch (error: any) {
       console.error("[generate-content-multi] Error:", error);
@@ -996,6 +1049,16 @@ export async function registerRoutes(
         await storage.setHooks(projectId, response.hooks);
       }
 
+      if (response.usage) {
+        trackUsage({
+          userId: (req as any).dbUser?.id || (req as any).user?.uid || 'anonymous',
+          sessionId: projectId,
+          inputTokens: response.usage.input,
+          outputTokens: response.usage.output,
+          model: response.model || 'unknown',
+          feature: 'hook_generation'
+        }).catch(err => console.error('[Tracker] Error:', err));
+      }
       res.json(response);
     } catch (error) {
       console.error("Hooks generation error:", error);
@@ -1068,34 +1131,7 @@ export async function registerRoutes(
     }
   });
 
-  // New multi-hook content generation endpoint (Premium required)
-  app.post("/api/generate-content-multi", requireAuth, requirePremium, apiLimiter, async (req, res) => {
-    try {
-      const { inputs, selectedHooks } = req.body;
 
-      if (!inputs) {
-        return res.status(400).json({ error: "Inputs are required" });
-      }
-
-      if (!selectedHooks || (!selectedHooks.text && !selectedHooks.verbal && !selectedHooks.visual)) {
-        return res.status(400).json({ error: "At least one selected hook is required" });
-      }
-
-      const response = await generateContentFromMultiHooks(inputs, selectedHooks);
-
-      // Increment script count for Bronze users using their free script
-      if ((req as any).isFreeScript && (req as any).dbUser?.id) {
-        await incrementScriptCount((req as any).dbUser.id);
-      }
-
-      res.json(response);
-    } catch (error) {
-      console.error("Multi-hook content generation error:", error);
-      res.status(500).json({
-        error: "Failed to generate content"
-      });
-    }
-  });
 
   // Legacy content generation endpoint (Premium required)
   app.post("/api/generate-content", requireAuth, requirePremium, apiLimiter, async (req, res) => {
@@ -1148,6 +1184,16 @@ export async function registerRoutes(
         await incrementScriptCount((req as any).dbUser.id);
       }
 
+      if (response.usage) {
+        trackUsage({
+          userId: (req as any).dbUser?.id || (req as any).user?.uid || 'anonymous',
+          sessionId: projectId,
+          inputTokens: response.usage.input,
+          outputTokens: response.usage.output,
+          model: response.model || 'unknown',
+          feature: 'content_generation'
+        }).catch(err => console.error('[Tracker] Error:', err));
+      }
       res.json(response);
     } catch (error) {
       console.error("Content generation error:", error);
@@ -1177,6 +1223,16 @@ export async function registerRoutes(
 
       const response = await editContent(message, currentOutput, conversationHistory);
 
+      if (response.usage) {
+        trackUsage({
+          userId: (req as any).dbUser?.id || (req as any).user?.uid || 'anonymous',
+          sessionId: req.body.projectId,
+          inputTokens: response.usage.input,
+          outputTokens: response.usage.output,
+          model: response.model || 'unknown',
+          feature: 'editing'
+        }).catch(err => console.error('[Tracker] Error:', err));
+      }
       res.json(response);
     } catch (error) {
       console.error("Edit content error:", error);
@@ -1203,6 +1259,16 @@ export async function registerRoutes(
         await incrementUsageCount((req as any).dbUser.id);
       }
 
+      if (response.usage) {
+        trackUsage({
+          userId: (req as any).dbUser?.id || (req as any).user?.uid || 'anonymous',
+          sessionId: req.body.projectId,
+          inputTokens: response.usage.input,
+          outputTokens: response.usage.output,
+          model: response.model || 'unknown',
+          feature: 'remix'
+        }).catch(err => console.error('[Tracker] Error:', err));
+      }
       res.json(response);
     } catch (error) {
       console.error("Remix error:", error);
@@ -1262,6 +1328,16 @@ export async function registerRoutes(
       }
 
       const response = await generateDiscoveryQuestions(topic, intent);
+      if (response.usage) {
+        trackUsage({
+          userId: (req as any).dbUser?.id || (req as any).user?.uid || 'anonymous',
+          sessionId: req.body.projectId,
+          inputTokens: response.usage.input,
+          outputTokens: response.usage.output,
+          model: response.model || 'unknown',
+          feature: 'discovery'
+        }).catch(err => console.error('[Tracker] Error:', err));
+      }
       res.json(response);
     } catch (error) {
       console.error("Discovery questions error:", error);

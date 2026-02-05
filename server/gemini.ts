@@ -116,6 +116,72 @@ async function retryWithBackoff<T>(
   throw new Error('Max retries exceeded');
 }
 
+/**
+ * Tries to parse JSON with aggressive repair logic for truncated/malformed responses
+ */
+function parseJsonWithRepair(jsonStr: string): any {
+  try {
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    let repaired = jsonStr.trim();
+    // Remove markdown blocks
+    if (repaired.startsWith('```json')) repaired = repaired.replace(/^```json/, '').replace(/```$/, '');
+    if (repaired.startsWith('```')) repaired = repaired.replace(/^```/, '').replace(/```$/, '');
+    // Remove trailing comma
+    repaired = repaired.replace(/,\s*([}\]])/g, '$1');
+
+    // Attempt to close truncated JSON
+    const openBraces = (repaired.match(/{/g) || []).length;
+    const closeBraces = (repaired.match(/}/g) || []).length;
+    const openBrackets = (repaired.match(/\[/g) || []).length;
+    const closeBrackets = (repaired.match(/\]/g) || []).length;
+
+    if (openBraces > closeBraces) repaired += '}'.repeat(openBraces - closeBraces);
+    if (openBrackets > closeBrackets) repaired += ']'.repeat(openBrackets - closeBrackets);
+
+    try {
+      return JSON.parse(repaired);
+    } catch (e2: any) {
+      console.warn('[JSON Repair] Failed to repair JSON:', e2.message);
+      // Last ditch: try to find the last valid closing brace sequence
+      const lastBrace = repaired.lastIndexOf('}');
+      if (lastBrace > 0) {
+        try {
+          return JSON.parse(repaired.substring(0, lastBrace + 1));
+        } catch (e3) {
+          throw new Error('Failed to parse JSON even after repair: ' + (e3 as any).message);
+        }
+      }
+      throw new Error('Failed to parse JSON even after repair: ' + e2.message);
+    }
+  }
+}
+
+/**
+ * Robustly extracts JSON string from LLM output
+ */
+function safeExtractJson(text: string): string | null {
+  if (!text) return null;
+
+  // 1. Try Markdown JSON block
+  const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/);
+  if (jsonMatch && jsonMatch[1]) return jsonMatch[1].trim();
+
+  // 2. Try generic code block
+  const codeMatch = text.match(/```\n?([\s\S]*?)\n?```/);
+  if (codeMatch && codeMatch[1]) return codeMatch[1].trim();
+
+  // 3. Try finding outer braces
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return text.substring(firstBrace, lastBrace + 1);
+  }
+
+  return null;
+}
+
 export const DISCOVERY_AND_INPUT_PROCESSOR = `
 You are the Content Assembly Line (C.A.L.) Discovery System. Your goal is to get the user to "Ready for Hooks" as FAST as possible.
 
@@ -1386,6 +1452,13 @@ export interface HooksResponse {
     rank: number;
     isRecommended: boolean;
   }>;
+  usage?: {
+    input: number;
+    output: number;
+    total: number;
+  };
+  model?: string;
+  provider?: string;
 }
 
 export interface ContentResponse {
@@ -1429,6 +1502,13 @@ export interface ContentResponse {
       style?: string;
     }>;
   };
+  usage?: {
+    input: number;
+    output: number;
+    total: number;
+  };
+  model?: string;
+  provider?: string;
 }
 
 export async function chat(
@@ -1682,7 +1762,12 @@ Generate 6 hooks with unique ranks (1-6, where 1 is best). The rank=1 hook shoul
 
     validatedHooks.sort((a: { rank: number }, b: { rank: number }) => a.rank - b.rank);
 
-    return { hooks: validatedHooks };
+    return {
+      hooks: validatedHooks,
+      usage: response.usage,
+      model: response.model,
+      provider: response.provider
+    };
   } catch (error) {
     console.error('Gemini hooks error:', error);
     throw new Error('Failed to generate hooks');
@@ -1704,6 +1789,13 @@ export interface TextHookResponse {
     rank: number;
     isRecommended: boolean;
   }>;
+  usage?: {
+    input: number;
+    output: number;
+    total: number;
+  };
+  model?: string;
+  provider?: string;
 }
 
 export interface VerbalHookResponse {
@@ -1716,6 +1808,13 @@ export interface VerbalHookResponse {
     rank: number;
     isRecommended: boolean;
   }>;
+  usage?: {
+    input: number;
+    output: number;
+    total: number;
+  };
+  model?: string;
+  provider?: string;
 }
 
 export interface VisualHookResponse {
@@ -1728,6 +1827,13 @@ export interface VisualHookResponse {
     rank: number;
     isRecommended: boolean;
   }>;
+  usage?: {
+    input: number;
+    output: number;
+    total: number;
+  };
+  model?: string;
+  provider?: string;
 }
 
 export async function generateTextHooks(
@@ -1771,7 +1877,12 @@ Generate 6 text hooks with unique ranks (1-6, where 1 is best):`;
       throw new Error('Invalid text hooks response');
     }
 
-    return { textHooks: validateAndRankHooks(parsed.textHooks, 'text') as any };
+    return {
+      textHooks: validateAndRankHooks(parsed.textHooks, 'text') as any,
+      usage: response.usage,
+      model: response.model,
+      provider: response.provider
+    };
   } catch (error) {
     console.error('Text hooks error:', error);
     throw new Error('Failed to generate text hooks');
@@ -1825,7 +1936,12 @@ Generate 6 verbal hooks with unique ranks (1-6, where 1 is best):`;
       throw new Error('Invalid verbal hooks response');
     }
 
-    return { verbalHooks: validateAndRankHooks(parsed.verbalHooks, 'verbal') as any };
+    return {
+      verbalHooks: validateAndRankHooks(parsed.verbalHooks, 'verbal') as any,
+      usage: response.usage,
+      model: response.model,
+      provider: response.provider
+    };
   } catch (error) {
     console.error('Verbal hooks error:', error);
     throw new Error('Failed to generate verbal hooks');
@@ -1885,7 +2001,12 @@ Generate 6 visual hooks optimized for the user's production setup. Each must inc
       throw new Error('Invalid visual hooks response');
     }
 
-    return { visualHooks: validateAndRankHooks(parsed.visualHooks, 'visual') as any };
+    return {
+      visualHooks: validateAndRankHooks(parsed.visualHooks, 'visual') as any,
+      usage: response.usage,
+      model: response.model,
+      provider: response.provider
+    };
   } catch (error) {
     console.error('Visual hooks error:', error);
     throw new Error('Failed to generate visual hooks');
@@ -2002,7 +2123,10 @@ export async function generateContentFromMultiHooks(
     // Return with validation metadata
     return {
       ...parsed,
-      validation  // Include validation results for frontend
+      validation,  // Include validation results for frontend
+      usage: response.usage,
+      model: response.model,
+      provider: response.provider
     } as ContentResponse;
   } catch (error) {
     console.error('❌ [GENERATION] Multi-hook error:', error);
@@ -2047,6 +2171,13 @@ Return ONLY valid JSON in this exact format:
 export interface EditContentResponse {
   message: string;
   updatedOutput: ContentOutput;
+  usage?: {
+    input: number;
+    output: number;
+    total: number;
+  };
+  model?: string;
+  provider?: string;
 }
 
 export async function editContent(
@@ -2087,7 +2218,10 @@ ${JSON.stringify(currentOutput, null, 2)}`;
 
     return {
       message: parsed.message || 'Content updated successfully',
-      updatedOutput: parsed.updatedOutput
+      updatedOutput: parsed.updatedOutput,
+      usage: response.usage,
+      model: response.model,
+      provider: response.provider
     };
   } catch (error) {
     console.error('Edit content error:', error);
@@ -2142,10 +2276,22 @@ export async function generateContent(
     console.log(`✅ [LLM] Response received in ${elapsed}ms`);
 
     const text = response.text || '';
-    const parsed = JSON.parse(text);
+
+    // Use extractJsonBlock for robust JSON extraction from LLM responses
+    const jsonString = extractJsonBlock(text) || text;
+
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error('❌ [GENERATION] JSON Parse Error:', parseError);
+      console.error('❌ [GENERATION] Raw text (first 500 chars):', text.substring(0, 500));
+      throw new Error('Failed to parse LLM response as JSON');
+    }
 
     if (!parsed.output) {
-      throw new Error('Invalid content response format');
+      console.error('❌ [GENERATION] Missing output field. Keys found:', Object.keys(parsed));
+      throw new Error('Invalid content response format - missing output field');
     }
 
     // VALIDATE OUTPUT
@@ -2165,7 +2311,10 @@ export async function generateContent(
     // Return with validation metadata
     return {
       ...parsed,
-      validation  // Include validation results for frontend
+      validation,  // Include validation results for frontend
+      usage: response.usage,
+      model: response.model,
+      provider: response.provider
     } as ContentResponse;
   } catch (error) {
     console.error('❌ [GENERATION] Error:', error);
@@ -2178,6 +2327,13 @@ export interface DiscoveryQuestionsResponse {
   categoryName: string;
   questions: string[];
   explanation: string;
+  usage?: {
+    input: number;
+    output: number;
+    total: number;
+  };
+  model?: string;
+  provider?: string;
 }
 
 const DISCOVERY_QUESTIONS_PROMPT = `You are analyzing a user's topic to select the most relevant discovery questions from the C.A.L. Master Query Database.
@@ -2237,7 +2393,10 @@ export async function generateDiscoveryQuestions(
       category: parsed.category || 'identity',
       categoryName: parsed.categoryName || 'Identity & Origin',
       questions: parsed.questions || [],
-      explanation: parsed.explanation || 'These questions will help deepen your content strategy.'
+      explanation: parsed.explanation || 'These questions will help deepen your content strategy.',
+      usage: response.usage,
+      model: response.model,
+      provider: response.provider
     };
   } catch (error) {
     console.error('Discovery questions error:', error);
@@ -2262,7 +2421,7 @@ export async function remixText(
   selectedText: string,
   instruction: string,
   context?: string
-): Promise<{ remixedText: string }> {
+): Promise<{ remixedText: string; usage?: { input: number; output: number; total: number }; model?: string; provider?: string }> {
   try {
     const prompt = `You are a professional script editor. Your task is to rewrite ONLY the selected text fragment based on the instruction provided.
 
@@ -2293,7 +2452,7 @@ OUTPUT ONLY THE REWRITTEN TEXT:`;
 
     const remixedText = (response.text || selectedText).trim();
 
-    return { remixedText };
+    return { remixedText, usage: response.usage, model: response.model, provider: response.provider };
   } catch (error) {
     console.error('Remix text error:', error);
     throw new Error('Failed to remix text');
@@ -2406,26 +2565,7 @@ OUTPUT THE COMPLETE SCRIPT WITH ALL BEATS NOW:`;
 
     const enhancedStoryboardPrompt = buildStoryboardSystemPrompt(storyboardParams);
 
-    console.log('🎬 [STEP 2] Generating visual storyboard...');
-    const storyboardResponse = await llmRouter.generate({
-      messages: [{ role: 'user', content: `GENERATE STORYBOARD JSON NOW based on the script.` }],
-      systemInstruction: enhancedStoryboardPrompt,
-      category: 'content',
-      responseFormat: 'json',
-      maxTokens: 12000
-    });
-
-    const storyboardJsonText = extractJsonBlock(storyboardResponse.text);
-    if (!storyboardJsonText) {
-      console.error('❌ [STORYBOARD] Failed to extract JSON from response');
-      throw new Error('Invalid storyboard JSON response');
-    }
-    const storyboardJson = JSON.parse(storyboardJsonText);
-    const generatedShots = storyboardJson.shots || [];
-
-    // Validate Storyboard
-    const storyboardValidation = validateStoryboard(generatedShots, storyboardParams);
-    console.log(`✅ [STEP 2] Storyboard generated. Quality Score: ${storyboardValidation.score}/100`);
+    // [REMOVED SERIAL STORYBOARD GENERATION - MOVED TO PARALLEL EXECUTION BELOW]
 
     // 4. Transform and Assemble (Step 3)
     console.log('🔧 [STEP 3] Assembling full package...');
@@ -2437,11 +2577,11 @@ OUTPUT THE COMPLETE SCRIPT WITH ALL BEATS NOW:`;
       ? rawPlatforms.join(', ')
       : String(rawPlatforms);
 
-    const assemblyPrompt = `
-CRITICAL: OUTPUT ONLY JSON. NO CONVERSATIONAL TEXT. NO "I will help you...". NO MARKDOWN BLOCK. JUST THE RAW JSON OBJECT STARTING WITH "{".
+    const metadataPrompt = `
+CRITICAL: OUTPUT ONLY JSON. NO CONVERSATIONAL TEXT. START WITH "{".
 
-You are a master content assembler. ...
-You are the C.A.L. Content Assembler.
+You are the C.A.L. Metadata Specialist.
+Generate the technical and strategic metadata for a ${duration}s video based on this script.
 
 I have generated the SCRIPT and STORYBOARD for a ${duration}s video.
 Your job is to generate the remaining components and assemble the final JSON.
@@ -2455,18 +2595,11 @@ TARGET PLATFORMS: ${targetPlatforms}
 GENERATED SCRIPT (Use this exact text, but parse into lines):
 ${generatedScriptText}
 
-GENERATED STORYBOARD (Use these exact shots):
-${JSON.stringify(generatedShots)}
+DO NOT GENERATE STORYBOARD. IT IS BEING HANDLED SEPARATELY.
 
-REQUIRED OUTPUT:
+REQUIRED OUTPUT (JSON):
 1. Parse the Script into the "script" array format (lineNumber, text, timing, notes).
-2. Map the Storyboard shots to the "storyboard" array format.
-   CRITICAL: You MUST generate a FULL storyboard covering the ENTIRE duration of the video.
-   
-   CRITICAL PERFORMANCE OVERRIDE: 
-   DO NOT GENERATE THE FULL STORYBOARD HERE. IT IS TOO LARGE.
-   Simply return an empty array: "storyboard": []
-   (I will inject the pre-generated storyboard in the code)
+
 
 3. Generate "techSpecs" as a CONSOLIDATED NESTED OBJECT (4 Categories).
    - cameraVideo: ["Resolution: 4K", "Color: Teal & Orange", "Key Light: Softbox"]
@@ -2559,68 +2692,81 @@ OUTPUT FORMAT (JSON):
 }
 `;
 
-    const assemblyResponse = await llmRouter.generate({
-      messages: [{ role: 'user', content: assemblyPrompt }],
-      category: 'logic',
-      responseFormat: 'json',
-      maxTokens: 12000
-    });
+    // Execute Parallel Requests
+    const [storyboardResponse, metadataResponse] = await Promise.all([
+      // Task A: Storyboard
+      llmRouter.generate({
+        messages: [{ role: 'user', content: `GENERATE STORYBOARD JSON NOW based on the script.` }],
+        systemInstruction: enhancedStoryboardPrompt,
+        category: 'content',
+        responseFormat: 'json',
+        maxTokens: 12000
+      }),
+      // Task B: Metadata (Assembly)
+      llmRouter.generate({
+        messages: [{ role: 'user', content: metadataPrompt }],
+        category: 'content',
+        responseFormat: 'json',
+        maxTokens: 12000
+      })
+    ]);
 
-    let parsedAssemblyText = extractJsonBlock(assemblyResponse.text);
-    if (!parsedAssemblyText) {
-      console.error('❌ [ASSEMBLY] Failed to extract JSON from response. Raw text preview:', assemblyResponse.text.substring(0, 500) + '...');
+    // Process Storyboard
+    const storyboardJsonText = safeExtractJson(storyboardResponse.text);
+    if (!storyboardJsonText) throw new Error('Invalid storyboard JSON response');
+    const storyboardJson = parseJsonWithRepair(storyboardJsonText);
+    const generatedShots = storyboardJson.shots || [];
 
-      // Fallback: try aggressive brace matching if strict extraction failed
-      const firstBrace = assemblyResponse.text.indexOf('{');
-      const lastBrace = assemblyResponse.text.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-        parsedAssemblyText = assemblyResponse.text.substring(firstBrace, lastBrace + 1);
-        console.log('⚠️ [ASSEMBLY] Recovered JSON using fallback brace matching.');
-      } else {
-        throw new Error('Invalid assembly JSON response');
+    // Validate Storyboard
+    const storyboardValidation = validateStoryboard(generatedShots, storyboardParams);
+    console.log(`✅ [PARALLEL] Storyboard generated. Quality Score: ${storyboardValidation.score}/100`);
+
+    // Process Metadata
+    const metadataJsonText = safeExtractJson(metadataResponse.text);
+    if (!metadataJsonText) throw new Error('Invalid metadata JSON response');
+    const metadataJson = parseJsonWithRepair(metadataJsonText);
+
+    console.log(`✅ [PARALLEL] Completed. Merging results...`);
+
+    // Merge & Return
+    const finalOutput: ContentOutput = {
+      script: metadataJson.script || [],
+      cinematography: {
+        storyboard: generatedShots.map((shot: any) => ({
+          frameNumber: shot.shotNumber || shot.frameNumber,
+          shotType: shot.type || shot.shotType,
+          visualDescription: shot.visual || shot.visualDescription,
+          visualNotes: shot.action || shot.visualNotes,
+          duration: shot.duration?.toString(),
+          cameraMovement: shot.cameraMovement,
+          audioVO: shot.audioVO || shot.audioSync,
+          transition: shot.transitionTo || shot.transition
+        })),
+        techSpecs: metadataJson.techSpecs || {}
+      },
+      bRoll: metadataJson.bRoll || [],
+      captions: [], // Required by schema, but handled in deploymentStrategy now
+      deploymentStrategy: {
+        ...metadataJson.deploymentStrategy,
+        alternativeCaptions: metadataJson.alternativeCaptions || {}
       }
-    }
-    const parsedAssembly = JSON.parse(parsedAssemblyText);
+    };
 
-    if (!parsedAssembly.output) {
-      throw new Error('Failed to assemble content');
-    }
+    const totalUsage = {
+      input: (scriptResponse.usage?.input || 0) + (storyboardResponse.usage?.input || 0) + (metadataResponse.usage?.input || 0),
+      output: (scriptResponse.usage?.output || 0) + (storyboardResponse.usage?.output || 0) + (metadataResponse.usage?.output || 0),
+      total: (scriptResponse.usage?.total || 0) + (storyboardResponse.usage?.total || 0) + (metadataResponse.usage?.total || 0)
+    };
 
-    let finalOutput = parsedAssembly.output;
-
-    // ─────────────────────────────────────────────────────────────
-    // STRATEGIC MERGE: Combine Step 2 Storyboard + Step 3 Specs
-    // ─────────────────────────────────────────────────────────────
-    // We intentionally told Step 3 to return an empty storyboard to save tokens.
-    // Now we merge the high-fidelity detailed storyboard from Step 2.
-    if (generatedShots && generatedShots.length > 0) {
-      console.log(`🔗 [ASSEMBLY] Injecting ${generatedShots.length} high-fidelity shots from Step 2`);
-
-      // Ensure structure exists
-      if (!finalOutput.cinematography) finalOutput.cinematography = {};
-
-      // STRICT INJECTION: No "checking if shorter", just Always Inject
-      finalOutput.cinematography.storyboard = generatedShots.map((shot: any) => ({
-        frameNumber: shot.shotNumber || shot.frameNumber,
-        shotType: shot.type || shot.shotType,
-        visualDescription: shot.visual || shot.visualDescription,
-        visualNotes: shot.action || shot.visualNotes,
-        duration: shot.duration?.toString(),
-        cameraMovement: shot.cameraMovement,
-        audioVO: shot.audioVO || shot.audioSync, // Handle prompt alias
-        transition: shot.transitionTo || shot.transition
-      }));
-    } else {
-      console.warn('⚠️ [ASSEMBLY] No Step 2 storyboard found to inject!');
-    }
-
-    // Attach validation metadata to the response for the frontend to display
     return {
       output: finalOutput,
       validation: {
         script: scriptValidation,
         storyboard: storyboardValidation
-      }
+      },
+      usage: totalUsage,
+      model: metadataResponse.model,
+      provider: metadataResponse.provider
     } as any;
 
   } catch (error) {

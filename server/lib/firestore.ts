@@ -250,47 +250,38 @@ export async function listSessions(userId?: string): Promise<FirestoreSession[]>
 
     if (userId) {
         if (DEBUG) console.log('[Firestore] Filtering by userId:', userId);
-        query = query.where("userId", "==", userId) as any;
+        // Optimized query using composite index (userId ASC, updatedAt DESC)
+        query = query.where("userId", "==", userId).orderBy("updatedAt", "desc") as any;
     } else {
-        if (DEBUG) console.log('[Firestore] No userId filter - fetching ALL sessions');
+        if (DEBUG) console.log('[Firestore] No userId filter - fetching ALL sessions (limit 50)');
+        // Admin view or debug: still sort by recency
+        query = query.orderBy("updatedAt", "desc").limit(50) as any;
     }
 
-    // REMOVED: Firestore orderBy (requires index that may not be ready)
-    // Instead, sort in memory after fetching
+    try {
+        const snapshot = await query.get();
+        if (DEBUG) console.log('[Firestore] Query returned', snapshot.size, 'documents');
 
-    const snapshot = await query.get();
-    if (DEBUG) console.log('[Firestore] Query returned', snapshot.size, 'documents');
+        return snapshot.docs.map((doc) => doc.data() as FirestoreSession);
+    } catch (error: any) {
+        // Fallback for missing index error
+        if (error.code === 9 || error.message.includes('requires an index')) {
+            console.warn('[Firestore] ⚠️ Missing Index! Falling back to client-side sort. PLEASE DEPLOY INDEXES.');
 
-    const sessions = snapshot.docs.map((doc) => {
-        const data = doc.data() as FirestoreSession;
-        if (DEBUG) console.log('[Firestore] Session doc:', doc.id, 'hasUserId:', !!data.userId, 'hasNumericId:', !!data.numericId);
-        return data;
-    });
+            // Re-run simple query without sort
+            const fallbackQuery = firestore.collection("sessions").where("userId", "==", userId);
+            const snapshot = await fallbackQuery.get();
+            const sessions = snapshot.docs.map(doc => doc.data() as FirestoreSession);
 
-    // Sort by updatedAt in MEMORY (works without index)
-    sessions.sort((a, b) => {
-        // Use updatedAt if available (activity based), fallback to createdAt (creation based)
-        const aTime = (a.updatedAt || a.createdAt)?.toMillis?.() || 0;
-        const bTime = (b.updatedAt || b.createdAt)?.toMillis?.() || 0;
-
-        // DEBUG: Log the comparison for the first few items
-        // if (Math.random() < 0.01) console.log(`[Sort] ${a.title} (${aTime}) vs ${b.title} (${bTime})`);
-
-        return bTime - aTime; // Descending (newest activity first)
-    });
-
-    // DEBUG: Show first 5 sessions with their timestamps
-    if (DEBUG) {
-        console.log('[Firestore] Sorted Session List (Top 5):');
-        sessions.slice(0, 5).forEach((s, i) => {
-            const uDate = s.updatedAt?.toDate?.();
-            const cDate = s.createdAt?.toDate?.();
-            const effective = uDate || cDate;
-            console.log(`  ${i + 1}. [${s.title}] Effective: ${effective?.toISOString()} (Updated: ${!!uDate}, Created: ${cDate?.toISOString()})`);
-        });
+            // Sort in memory
+            return sessions.sort((a, b) => {
+                const aTime = (a.updatedAt || a.createdAt)?.toMillis?.() || 0;
+                const bTime = (b.updatedAt || b.createdAt)?.toMillis?.() || 0;
+                return bTime - aTime;
+            });
+        }
+        throw error;
     }
-
-    return sessions;
 }
 
 export async function updateSession(
