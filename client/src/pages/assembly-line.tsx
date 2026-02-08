@@ -732,7 +732,7 @@ export default function AssemblyLine() {
           selectedVisualHook: project.selectedHooks?.visual,
           selectedVerbalHook: project.selectedHooks?.verbal
         }),
-        120000,
+        180000, // 3 minutes timeout (increased for Cloudflare Tunnel latency)
         'Generation timed out'
       );
 

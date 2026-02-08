@@ -2728,9 +2728,12 @@ OUTPUT FORMAT (JSON):
 
     console.log(`✅ [PARALLEL] Completed. Merging results...`);
 
+    // Correctly handle the "output" wrapper if present
+    const rootData = metadataJson.output || metadataJson;
+
     // Merge & Return
     const finalOutput: ContentOutput = {
-      script: metadataJson.script || [],
+      script: rootData.script || [],
       cinematography: {
         storyboard: generatedShots.map((shot: any) => ({
           frameNumber: shot.shotNumber || shot.frameNumber,
@@ -2742,13 +2745,13 @@ OUTPUT FORMAT (JSON):
           audioVO: shot.audioVO || shot.audioSync,
           transition: shot.transitionTo || shot.transition
         })),
-        techSpecs: metadataJson.techSpecs || {}
+        techSpecs: rootData.techSpecs || {}
       },
-      bRoll: metadataJson.bRoll || [],
+      bRoll: rootData.bRoll || [],
       captions: [], // Required by schema, but handled in deploymentStrategy now
       deploymentStrategy: {
-        ...metadataJson.deploymentStrategy,
-        alternativeCaptions: metadataJson.alternativeCaptions || {}
+        ...rootData.deploymentStrategy,
+        alternativeCaptions: rootData.alternativeCaptions || {}
       }
     };
 

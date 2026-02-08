@@ -1,5 +1,5 @@
 import { onCLS, onINP, onFCP, onLCP, onTTFB, Metric } from 'web-vitals';
-import { Sentry } from './sentry';
+import { captureMessage } from './sentry';
 
 /**
  * Track Web Vitals and send to Sentry
@@ -20,18 +20,15 @@ export function trackWebVitals() {
             delta: Math.round(delta),
         });
 
-        // Send to Sentry in production
+        // Send to Sentry in production (helper handles null check)
         if (isProd) {
-            Sentry.captureMessage(`Web Vital: ${name}`, {
-                level: rating === 'good' ? 'info' : rating === 'needs-improvement' ? 'warning' : 'error',
-                contexts: {
-                    vitals: {
-                        name,
-                        value: Math.round(value),
-                        rating,
-                    },
-                },
-            });
+            captureMessage(`Web Vital: ${name}`, {
+                vitals: {
+                    name,
+                    value: Math.round(value),
+                    rating,
+                }
+            }, rating === 'good' ? 'info' : rating === 'needs-improvement' ? 'warning' : 'error');
         }
     }
 
@@ -50,14 +47,11 @@ export function trackCustomMetric(name: string, value: number) {
     console.log(`[Performance] ${name}:`, value);
 
     if (import.meta.env.MODE === 'production') {
-        Sentry.captureMessage(`Custom Metric: ${name}`, {
-            level: 'info',
-            contexts: {
-                performance: {
-                    name,
-                    value,
-                },
-            },
-        });
+        captureMessage(`Custom Metric: ${name}`, {
+            performance: {
+                name,
+                value,
+            }
+        }, 'info');
     }
 }

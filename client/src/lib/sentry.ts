@@ -1,61 +1,115 @@
-import * as Sentry from '@sentry/react';
+// Sentry Error Monitoring - Production Only
+// Disabled in development to avoid React version conflicts
 
-const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
 const isProd = import.meta.env.MODE === 'production';
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN ||
+    'https://4ad64e78083428c1dd2fff80dd337b14@o4510832031367168.ingest.us.sentry.io/4510836116226048';
+
+// Only import Sentry in production to avoid React conflicts in dev
+let Sentry: typeof import('@sentry/react') | null = null;
+let isInitialized = false;
 
 /**
- * Initialize Sentry for React
+ * Initialize Sentry - ONLY runs in production mode
  */
-export function initSentry() {
-    if (!SENTRY_DSN) {
-        if (isProd) console.warn('⚠️  VITE_SENTRY_DSN not configured - error monitoring disabled');
+export async function initSentry() {
+    // Skip in development to avoid React conflicts
+    if (!isProd) {
+        console.log('ℹ️ Sentry disabled in development mode');
         return;
     }
 
-    Sentry.init({
-        dsn: SENTRY_DSN,
-        environment: import.meta.env.MODE,
+    if (isInitialized) return;
 
-        integrations: [
-            Sentry.browserTracingIntegration(),
-            Sentry.replayIntegration({
-                maskAllText: true, // Privacy: mask user text
-                blockAllMedia: true, // Privacy: block images/videos
-            }),
-        ],
+    if (!SENTRY_DSN) {
+        console.warn('⚠️  VITE_SENTRY_DSN not configured');
+        return;
+    }
 
-        // Performance monitoring
-        tracesSampleRate: isProd ? 0.1 : 1.0,
+    try {
+        // Dynamic import to avoid loading in dev
+        Sentry = await import('@sentry/react');
 
-        // Session replay (helps debug issues)
-        replaysSessionSampleRate: isProd ? 0.1 : 1.0,
-        replaysOnErrorSampleRate: 1.0, // Always capture on error
-
-        enabled: true, // Enabled for dev visibility as well
-
-        release: import.meta.env.VITE_GIT_COMMIT || 'local-dev',
-
-        beforeSend(event, hint) {
-            // Filter out expected errors
-            const error = hint.originalException;
-
-            if (error instanceof Error) {
-                // Don't report cancelled requests
-                if (error.message.includes('aborted') || error.message.includes('cancelled')) {
-                    return null;
+        Sentry.init({
+            dsn: SENTRY_DSN,
+            environment: 'production',
+            sendDefaultPii: true,
+            integrations: [
+                Sentry.browserTracingIntegration(),
+            ],
+            tracesSampleRate: 0.2,
+            replaysSessionSampleRate: 0,
+            replaysOnErrorSampleRate: 0,
+            enabled: true,
+            release: import.meta.env.VITE_GIT_COMMIT || 'local-dev',
+            beforeSend(event, hint) {
+                const error = hint.originalException;
+                if (error instanceof Error) {
+                    if (error.message.includes('aborted') ||
+                        error.message.includes('cancelled') ||
+                        error.message.includes('NetworkError') ||
+                        error.message.includes('Failed to fetch')) {
+                        return null;
+                    }
                 }
+                return event;
+            },
+        });
 
-                // Don't report network errors (could be user's internet)
-                if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-                    return null;
-                }
-            }
-
-            return event;
-        },
-    });
-
-    console.log('✅ Sentry initialized (client)');
+        isInitialized = true;
+        console.log('✅ Sentry initialized (production)');
+    } catch (error) {
+        console.warn('⚠️ Sentry initialization failed:', error);
+    }
 }
 
+/**
+ * Capture an exception - no-op in development
+ */
+export function captureError(error: Error, context?: Record<string, unknown>) {
+    if (!Sentry || !isInitialized) return;
+    Sentry.captureException(error, {
+        contexts: context ? { additional: context } : undefined,
+    });
+}
+
+/**
+ * Create a performance span - no-op in development
+ */
+export function startSpan<T>(
+    name: string,
+    op: string,
+    callback: () => T
+): T {
+    if (Sentry && isInitialized) {
+        return Sentry.startSpan({ name, op }, callback);
+    }
+    return callback();
+}
+
+/**
+ * Track a custom metric - no-op in development
+ */
+export function trackMetric(name: string, value: number, tags?: Record<string, string>) {
+    if (!Sentry || !isInitialized) return;
+    Sentry.captureMessage(`Metric: ${name}`, {
+        level: 'info',
+        contexts: {
+            metric: { name, value, ...tags },
+        },
+    });
+}
+
+/**
+ * Capture a message - no-op in development
+ */
+export function captureMessage(message: string, context?: Record<string, unknown>, level: 'info' | 'warning' | 'error' = 'info') {
+    if (!Sentry || !isInitialized) return;
+    Sentry.captureMessage(message, {
+        level,
+        contexts: context ? { additional: context } : undefined,
+    });
+}
+
+// Export for direct access - may be null in dev
 export { Sentry };

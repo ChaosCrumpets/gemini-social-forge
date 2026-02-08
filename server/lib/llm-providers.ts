@@ -14,7 +14,7 @@ export const providers: LLMProvider[] = [
     apiKey: process.env.GEMINI_API_KEY || '',
     rpm: 60,
     logicModel: 'gemini-2.0-flash',
-    contentModel: 'gemini-2.5-flash',
+    contentModel: 'gemini-2.0-flash',
     enabled: !!process.env.GEMINI_API_KEY,
     priority: 1
   },

@@ -77,7 +77,7 @@ async function runBenchmarks() {
     results.push(await benchmark(
         'Session Creation',
         async () => {
-            const response = await fetch('http://localhost:5000/api/sessions', {
+            const response = await fetch('http://localhost:5001/api/sessions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -100,7 +100,7 @@ async function runBenchmarks() {
     results.push(await benchmark(
         'Get Recent Sessions',
         async () => {
-            const response = await fetch('http://localhost:5000/api/sessions', {
+            const response = await fetch('http://localhost:5001/api/sessions', {
                 headers: {
                     'Authorization': `Bearer ${process.env.TEST_AUTH_TOKEN}`,
                 },
@@ -117,7 +117,7 @@ async function runBenchmarks() {
         results.push(await benchmark(
             'Firestore Document Read',
             async () => {
-                const response = await fetch(`http://localhost:5000/api/sessions/${createdSessionId}`, {
+                const response = await fetch(`http://localhost:5001/api/sessions/${createdSessionId}`, {
                     headers: {
                         'Authorization': `Bearer ${process.env.TEST_AUTH_TOKEN}`,
                     },
@@ -136,7 +136,7 @@ async function runBenchmarks() {
     results.push(await benchmark(
         'Content Generation (Full Pipeline)',
         async () => {
-            const response = await fetch('http://localhost:5000/api/generate-content', {
+            const response = await fetch('http://localhost:5001/api/generate-content', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { auth } from "../db";
 import * as firestoreUtils from "../lib/firestore";
+import { Timestamp } from "firebase-admin/firestore";
 
 // Helper to get user ID from Firebase auth token
 export async function getUserFromRequest(req: Request): Promise<{ uid: string; email?: string } | null> {
@@ -145,14 +146,16 @@ export async function checkUsageLimit(
         // Check if monthly limit resets needed (only for limited tiers)
         if (limit > 0 && user.lastUsageReset) {
             const now = new Date();
-            const lastReset = new Date(user.lastUsageReset);
+            // Convert Firestore Timestamp to JS Date for comparison
+            const lastReset = user.lastUsageReset.toDate();
             const daysSinceReset = Math.floor((now.getTime() - lastReset.getTime()) / (1000 * 60 * 60 * 24));
 
             if (daysSinceReset >= 30) {
                 // Reset usage count
                 await firestoreUtils.updateUser(user.id, {
                     usageCount: 0,
-                    lastUsageReset: now
+                    // Convert JS Date to Firestore Timestamp for storage
+                    lastUsageReset: Timestamp.fromDate(now)
                 });
                 (req as any).dbUser = { ...user, usageCount: 0 };
                 next();

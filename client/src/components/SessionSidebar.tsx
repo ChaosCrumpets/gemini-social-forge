@@ -273,8 +273,7 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
                 {editingId !== session.id && (
                   <div className="relative flex items-center justify-center w-6" onClick={e => e.stopPropagation()}>
                     <button
-                      className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-sidebar-accent transition-colors text-foreground font-bold z-10"
-                      style={{ minWidth: '24px' }}
+                      className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-sidebar-accent transition-colors text-foreground font-bold z-10 min-w-6"
                       onClick={(e) => {
                         e.stopPropagation();
                         // Find the dropdown menu sibling
@@ -297,13 +296,7 @@ export function SessionSidebar({ isOpen, onClose, onToggle }: SessionSidebarProp
 
                     {/* Dropdown Menu */}
                     <div
-                      className="custom-dropdown-menu hidden bg-popover text-popover-foreground border border-border rounded-md shadow-md z-50 min-w-[140px] p-1"
-                      style={{
-                        position: 'absolute',
-                        right: 0,
-                        top: '100%',
-                        display: 'none'
-                      }}
+                      className="custom-dropdown-menu hidden bg-popover text-popover-foreground border border-border rounded-md shadow-md z-50 min-w-[140px] p-1 absolute right-0 top-full"
                     >
                       <div
                         className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm cursor-pointer"
