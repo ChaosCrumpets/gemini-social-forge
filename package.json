@@ -70,7 +70,7 @@
     "groq-sdk": "^0.37.0",
     "helmet": "^8.1.0",
     "input-otp": "^1.4.2",
-    "jspdf": "^3.0.4",
+    "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.453.0",
     "memoizee": "^0.4.17",
